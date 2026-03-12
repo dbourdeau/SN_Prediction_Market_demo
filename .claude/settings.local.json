@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(where node:*)",
+      "Bash(where npm:*)",
+      "Bash(cmd.exe /c \"where node\")",
+      "Bash(cmd.exe /c \"where npm\")",
+      "Bash(export PATH=\"/c/Program Files/nodejs:$PATH\")",
+      "Bash(npm --version)",
+      "Read(//c/Program Files/**)",
+      "Read(//c/Program Files \\(x86\\)/**)",
+      "Read(//c/Users/Daniel.Bourdeau/AppData/**)",
+      "Read(//c//**)",
+      "Read(//c/Users/Daniel.Bourdeau/SN Prediction Market/$APPDATA/**)",
+      "Read(//c/Users/Daniel.Bourdeau/SN Prediction Market/$HOME/**)"
+    ]
+  }
+}
