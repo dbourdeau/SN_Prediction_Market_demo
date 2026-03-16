@@ -57,7 +57,7 @@ const Components = {
     // Market card for listings
     marketCard(market) {
         const userPred = AppState.userPredictions[market.id];
-        const daysLeft = Math.max(0, Math.ceil((new Date(market.closesAt) - new Date()) / (1000 * 60 * 60 * 24)));
+        const daysLeft = Math.max(0, Math.ceil((new Date(market.closes_at) - new Date()) / (1000 * 60 * 60 * 24)));
 
         return `
             <div class="bg-white rounded-xl border border-gray-200 p-5 card-hover cursor-pointer fade-in" onclick="AppState.navigate('market', { marketId: ${market.id} })">
@@ -206,10 +206,13 @@ const Components = {
                         <div class="flex items-center gap-3">
                             <div class="hidden sm:flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1.5">
                                 <svg class="w-4 h-4 text-yellow-300" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a8 8 0 100 16 8 8 0 000-16zM9 5a1 1 0 112 0v5a1 1 0 01-2 0V5zm1 10a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/></svg>
-                                <span class="text-sm font-semibold">${AppState.user.balance.toLocaleString()}</span>
+                                <span class="text-sm font-semibold">${(AppState.user?.balance || 0).toLocaleString()}</span>
                                 <span class="text-xs text-white/60">tokens</span>
                             </div>
-                            ${this.avatar(AppState.user.avatar, 'sm')}
+                            ${this.avatar(AppState.user?.avatar || 'XX', 'sm')}
+                            <button onclick="handleLogout()" class="text-white/60 hover:text-white transition-colors" title="Sign Out">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                            </button>
                         </div>
                     </div>
                     <!-- Mobile nav -->

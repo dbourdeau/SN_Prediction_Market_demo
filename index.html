@@ -56,11 +56,15 @@
         .tooltip { position: relative; }
         .tooltip::after { content: attr(data-tip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: #1f2937; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
         .tooltip:hover::after { opacity: 1; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .animate-spin { animation: spin 1s linear infinite; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
     <div id="app"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/data.js"></script>
+    <script src="js/supabase.js"></script>
     <script src="js/state.js"></script>
     <script src="js/components.js"></script>
     <script src="js/pages.js"></script>

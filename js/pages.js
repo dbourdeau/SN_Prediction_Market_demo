@@ -1,12 +1,127 @@
 // Page renderers
 
 const Pages = {
+    // ==================== LOGIN / SIGNUP ====================
+    login() {
+        return `
+            <div class="min-h-screen flex items-center justify-center px-4 py-12">
+                <div class="w-full max-w-md">
+                    <!-- Logo -->
+                    <div class="text-center mb-8">
+                        <div class="inline-flex items-center gap-2 mb-4">
+                            <svg class="w-10 h-10" viewBox="0 0 32 32" fill="none">
+                                <rect width="32" height="32" rx="8" fill="#0059a3"/>
+                                <path d="M8 16C8 11.58 11.58 8 16 8s8 3.58 8 8-3.58 8-8 8" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+                                <path d="M16 12v8l4-4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <div>
+                                <span class="font-bold text-2xl text-gray-900">SharkNinja</span>
+                                <span class="text-shark-500 text-lg ml-1">Predictions</span>
+                            </div>
+                        </div>
+                        <p class="text-gray-500 text-sm">Harness the collective intelligence of SharkNinja employees</p>
+                    </div>
+
+                    <!-- Auth card -->
+                    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
+                        <div class="flex mb-6" id="auth-tabs">
+                            <button onclick="switchAuthTab('signin')" id="tab-signin"
+                                class="flex-1 py-2 text-sm font-semibold text-center border-b-2 border-shark-600 text-shark-600">
+                                Sign In
+                            </button>
+                            <button onclick="switchAuthTab('signup')" id="tab-signup"
+                                class="flex-1 py-2 text-sm font-semibold text-center border-b-2 border-gray-200 text-gray-400">
+                                Create Account
+                            </button>
+                        </div>
+
+                        <!-- Sign In Form -->
+                        <div id="signin-form">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                    <input type="email" id="login-email" placeholder="you@sharkninja.com"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500 focus:border-transparent"/>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                                    <input type="password" id="login-password" placeholder="Enter your password"
+                                        onkeydown="if(event.key==='Enter') handleLogin()"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500 focus:border-transparent"/>
+                                </div>
+                                <button onclick="handleLogin()" id="login-btn"
+                                    class="w-full bg-shark-600 text-white py-3 rounded-lg font-semibold text-sm hover:bg-shark-700 transition-colors">
+                                    Sign In
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Sign Up Form (hidden by default) -->
+                        <div id="signup-form" class="hidden">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                                    <input type="text" id="signup-name" placeholder="Jane Smith"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500 focus:border-transparent"/>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                                    <select id="signup-department"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500 bg-white">
+                                        <option value="Product Strategy">Product Strategy</option>
+                                        <option value="Engineering">Engineering</option>
+                                        <option value="Marketing">Marketing</option>
+                                        <option value="Sales">Sales</option>
+                                        <option value="Finance">Finance</option>
+                                        <option value="E-commerce">E-commerce</option>
+                                        <option value="Supply Chain">Supply Chain</option>
+                                        <option value="R&D">R&D</option>
+                                        <option value="IT & Analytics">IT & Analytics</option>
+                                        <option value="Customer Experience">Customer Experience</option>
+                                        <option value="Competitive Intelligence">Competitive Intelligence</option>
+                                        <option value="Corporate Strategy">Corporate Strategy</option>
+                                        <option value="Operations">Operations</option>
+                                        <option value="AI/ML Team">AI/ML Team</option>
+                                        <option value="International">International</option>
+                                        <option value="Retail">Retail</option>
+                                        <option value="Sustainability">Sustainability</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                    <input type="email" id="signup-email" placeholder="you@sharkninja.com"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500 focus:border-transparent"/>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                                    <input type="password" id="signup-password" placeholder="At least 6 characters"
+                                        onkeydown="if(event.key==='Enter') handleSignup()"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500 focus:border-transparent"/>
+                                </div>
+                                <button onclick="handleSignup()" id="signup-btn"
+                                    class="w-full bg-shark-600 text-white py-3 rounded-lg font-semibold text-sm hover:bg-shark-700 transition-colors">
+                                    Create Account
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="auth-error" class="hidden mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700"></div>
+                        <div id="auth-success" class="hidden mt-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700"></div>
+                    </div>
+
+                    <p class="text-center text-xs text-gray-400 mt-6">Internal use only. SharkNinja Prediction Market Platform.</p>
+                </div>
+            </div>
+        `;
+    },
+
     // ==================== DASHBOARD ====================
     dashboard() {
         const trending = AppState.markets.filter(m => m.trending).slice(0, 4);
-        const totalTraders = new Set(MOCK_LEADERBOARD.map(l => l.name)).size;
         const totalVolume = AppState.markets.reduce((s, m) => s + m.volume, 0);
         const activeMarkets = AppState.markets.filter(m => m.status === 'active').length;
+        const userRank = AppState.leaderboard.findIndex(p => p.id === AppState.user?.id) + 1;
 
         return `
             <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8 fade-in">
@@ -14,7 +129,7 @@ const Pages = {
                 <div class="bg-gradient-to-r from-shark-800 to-shark-600 rounded-2xl p-6 sm:p-8 text-white mb-8">
                     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <div>
-                            <h1 class="text-2xl sm:text-3xl font-bold mb-2">Welcome back, ${AppState.user.name.split('.')[0]} 👋</h1>
+                            <h1 class="text-2xl sm:text-3xl font-bold mb-2">Welcome back, ${AppState.user?.name?.split(' ')[0] || 'Forecaster'} 👋</h1>
                             <p class="text-shark-200 text-sm sm:text-base">Harness the collective intelligence of SharkNinja employees to forecast what matters.</p>
                         </div>
                         <button onclick="AppState.navigate('create')" class="bg-white text-shark-800 px-5 py-2.5 rounded-lg font-semibold text-sm hover:bg-shark-50 transition-colors shrink-0">
@@ -27,8 +142,8 @@ const Pages = {
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                     ${Components.statCard('Active Markets', activeMarkets, 'Across all categories', '📊')}
                     ${Components.statCard('Total Volume', totalVolume.toLocaleString(), 'Prediction tokens traded', '💰')}
-                    ${Components.statCard('Active Forecasters', totalTraders + '+', 'Employees participating', '👥')}
-                    ${Components.statCard('Your Rank', '#11', `${AppState.user.points.toLocaleString()} points`, '🏆')}
+                    ${Components.statCard('Active Forecasters', AppState.leaderboard.length + '+', 'Employees participating', '👥')}
+                    ${Components.statCard('Your Rank', userRank > 0 ? '#' + userRank : 'Unranked', `${(AppState.user?.points || 0).toLocaleString()} points`, '🏆')}
                 </div>
 
                 <!-- Trending Markets -->
@@ -38,7 +153,7 @@ const Pages = {
                         <button onclick="AppState.navigate('markets')" class="text-sm text-shark-600 font-medium hover:text-shark-800">View all →</button>
                     </div>
                     <div class="grid gap-4 md:grid-cols-2">
-                        ${trending.map(m => Components.marketCard(m)).join('')}
+                        ${trending.length > 0 ? trending.map(m => Components.marketCard(m)).join('') : '<div class="text-gray-400 text-sm col-span-2 text-center py-8">No trending markets yet.</div>'}
                     </div>
                 </div>
 
@@ -149,7 +264,8 @@ const Pages = {
 
         const userPred = AppState.userPredictions[m.id];
         const pct = Math.round(m.probability * 100);
-        const daysLeft = Math.max(0, Math.ceil((new Date(m.closesAt) - new Date()) / (1000 * 60 * 60 * 24)));
+        const daysLeft = Math.max(0, Math.ceil((new Date(m.closes_at) - new Date()) / (1000 * 60 * 60 * 24)));
+        const comments = AppState.selectedMarketComments || [];
 
         return `
             <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8 fade-in">
@@ -191,20 +307,43 @@ const Pages = {
 
                         <!-- Comments -->
                         <div class="bg-white rounded-xl border border-gray-200 p-6">
-                            <h3 class="font-semibold text-gray-900 mb-4">Discussion (${m.comments.length})</h3>
+                            <h3 class="font-semibold text-gray-900 mb-4">Discussion (${comments.length})</h3>
+
+                            <!-- Add comment -->
+                            <div class="flex gap-3 mb-6">
+                                ${Components.avatar(AppState.user?.avatar || 'XX', 'sm')}
+                                <div class="flex-1 flex gap-2">
+                                    <input type="text" id="comment-input" placeholder="Share your insight..."
+                                        onkeydown="if(event.key==='Enter') handleAddComment(${m.id})"
+                                        class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500"/>
+                                    <button onclick="handleAddComment(${m.id})"
+                                        class="bg-shark-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-shark-700 transition-colors">
+                                        Post
+                                    </button>
+                                </div>
+                            </div>
+
                             <div class="space-y-4">
-                                ${m.comments.map(c => `
-                                    <div class="flex gap-3">
-                                        ${Components.avatar(c.user.split(' ').map(w => w[0]).slice(0, 2).join(''), 'sm')}
-                                        <div class="flex-1">
-                                            <div class="flex items-center gap-2">
-                                                <span class="text-sm font-semibold text-gray-900">${c.user}</span>
-                                                <span class="text-xs text-gray-400">${c.time}</span>
+                                ${comments.length > 0 ? comments.map(c => {
+                                    const profile = c.profiles || {};
+                                    const userName = profile.name || 'Unknown';
+                                    const dept = profile.department || '';
+                                    const displayName = dept ? `${userName} (${dept})` : userName;
+                                    const initials = userName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() || 'XX';
+                                    const timeAgo = getTimeAgo(c.created_at);
+                                    return `
+                                        <div class="flex gap-3">
+                                            ${Components.avatar(initials, 'sm')}
+                                            <div class="flex-1">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-sm font-semibold text-gray-900">${displayName}</span>
+                                                    <span class="text-xs text-gray-400">${timeAgo}</span>
+                                                </div>
+                                                <p class="text-sm text-gray-600 mt-1">${c.text}</p>
                                             </div>
-                                            <p class="text-sm text-gray-600 mt-1">${c.text}</p>
                                         </div>
-                                    </div>
-                                `).join('')}
+                                    `;
+                                }).join('') : '<div class="text-sm text-gray-400 text-center py-4">No comments yet. Be the first to share your insight!</div>'}
                             </div>
                         </div>
                     </div>
@@ -226,9 +365,9 @@ const Pages = {
                                 <div class="space-y-4">
                                     <div>
                                         <label class="block text-sm text-gray-600 mb-1">Amount (tokens)</label>
-                                        <input type="number" id="pred-amount" value="50" min="10" max="${AppState.user.balance}" step="10"
+                                        <input type="number" id="pred-amount" value="50" min="10" max="${AppState.user?.balance || 0}" step="10"
                                             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500"/>
-                                        <div class="text-xs text-gray-400 mt-1">Balance: ${AppState.user.balance} tokens</div>
+                                        <div class="text-xs text-gray-400 mt-1">Balance: ${(AppState.user?.balance || 0).toLocaleString()} tokens</div>
                                     </div>
                                     <div class="grid grid-cols-2 gap-3">
                                         <button onclick="handlePrediction(${m.id}, 'yes')"
@@ -252,15 +391,15 @@ const Pages = {
                             <div class="space-y-3 text-sm">
                                 <div class="flex justify-between">
                                     <span class="text-gray-500">Created by</span>
-                                    <span class="font-medium text-gray-900">${m.createdBy}</span>
+                                    <span class="font-medium text-gray-900">${m.created_by_name}</span>
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-gray-500">Created</span>
-                                    <span class="font-medium text-gray-900">${m.createdAt}</span>
+                                    <span class="font-medium text-gray-900">${new Date(m.created_at).toLocaleDateString()}</span>
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-gray-500">Closes</span>
-                                    <span class="font-medium text-gray-900">${m.closesAt}</span>
+                                    <span class="font-medium text-gray-900">${m.closes_at}</span>
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-gray-500">Days remaining</span>
@@ -285,31 +424,35 @@ const Pages = {
 
     // ==================== LEADERBOARD ====================
     leaderboard() {
+        const lb = AppState.leaderboard;
+        const top3 = lb.slice(0, 3);
+
         return `
             <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8 fade-in">
                 <h1 class="text-2xl font-bold text-gray-900 mb-2">Leaderboard</h1>
                 <p class="text-gray-500 text-sm mb-8">Top forecasters across SharkNinja. Rankings based on prediction accuracy and participation.</p>
 
                 <!-- Top 3 podium -->
+                ${top3.length >= 3 ? `
                 <div class="grid grid-cols-3 gap-4 mb-8">
                     ${[1, 0, 2].map(idx => {
-                        const p = MOCK_LEADERBOARD[idx];
-                        const heights = ['h-32', 'h-24', 'h-20'];
+                        const p = top3[idx];
                         const medals = ['🥇', '🥈', '🥉'];
                         const bg = idx === 0 ? 'bg-gradient-to-b from-yellow-50 to-white border-yellow-200' : 'bg-white border-gray-200';
                         const order = idx === 0 ? 'order-2' : idx === 1 ? 'order-1' : 'order-3';
                         return `
                             <div class="${order} flex flex-col items-center">
                                 <div class="text-3xl mb-2">${medals[idx]}</div>
-                                ${Components.avatar(p.avatar, 'lg')}
+                                ${Components.avatar(p.avatar || 'XX', 'lg')}
                                 <div class="font-bold text-gray-900 mt-2">${p.name}</div>
                                 <div class="text-xs text-gray-500">${p.department}</div>
                                 <div class="text-lg font-bold text-shark-600 mt-1">${p.points.toLocaleString()} pts</div>
-                                <div class="text-xs text-gray-500">${Math.round(p.accuracy * 100)}% accuracy</div>
+                                <div class="text-xs text-gray-500">${Math.round((p.accuracy || 0) * 100)}% accuracy</div>
                             </div>
                         `;
                     }).join('')}
                 </div>
+                ` : ''}
 
                 <!-- Full table -->
                 <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -324,16 +467,17 @@ const Pages = {
                             </tr>
                         </thead>
                         <tbody>
-                            ${MOCK_LEADERBOARD.map(p => {
-                                const isUser = p.name === 'Daniel B.';
+                            ${lb.map((p, idx) => {
+                                const isUser = p.id === AppState.user?.id;
+                                const rank = idx + 1;
                                 return `
                                     <tr class="border-b border-gray-50 ${isUser ? 'bg-shark-50' : 'hover:bg-gray-50'}">
                                         <td class="px-4 py-3">
-                                            <span class="text-sm font-bold ${p.rank <= 3 ? 'text-shark-600' : 'text-gray-400'}">#${p.rank}</span>
+                                            <span class="text-sm font-bold ${rank <= 3 ? 'text-shark-600' : 'text-gray-400'}">#${rank}</span>
                                         </td>
                                         <td class="px-4 py-3">
                                             <div class="flex items-center gap-3">
-                                                ${Components.avatar(p.avatar, 'sm')}
+                                                ${Components.avatar(p.avatar || 'XX', 'sm')}
                                                 <div>
                                                     <div class="text-sm font-semibold text-gray-900">${p.name} ${isUser ? '<span class="text-xs text-shark-600">(You)</span>' : ''}</div>
                                                     <div class="text-xs text-gray-500">${p.department}</div>
@@ -341,10 +485,10 @@ const Pages = {
                                             </div>
                                         </td>
                                         <td class="px-4 py-3 text-right hidden sm:table-cell">
-                                            <span class="text-sm font-medium text-gray-900">${Math.round(p.accuracy * 100)}%</span>
+                                            <span class="text-sm font-medium text-gray-900">${Math.round((p.accuracy || 0) * 100)}%</span>
                                         </td>
                                         <td class="px-4 py-3 text-right hidden sm:table-cell">
-                                            <span class="text-sm text-gray-600">${p.trades}</span>
+                                            <span class="text-sm text-gray-600">${p.trades || 0}</span>
                                         </td>
                                         <td class="px-4 py-3 text-right">
                                             <span class="text-sm font-bold text-gray-900">${p.points.toLocaleString()}</span>
@@ -352,6 +496,7 @@ const Pages = {
                                     </tr>
                                 `;
                             }).join('')}
+                            ${lb.length === 0 ? '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">No forecasters yet. Be the first!</td></tr>' : ''}
                         </tbody>
                     </table>
                 </div>
