@@ -12,12 +12,10 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 const Auth = {
     async signUp(email, password, name, department) {
         const { data, error } = await supabaseClient.auth.signUp({
-            email,
-            password,
+            email, password,
             options: { data: { name, department } }
         });
         if (error) throw error;
-
         if (data.user) {
             const initials = name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() || 'XX';
             await supabaseClient.from('profiles').update({
@@ -35,6 +33,13 @@ const Auth = {
 
     async signOut() {
         const { error } = await supabaseClient.auth.signOut();
+        if (error) throw error;
+    },
+
+    async resetPassword(email) {
+        const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin + window.location.pathname
+        });
         if (error) throw error;
     },
 
@@ -61,9 +66,11 @@ const Auth = {
 
 const DB = {
     // ---- Markets ----
-    async getMarkets() {
+    async getMarkets(limit = 50, offset = 0) {
         const { data, error } = await supabaseClient
-            .from('markets').select('*').order('created_at', { ascending: false });
+            .from('markets').select('*')
+            .order('created_at', { ascending: false })
+            .range(offset, offset + limit - 1);
         if (error) throw error;
         return data;
     },
@@ -99,11 +106,19 @@ const DB = {
         return data;
     },
 
+    async closeExpiredMarkets() {
+        const { data, error } = await supabaseClient.rpc('close_expired_markets');
+        if (error) console.warn('Auto-close error:', error);
+        return data;
+    },
+
     // ---- Predictions ----
-    async getPredictions(userId) {
+    async getPredictions(userId, limit = 50, offset = 0) {
         const { data, error } = await supabaseClient
             .from('predictions').select('*, markets(title, probability, status, resolution)')
-            .eq('user_id', userId).order('created_at', { ascending: false });
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .range(offset, offset + limit - 1);
         if (error) throw error;
         return data;
     },
@@ -145,11 +160,19 @@ const DB = {
         return data;
     },
 
+    async getAllProfiles() {
+        const { data, error } = await supabaseClient
+            .from('profiles').select('*').order('created_at', { ascending: false });
+        if (error) throw error;
+        return data;
+    },
+
     // ---- Comments ----
     async getComments(marketId) {
         const { data, error } = await supabaseClient
             .from('comments').select('*, profiles(name, department, avatar)')
-            .eq('market_id', marketId).order('created_at', { ascending: false });
+            .eq('market_id', marketId).is('deleted_at', null)
+            .order('created_at', { ascending: false });
         if (error) throw error;
         return data;
     },
@@ -162,20 +185,29 @@ const DB = {
         return data;
     },
 
+    async deleteComment(commentId, deletedBy) {
+        const { error } = await supabaseClient
+            .from('comments').update({ deleted_at: new Date().toISOString(), deleted_by: deletedBy })
+            .eq('id', commentId);
+        if (error) throw error;
+    },
+
     // ---- Leaderboard ----
-    async getLeaderboard() {
+    async getLeaderboard(limit = 50, offset = 0) {
         const { data, error } = await supabaseClient
             .from('profiles').select('*')
-            .order('points', { ascending: false }).limit(50);
+            .order('points', { ascending: false })
+            .range(offset, offset + limit - 1);
         if (error) throw error;
         return data;
     },
 
     // ---- Notifications ----
-    async getNotifications(userId) {
+    async getNotifications(userId, limit = 50) {
         const { data, error } = await supabaseClient
             .from('notifications').select('*')
-            .eq('user_id', userId).order('created_at', { ascending: false }).limit(50);
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false }).limit(limit);
         if (error) throw error;
         return data;
     },
@@ -189,22 +221,27 @@ const DB = {
     },
 
     async markNotificationRead(id) {
-        const { error } = await supabaseClient
-            .from('notifications').update({ is_read: true }).eq('id', id);
-        if (error) throw error;
+        await supabaseClient.from('notifications').update({ is_read: true }).eq('id', id);
     },
 
     async markAllNotificationsRead(userId) {
-        const { error } = await supabaseClient
-            .from('notifications').update({ is_read: true })
+        await supabaseClient.from('notifications').update({ is_read: true })
             .eq('user_id', userId).eq('is_read', false);
-        if (error) throw error;
     },
 
     // ---- Realtime ----
     subscribeToMarkets(callback) {
         return supabaseClient.channel('markets-changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'markets' }, callback)
+            .subscribe();
+    },
+
+    subscribeToPredictions(marketId, callback) {
+        return supabaseClient.channel(`predictions-${marketId}`)
+            .on('postgres_changes', {
+                event: 'INSERT', schema: 'public', table: 'predictions',
+                filter: `market_id=eq.${marketId}`
+            }, callback)
             .subscribe();
     },
 

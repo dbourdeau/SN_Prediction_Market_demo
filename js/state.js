@@ -14,18 +14,19 @@ const AppState = {
     unreadCount: 0,
     viewingProfile: null,
     viewingProfilePredictions: [],
+    allUsers: [],
     categoryFilter: 'all',
     searchQuery: '',
     sortBy: 'trending',
     loading: false,
+    actionLoading: false, // for button-level loading
 
-    // Realtime channels
     _marketsChannel: null,
     _notificationsChannel: null,
     _commentsChannel: null,
+    _predictionsChannel: null,
 
     listeners: [],
-
     subscribe(fn) { this.listeners.push(fn); },
     notify() { this.listeners.forEach(fn => fn()); },
 
@@ -34,7 +35,6 @@ const AppState = {
     async init() {
         this.loading = true;
         this.notify();
-
         try {
             const session = await Auth.getSession();
             if (session) {
@@ -42,11 +42,12 @@ const AppState = {
                 await this.loadUserData(session.user.id);
                 this.currentPage = 'dashboard';
                 this._setupRealtime();
+                // Auto-close expired markets on load
+                DB.closeExpiredMarkets().then(() => this._refreshMarkets());
             }
         } catch (e) {
             console.error('Init error:', e);
         }
-
         this.loading = false;
         this.notify();
 
@@ -59,14 +60,10 @@ const AppState = {
                 this.notify();
             } else if (event === 'SIGNED_OUT') {
                 this._teardownRealtime();
-                this.session = null;
-                this.user = null;
-                this.markets = [];
-                this.userPredictions = [];
-                this.leaderboard = [];
-                this.notifications = [];
-                this.unreadCount = 0;
-                this.currentPage = 'login';
+                Object.assign(this, {
+                    session: null, user: null, markets: [], userPredictions: [],
+                    leaderboard: [], notifications: [], unreadCount: 0, currentPage: 'login'
+                });
                 this.notify();
             }
         });
@@ -75,70 +72,39 @@ const AppState = {
     async loadUserData(userId) {
         try {
             const [profile, markets, predictions, leaderboard, notifications, unreadCount] = await Promise.all([
-                Auth.getProfile(userId),
-                DB.getMarkets(),
-                DB.getPredictions(userId),
-                DB.getLeaderboard(),
-                DB.getNotifications(userId),
-                DB.getUnreadCount(userId)
+                Auth.getProfile(userId), DB.getMarkets(), DB.getPredictions(userId),
+                DB.getLeaderboard(), DB.getNotifications(userId), DB.getUnreadCount(userId)
             ]);
-
-            this.user = profile;
-            this.markets = markets;
-            this.userPredictions = predictions;
-            this.leaderboard = leaderboard;
-            this.notifications = notifications;
-            this.unreadCount = unreadCount;
-        } catch (e) {
-            console.error('Load user data error:', e);
-        }
+            Object.assign(this, { user: profile, markets, userPredictions: predictions, leaderboard, notifications, unreadCount });
+        } catch (e) { console.error('Load user data error:', e); }
     },
 
     async login(email, password) {
-        this.loading = true;
-        this.notify();
-        try {
-            await Auth.signIn(email, password);
-        } catch (e) {
-            this.loading = false;
-            this.notify();
-            throw e;
-        }
+        this.loading = true; this.notify();
+        try { await Auth.signIn(email, password); }
+        catch (e) { this.loading = false; this.notify(); throw e; }
     },
 
     async signup(email, password, name, department) {
-        this.loading = true;
-        this.notify();
+        this.loading = true; this.notify();
         try {
             const data = await Auth.signUp(email, password, name, department);
-            if (!data.session) {
-                this.loading = false;
-                this.currentPage = 'login';
-                this.notify();
-                return 'confirm';
-            }
-        } catch (e) {
-            this.loading = false;
-            this.notify();
-            throw e;
-        }
+            if (!data.session) { this.loading = false; this.currentPage = 'login'; this.notify(); return 'confirm'; }
+        } catch (e) { this.loading = false; this.notify(); throw e; }
     },
 
-    async logout() {
-        await Auth.signOut();
-    },
+    async logout() { await Auth.signOut(); },
+
+    async resetPassword(email) { await Auth.resetPassword(email); },
 
     // ==================== REALTIME ====================
 
     _setupRealtime() {
-        // Markets updates
         this._marketsChannel = DB.subscribeToMarkets(async (payload) => {
             if (payload.eventType === 'UPDATE') {
                 const idx = this.markets.findIndex(m => m.id === payload.new.id);
                 if (idx >= 0) this.markets[idx] = payload.new;
-                if (this.selectedMarket?.id === payload.new.id) {
-                    this.selectedMarket = payload.new;
-                }
+                if (this.selectedMarket?.id === payload.new.id) this.selectedMarket = payload.new;
                 this.notify();
             } else if (payload.eventType === 'INSERT') {
                 this.markets.unshift(payload.new);
@@ -146,7 +112,6 @@ const AppState = {
             }
         });
 
-        // Notifications
         if (this.session?.user?.id) {
             this._notificationsChannel = DB.subscribeToNotifications(this.session.user.id, (payload) => {
                 if (payload.eventType === 'INSERT') {
@@ -159,77 +124,81 @@ const AppState = {
     },
 
     _teardownRealtime() {
-        DB.unsubscribe(this._marketsChannel);
-        DB.unsubscribe(this._notificationsChannel);
-        DB.unsubscribe(this._commentsChannel);
-        this._marketsChannel = null;
-        this._notificationsChannel = null;
-        this._commentsChannel = null;
+        [this._marketsChannel, this._notificationsChannel, this._commentsChannel, this._predictionsChannel]
+            .forEach(ch => DB.unsubscribe(ch));
+        this._marketsChannel = this._notificationsChannel = this._commentsChannel = this._predictionsChannel = null;
+    },
+
+    async _refreshMarkets() {
+        try { this.markets = await DB.getMarkets(); this.notify(); } catch (e) {}
     },
 
     // ==================== NAVIGATION ====================
 
     async navigate(page, data) {
-        // Unsubscribe from previous comment channel
-        if (this._commentsChannel) {
-            DB.unsubscribe(this._commentsChannel);
-            this._commentsChannel = null;
-        }
+        DB.unsubscribe(this._commentsChannel);
+        DB.unsubscribe(this._predictionsChannel);
+        this._commentsChannel = this._predictionsChannel = null;
 
         this.currentPage = page;
 
         if (data?.marketId) {
             try {
                 const [market, comments, predictions] = await Promise.all([
-                    DB.getMarket(data.marketId),
-                    DB.getComments(data.marketId),
-                    DB.getMarketPredictions(data.marketId)
+                    DB.getMarket(data.marketId), DB.getComments(data.marketId), DB.getMarketPredictions(data.marketId)
                 ]);
                 this.selectedMarket = market;
                 this.selectedMarketComments = comments;
                 this.selectedMarketPredictions = predictions;
 
-                // Subscribe to live comments
-                this._commentsChannel = DB.subscribeToComments(data.marketId, async (payload) => {
-                    if (payload.eventType === 'INSERT') {
-                        // Reload to get joined profile data
-                        const comments = await DB.getComments(data.marketId);
-                        this.selectedMarketComments = comments;
-                        this.notify();
-                    }
+                // Live comments
+                this._commentsChannel = DB.subscribeToComments(data.marketId, async () => {
+                    this.selectedMarketComments = await DB.getComments(data.marketId);
+                    this.notify();
                 });
-            } catch (e) {
-                console.error('Failed to load market:', e);
-            }
+                // Live trades
+                this._predictionsChannel = DB.subscribeToPredictions(data.marketId, async () => {
+                    this.selectedMarketPredictions = await DB.getMarketPredictions(data.marketId);
+                    const updatedMarket = await DB.getMarket(data.marketId);
+                    this.selectedMarket = updatedMarket;
+                    const idx = this.markets.findIndex(m => m.id === data.marketId);
+                    if (idx >= 0) this.markets[idx] = updatedMarket;
+                    this.notify();
+                });
+            } catch (e) { console.error('Failed to load market:', e); }
         }
 
         if (data?.profileId) {
             try {
                 const [profile, predictions] = await Promise.all([
-                    DB.getProfileByID(data.profileId),
-                    DB.getPredictions(data.profileId)
+                    DB.getProfileByID(data.profileId), DB.getPredictions(data.profileId)
                 ]);
                 this.viewingProfile = profile;
                 this.viewingProfilePredictions = predictions;
-            } catch (e) {
-                console.error('Failed to load profile:', e);
-            }
+            } catch (e) { console.error('Failed to load profile:', e); }
+        }
+
+        // Refresh leaderboard when viewing it
+        if (page === 'leaderboard') {
+            try { this.leaderboard = await DB.getLeaderboard(); } catch (e) {}
+        }
+
+        // Load all users for admin
+        if (page === 'admin' && this.user?.is_admin) {
+            try { this.allUsers = await DB.getAllProfiles(); } catch (e) {}
         }
 
         this.notify();
         window.scrollTo(0, 0);
     },
 
-    // ==================== PREDICTIONS (AMM-based) ====================
+    // ==================== PREDICTIONS (AMM) ====================
 
     async placePrediction(marketId, direction, amount) {
         const market = this.markets.find(m => m.id === marketId);
-        if (!market || amount > this.user.balance || market.status !== 'active') return false;
+        if (!market || amount > this.user.balance || market.status !== 'active' || market.resolution) return false;
 
-        const qYes = market.q_yes || 0;
-        const qNo = market.q_no || 0;
-
-        // Calculate shares using AMM
+        const qYes = market.q_yes || 0, qNo = market.q_no || 0;
         const shares = AMM.sharesForBudget(qYes, qNo, amount, direction);
         if (shares <= 0) return false;
 
@@ -241,53 +210,34 @@ const AppState = {
 
         try {
             await DB.createPrediction({
-                user_id: this.session.user.id,
-                market_id: marketId,
-                direction,
-                amount,
-                shares,
+                user_id: this.session.user.id, market_id: marketId,
+                direction, amount, shares,
                 entry_prob: direction === 'yes' ? newProb : 1 - newProb,
                 status: 'active',
             });
 
             await DB.updateMarket(marketId, {
-                probability: newProb,
-                logit: newLogit,
-                q_yes: newQYes,
-                q_no: newQNo,
-                volume: market.volume + amount,
-                traders: market.traders + 1,
-                history: newHistory,
+                probability: newProb, logit: newLogit, q_yes: newQYes, q_no: newQNo,
+                volume: market.volume + amount, traders: market.traders + 1, history: newHistory,
             });
 
             const newBalance = this.user.balance - amount;
-            await DB.updateProfile(this.session.user.id, {
-                balance: newBalance,
-                trades: this.user.trades + 1,
-            });
+            await DB.updateProfile(this.session.user.id, { balance: newBalance, trades: this.user.trades + 1 });
 
-            // Update local state
             this.user.balance = newBalance;
             this.user.trades += 1;
-            market.probability = newProb;
-            market.logit = newLogit;
-            market.q_yes = newQYes;
-            market.q_no = newQNo;
-            market.volume += amount;
-            market.traders += 1;
-            market.history = newHistory;
+            Object.assign(market, { probability: newProb, logit: newLogit, q_yes: newQYes, q_no: newQNo, volume: market.volume + amount, traders: market.traders + 1, history: newHistory });
             this.selectedMarket = market;
 
-            // Refresh user predictions
             this.userPredictions = await DB.getPredictions(this.session.user.id);
             if (this.selectedMarket?.id === marketId) {
                 this.selectedMarketPredictions = await DB.getMarketPredictions(marketId);
             }
-
             this.notify();
             return { shares, newProb };
         } catch (e) {
             console.error('Prediction error:', e);
+            if (e.message?.includes('balance')) showToast('Insufficient balance', 'error');
             return false;
         }
     },
@@ -299,57 +249,38 @@ const AppState = {
         if (!pred || pred.status !== 'active') return false;
 
         const market = this.markets.find(m => m.id === pred.market_id);
-        if (!market || market.status !== 'active') return false;
+        if (!market || market.status !== 'active' || market.resolution) return false;
 
-        const qYes = market.q_yes || 0;
-        const qNo = market.q_no || 0;
-
-        // Calculate sell revenue
+        const qYes = market.q_yes || 0, qNo = market.q_no || 0;
         const revenue = AMM.sellRevenue(qYes, qNo, pred.shares, pred.direction);
         if (revenue <= 0) return false;
 
-        const newQYes = pred.direction === 'yes' ? qYes - pred.shares : qYes;
-        const newQNo = pred.direction === 'no' ? qNo - pred.shares : qNo;
-        const newProb = AMM.yesPrice(Math.max(0, newQYes), Math.max(0, newQNo));
-        const newLogit = AMM.logitFromProb(newProb);
+        const newQYes = pred.direction === 'yes' ? Math.max(0, qYes - pred.shares) : qYes;
+        const newQNo = pred.direction === 'no' ? Math.max(0, qNo - pred.shares) : qNo;
+        const newProb = AMM.yesPrice(newQYes, newQNo);
         const newHistory = [...(market.history || []), newProb];
+        const roundedRevenue = Math.round(revenue);
 
         try {
-            await DB.updatePrediction(pred.id, {
-                status: 'sold',
-                payout: revenue,
-            });
-
+            await DB.updatePrediction(pred.id, { status: 'sold', payout: roundedRevenue });
             await DB.updateMarket(market.id, {
-                probability: newProb,
-                logit: newLogit,
-                q_yes: Math.max(0, newQYes),
-                q_no: Math.max(0, newQNo),
-                volume: market.volume + Math.round(revenue),
-                history: newHistory,
+                probability: newProb, logit: AMM.logitFromProb(newProb),
+                q_yes: newQYes, q_no: newQNo,
+                volume: market.volume + roundedRevenue, history: newHistory,
             });
+            await DB.updateProfile(this.session.user.id, { balance: this.user.balance + roundedRevenue });
 
-            const newBalance = this.user.balance + Math.round(revenue);
-            await DB.updateProfile(this.session.user.id, { balance: newBalance });
-
-            this.user.balance = newBalance;
-            market.probability = newProb;
-            market.q_yes = Math.max(0, newQYes);
-            market.q_no = Math.max(0, newQNo);
-            market.history = newHistory;
+            this.user.balance += roundedRevenue;
+            Object.assign(market, { probability: newProb, q_yes: newQYes, q_no: newQNo, history: newHistory });
 
             this.userPredictions = await DB.getPredictions(this.session.user.id);
             if (this.selectedMarket?.id === market.id) {
                 this.selectedMarket = market;
                 this.selectedMarketPredictions = await DB.getMarketPredictions(market.id);
             }
-
             this.notify();
-            return Math.round(revenue);
-        } catch (e) {
-            console.error('Sell error:', e);
-            return false;
-        }
+            return { revenue: roundedRevenue, profit: roundedRevenue - pred.amount };
+        } catch (e) { console.error('Sell error:', e); return false; }
     },
 
     // ==================== MARKET RESOLUTION ====================
@@ -357,63 +288,57 @@ const AppState = {
     async resolveMarket(marketId, resolution) {
         try {
             await DB.resolveMarket(marketId, resolution, this.session.user.id);
-
-            // Refresh data
             const [markets, leaderboard, predictions] = await Promise.all([
-                DB.getMarkets(),
-                DB.getLeaderboard(),
-                DB.getPredictions(this.session.user.id),
+                DB.getMarkets(), DB.getLeaderboard(), DB.getPredictions(this.session.user.id),
             ]);
-            this.markets = markets;
-            this.leaderboard = leaderboard;
-            this.userPredictions = predictions;
-
-            // Refresh profile for updated balance
+            Object.assign(this, { markets, leaderboard, userPredictions: predictions });
             this.user = await Auth.getProfile(this.session.user.id);
-
             if (this.selectedMarket?.id === marketId) {
                 this.selectedMarket = this.markets.find(m => m.id === marketId);
                 this.selectedMarketPredictions = await DB.getMarketPredictions(marketId);
             }
-
             this.notify();
             return true;
-        } catch (e) {
-            console.error('Resolution error:', e);
-            throw e;
-        }
+        } catch (e) { console.error('Resolution error:', e); throw e; }
     },
 
     // ==================== MARKET CREATION ====================
 
     async addMarket(marketData) {
         try {
-            const initLogit = 0; // starts at 50%
             const newMarket = await DB.createMarket({
-                title: marketData.title,
-                description: marketData.description,
-                category: marketData.category,
-                closes_at: marketData.closesAt,
-                probability: 0.50,
-                logit: initLogit,
-                q_yes: 0,
-                q_no: 0,
-                volume: 0,
-                traders: 0,
+                title: marketData.title.slice(0, 200),
+                description: marketData.description.slice(0, 5000),
+                category: marketData.category, closes_at: marketData.closesAt,
+                probability: 0.50, logit: 0, q_yes: 0, q_no: 0,
+                volume: 0, traders: 0,
                 created_by: this.session.user.id,
                 created_by_name: `${this.user.name} (${this.user.department})`,
-                status: 'active',
-                trending: false,
-                history: [0.50],
+                status: 'active', trending: false, history: [0.50],
             });
-
             this.markets.unshift(newMarket);
             this.notify();
             return newMarket;
-        } catch (e) {
-            console.error('Create market error:', e);
-            throw e;
-        }
+        } catch (e) { console.error('Create market error:', e); throw e; }
+    },
+
+    // ==================== MARKET EDITING ====================
+
+    async editMarket(marketId, updates) {
+        try {
+            const clean = {};
+            if (updates.title) clean.title = updates.title.slice(0, 200);
+            if (updates.description) clean.description = updates.description.slice(0, 5000);
+            if (updates.closes_at) clean.closes_at = updates.closes_at;
+            clean.edited_at = new Date().toISOString();
+
+            const updated = await DB.updateMarket(marketId, clean);
+            const idx = this.markets.findIndex(m => m.id === marketId);
+            if (idx >= 0) this.markets[idx] = updated;
+            if (this.selectedMarket?.id === marketId) this.selectedMarket = updated;
+            this.notify();
+            return updated;
+        } catch (e) { console.error('Edit market error:', e); throw e; }
     },
 
     // ==================== COMMENTS ====================
@@ -421,17 +346,21 @@ const AppState = {
     async addComment(marketId, text) {
         try {
             const comment = await DB.createComment({
-                user_id: this.session.user.id,
-                market_id: marketId,
-                text,
+                user_id: this.session.user.id, market_id: marketId,
+                text: text.slice(0, 2000),
             });
             this.selectedMarketComments.unshift(comment);
             this.notify();
             return comment;
-        } catch (e) {
-            console.error('Comment error:', e);
-            throw e;
-        }
+        } catch (e) { console.error('Comment error:', e); throw e; }
+    },
+
+    async deleteComment(commentId) {
+        try {
+            await DB.deleteComment(commentId, this.session.user.id);
+            this.selectedMarketComments = this.selectedMarketComments.filter(c => c.id !== commentId);
+            this.notify();
+        } catch (e) { console.error('Delete comment error:', e); throw e; }
     },
 
     // ==================== NOTIFICATIONS ====================
@@ -439,18 +368,13 @@ const AppState = {
     async markNotificationRead(id) {
         await DB.markNotificationRead(id);
         const notif = this.notifications.find(n => n.id === id);
-        if (notif && !notif.is_read) {
-            notif.is_read = true;
-            this.unreadCount = Math.max(0, this.unreadCount - 1);
-            this.notify();
-        }
+        if (notif && !notif.is_read) { notif.is_read = true; this.unreadCount = Math.max(0, this.unreadCount - 1); this.notify(); }
     },
 
     async markAllRead() {
         await DB.markAllNotificationsRead(this.session.user.id);
         this.notifications.forEach(n => n.is_read = true);
-        this.unreadCount = 0;
-        this.notify();
+        this.unreadCount = 0; this.notify();
     },
 
     // ==================== ADMIN ====================
@@ -462,38 +386,38 @@ const AppState = {
         this.notify();
     },
 
+    async setUserAdmin(userId, isAdmin) {
+        await DB.updateProfile(userId, { is_admin: isAdmin });
+        const user = this.allUsers.find(u => u.id === userId);
+        if (user) user.is_admin = isAdmin;
+        this.notify();
+    },
+
+    async adjustUserBalance(userId, amount) {
+        const user = this.allUsers.find(u => u.id === userId);
+        if (!user) return;
+        const newBalance = Math.max(0, user.balance + amount);
+        await DB.updateProfile(userId, { balance: newBalance });
+        user.balance = newBalance;
+        if (userId === this.user.id) this.user.balance = newBalance;
+        this.notify();
+    },
+
     // ==================== FILTERING ====================
 
     getFilteredMarkets() {
         let filtered = [...this.markets];
-
-        if (this.categoryFilter !== 'all') {
-            filtered = filtered.filter(m => m.category === this.categoryFilter);
-        }
-
+        if (this.categoryFilter !== 'all') filtered = filtered.filter(m => m.category === this.categoryFilter);
         if (this.searchQuery) {
             const q = this.searchQuery.toLowerCase();
-            filtered = filtered.filter(m =>
-                m.title.toLowerCase().includes(q) ||
-                m.description.toLowerCase().includes(q)
-            );
+            filtered = filtered.filter(m => m.title.toLowerCase().includes(q) || m.description.toLowerCase().includes(q));
         }
-
         switch (this.sortBy) {
-            case 'trending':
-                filtered.sort((a, b) => (b.trending ? 1 : 0) - (a.trending ? 1 : 0) || b.volume - a.volume);
-                break;
-            case 'newest':
-                filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-                break;
-            case 'volume':
-                filtered.sort((a, b) => b.volume - a.volume);
-                break;
-            case 'closing':
-                filtered.sort((a, b) => new Date(a.closes_at) - new Date(b.closes_at));
-                break;
+            case 'trending': filtered.sort((a, b) => (b.trending ? 1 : 0) - (a.trending ? 1 : 0) || b.volume - a.volume); break;
+            case 'newest': filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); break;
+            case 'volume': filtered.sort((a, b) => b.volume - a.volume); break;
+            case 'closing': filtered.sort((a, b) => new Date(a.closes_at) - new Date(b.closes_at)); break;
         }
-
         return filtered;
     },
 

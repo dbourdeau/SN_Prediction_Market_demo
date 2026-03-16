@@ -1,7 +1,7 @@
 // Reusable UI components with XSS protection
 
 // ============================================================
-// XSS Protection — escape all user-generated content
+// XSS Protection
 // ============================================================
 
 function esc(str) {
@@ -12,7 +12,7 @@ function esc(str) {
 }
 
 // ============================================================
-// Utility
+// Utilities
 // ============================================================
 
 function getTimeAgo(dateString) {
@@ -27,9 +27,43 @@ function getTimeAgo(dateString) {
     return date.toLocaleDateString();
 }
 
+function formatDate(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 function daysLeft(dateStr) {
     if (!dateStr) return 0;
     return Math.max(0, Math.ceil((new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24)));
+}
+
+function initials(name) {
+    if (!name) return 'XX';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return (name.slice(0, 2)).toUpperCase();
+}
+
+// Disable a button during async operation
+function withLoading(btnId, asyncFn) {
+    return async function (...args) {
+        const btn = document.getElementById(btnId);
+        if (!btn || btn.disabled) return;
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        btn.innerHTML = '<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>' + original;
+        try {
+            return await asyncFn.apply(this, args);
+        } finally {
+            if (document.getElementById(btnId)) {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                btn.innerHTML = original;
+            }
+        }
+    };
 }
 
 // ============================================================
@@ -68,10 +102,8 @@ const Components = {
 
     sparkline(data, width = 120, height = 32) {
         if (!data || data.length < 2) return '';
-        const min = Math.min(...data) - 0.05;
-        const max = Math.max(...data) + 0.05;
-        const range = max - min || 1;
-        const step = width / (data.length - 1);
+        const min = Math.min(...data) - 0.05, max = Math.max(...data) + 0.05;
+        const range = max - min || 1, step = width / (data.length - 1);
         const points = data.map((v, i) => `${i * step},${height - ((v - min) / range) * height}`).join(' ');
         const lastVal = data[data.length - 1], firstVal = data[0];
         const color = lastVal >= firstVal ? '#22c55e' : '#ef4444';
@@ -82,59 +114,56 @@ const Components = {
     },
 
     marketCard(market) {
-        const userPreds = AppState.userPredictions.filter(p => p.market_id === market.id && p.status === 'active');
+        const userPreds = (AppState.userPredictions || []).filter(p => p.market_id === market.id && p.status === 'active');
         const days = daysLeft(market.closes_at);
         const isResolved = !!market.resolution;
+        const isExpired = !isResolved && days <= 0;
 
         return `
-            <div class="bg-white rounded-xl border border-gray-200 p-5 card-hover cursor-pointer fade-in ${isResolved ? 'opacity-75' : ''}"
+            <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 card-hover cursor-pointer fade-in ${isResolved ? 'opacity-75' : ''}"
                  onclick="AppState.navigate('market', { marketId: ${market.id} })">
                 <div class="flex items-start justify-between gap-3 mb-3">
-                    <div class="flex-1">
-                        <div class="flex items-center gap-2 mb-2 flex-wrap">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-1.5 mb-2 flex-wrap">
                             ${this.categoryTag(market.category)}
-                            ${market.trending && !isResolved ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">🔥 Trending</span>' : ''}
+                            ${market.trending && !isResolved ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">🔥</span>' : ''}
                             ${this.statusBadge(market)}
-                            ${userPreds.length > 0 ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-shark-100 text-shark-700">✓ ${userPreds.length} position${userPreds.length > 1 ? 's' : ''}</span>` : ''}
+                            ${isExpired ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Expired</span>' : ''}
+                            ${userPreds.length > 0 ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-shark-100 text-shark-700">✓ ${userPreds.length}</span>` : ''}
                         </div>
-                        <h3 class="font-semibold text-gray-900 text-base leading-snug">${esc(market.title)}</h3>
+                        <h3 class="font-semibold text-gray-900 text-sm sm:text-base leading-snug line-clamp-2">${esc(market.title)}</h3>
                     </div>
                     <div class="flex flex-col items-end gap-1 shrink-0">
                         ${this.probBadge(market.probability)}
-                        ${this.sparkline(market.history)}
+                        <div class="hidden sm:block">${this.sparkline(market.history)}</div>
                     </div>
                 </div>
-                <div class="flex items-center justify-between text-sm text-gray-500">
-                    <div class="flex items-center gap-4">
-                        <span class="flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                            ${market.traders}
-                        </span>
-                        <span class="flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
-                            ${market.volume.toLocaleString()}
-                        </span>
+                <div class="flex items-center justify-between text-xs sm:text-sm text-gray-500">
+                    <div class="flex items-center gap-3">
+                        <span>${market.traders} traders</span>
+                        <span>${market.volume.toLocaleString()} vol</span>
                     </div>
-                    <span class="text-xs">${isResolved ? 'Resolved' : days + ' days left'}</span>
+                    <span>${isResolved ? 'Resolved' : isExpired ? 'Expired' : days + 'd left'}</span>
                 </div>
             </div>
         `;
     },
 
     statCard(label, value, subtext, icon) {
-        return `<div class="bg-white rounded-xl border border-gray-200 p-5">
+        return `<div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
             <div class="flex items-center justify-between mb-2">
-                <span class="text-sm font-medium text-gray-500">${esc(label)}</span>
-                <span class="text-2xl">${icon}</span>
+                <span class="text-xs sm:text-sm font-medium text-gray-500">${esc(label)}</span>
+                <span class="text-xl sm:text-2xl">${icon}</span>
             </div>
-            <div class="text-2xl font-bold text-gray-900">${esc(String(value))}</div>
-            ${subtext ? `<div class="text-sm text-gray-500 mt-1">${esc(subtext)}</div>` : ''}
+            <div class="text-xl sm:text-2xl font-bold text-gray-900">${esc(String(value))}</div>
+            ${subtext ? `<div class="text-xs sm:text-sm text-gray-500 mt-1">${esc(subtext)}</div>` : ''}
         </div>`;
     },
 
-    avatar(initials, size = 'md') {
+    avatar(name_or_initials, size = 'md') {
+        const letters = name_or_initials.length > 2 ? initials(name_or_initials) : name_or_initials;
         const sizeClass = size === 'lg' ? 'w-12 h-12 text-lg' : size === 'sm' ? 'w-8 h-8 text-xs' : 'w-10 h-10 text-sm';
-        return `<div class="rounded-full bg-shark-600 text-white flex items-center justify-center font-semibold shrink-0 ${sizeClass}">${esc(initials)}</div>`;
+        return `<div class="rounded-full bg-shark-600 text-white flex items-center justify-center font-semibold shrink-0 ${sizeClass}">${esc(letters)}</div>`;
     },
 
     probBar(prob) {
@@ -149,25 +178,52 @@ const Components = {
 
     chart(data, width = 500, height = 160) {
         if (!data || data.length < 2) return '<div class="text-gray-400 text-sm">Not enough data</div>';
-        const padding = 30;
-        const chartW = width - padding * 2, chartH = height - padding * 2;
+        const padding = { top: 20, right: 15, bottom: 25, left: 40 };
+        const chartW = width - padding.left - padding.right;
+        const chartH = height - padding.top - padding.bottom;
         const min = Math.max(0, Math.min(...data) - 0.1), max = Math.min(1, Math.max(...data) + 0.1);
         const range = max - min || 1, step = chartW / (data.length - 1);
-        const points = data.map((v, i) => `${padding + i * step},${padding + chartH - ((v - min) / range) * chartH}`).join(' ');
-        const areaPoints = `${padding},${padding + chartH} ${points} ${padding + (data.length - 1) * step},${padding + chartH}`;
+
+        const points = data.map((v, i) => {
+            const x = padding.left + i * step;
+            const y = padding.top + chartH - ((v - min) / range) * chartH;
+            return `${x},${y}`;
+        }).join(' ');
+
+        const areaPoints = `${padding.left},${padding.top + chartH} ${points} ${padding.left + (data.length - 1) * step},${padding.top + chartH}`;
         const lastVal = data[data.length - 1], firstVal = data[0];
         const color = lastVal >= firstVal ? '#22c55e' : '#ef4444';
+
+        // Y-axis labels
         const yLabels = [min, (min + max) / 2, max].map(v => {
-            const y = padding + chartH - ((v - min) / range) * chartH;
-            return `<text x="${padding - 5}" y="${y + 4}" text-anchor="end" fill="#9ca3af" font-size="11">${Math.round(v * 100)}%</text>
-                    <line x1="${padding}" y1="${y}" x2="${width - padding}" y2="${y}" stroke="#f3f4f6" stroke-width="1"/>`;
+            const y = padding.top + chartH - ((v - min) / range) * chartH;
+            return `<text x="${padding.left - 5}" y="${y + 4}" text-anchor="end" fill="#9ca3af" font-size="10">${Math.round(v * 100)}%</text>
+                    <line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="#f3f4f6" stroke-width="1"/>`;
         }).join('');
+
+        // X-axis labels (first, middle, last)
+        const xPositions = [0, Math.floor(data.length / 2), data.length - 1];
+        const xLabels = xPositions.map(i => {
+            const x = padding.left + i * step;
+            return `<text x="${x}" y="${height - 3}" text-anchor="middle" fill="#9ca3af" font-size="9">${i === 0 ? 'Start' : i === data.length - 1 ? 'Now' : 'Mid'}</text>`;
+        }).join('');
+
         return `<svg width="100%" viewBox="0 0 ${width} ${height}" class="block">
-            ${yLabels}
+            ${yLabels}${xLabels}
             <polygon fill="${color}" fill-opacity="0.1" points="${areaPoints}"/>
             <polyline fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="${points}"/>
-            <circle cx="${padding + (data.length - 1) * step}" cy="${padding + chartH - ((lastVal - min) / range) * chartH}" r="4" fill="${color}" stroke="white" stroke-width="2"/>
+            <circle cx="${padding.left + (data.length - 1) * step}" cy="${padding.top + chartH - ((lastVal - min) / range) * chartH}" r="4" fill="${color}" stroke="white" stroke-width="2"/>
         </svg>`;
+    },
+
+    // Skeleton loading placeholder
+    skeleton(height = '20px', width = '100%') {
+        return `<div class="animate-pulse bg-gray-200 rounded" style="height:${height};width:${width}"></div>`;
+    },
+
+    loadingSpinner(size = 'md') {
+        const s = size === 'sm' ? 'w-5 h-5 border-2' : 'w-8 h-8 border-4';
+        return `<div class="inline-block ${s} border-shark-200 border-t-shark-600 rounded-full animate-spin"></div>`;
     },
 
     header() {
@@ -183,18 +239,19 @@ const Components = {
         }
 
         const unread = AppState.unreadCount;
+        const uid = AppState.session?.user?.id || '';
 
         return `
             <header class="gradient-bg text-white sticky top-0 z-50 shadow-lg">
                 <div class="max-w-7xl mx-auto px-4 sm:px-6">
-                    <div class="flex items-center justify-between h-16">
-                        <div class="flex items-center gap-3 cursor-pointer" onclick="AppState.navigate('dashboard')">
-                            <svg class="w-8 h-8" viewBox="0 0 32 32" fill="none">
+                    <div class="flex items-center justify-between h-14 sm:h-16">
+                        <div class="flex items-center gap-2 cursor-pointer shrink-0" onclick="AppState.navigate('dashboard')">
+                            <svg class="w-7 h-7 sm:w-8 sm:h-8" viewBox="0 0 32 32" fill="none">
                                 <rect width="32" height="32" rx="8" fill="white" fill-opacity="0.15"/>
                                 <path d="M8 16C8 11.58 11.58 8 16 8s8 3.58 8 8-3.58 8-8 8" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
                                 <path d="M16 12v8l4-4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
-                            <div>
+                            <div class="hidden sm:block">
                                 <span class="font-bold text-lg tracking-tight">SharkNinja</span>
                                 <span class="text-shark-200 text-sm ml-1">Predictions</span>
                             </div>
@@ -202,38 +259,36 @@ const Components = {
                         <nav class="hidden md:flex items-center gap-1">
                             ${navItems.map(item => `
                                 <button onclick="AppState.navigate('${item.id}')"
-                                    class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+                                    class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors
                                     ${AppState.currentPage === item.id ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}">
                                     ${item.icon} ${item.label}
                                 </button>
                             `).join('')}
                         </nav>
-                        <div class="flex items-center gap-3">
-                            <!-- Notifications bell -->
-                            <button onclick="AppState.navigate('notifications')" class="relative text-white/70 hover:text-white transition-colors">
+                        <div class="flex items-center gap-2 sm:gap-3">
+                            <button onclick="AppState.navigate('notifications')" class="relative text-white/70 hover:text-white transition-colors p-1">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-                                ${unread > 0 ? `<span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold">${unread > 9 ? '9+' : unread}</span>` : ''}
+                                ${unread > 0 ? `<span class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold">${unread > 9 ? '9+' : unread}</span>` : ''}
                             </button>
                             <div class="hidden sm:flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1.5">
-                                <svg class="w-4 h-4 text-yellow-300" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a8 8 0 100 16 8 8 0 000-16zM9 5a1 1 0 112 0v5a1 1 0 01-2 0V5zm1 10a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/></svg>
                                 <span class="text-sm font-semibold">${(AppState.user?.balance || 0).toLocaleString()}</span>
                                 <span class="text-xs text-white/60">tokens</span>
                             </div>
-                            <button onclick="AppState.navigate('profile', { profileId: '${AppState.session?.user?.id}' })" class="cursor-pointer">
+                            <button onclick="AppState.navigate('profile', { profileId: '${uid}' })" class="cursor-pointer">
                                 ${this.avatar(AppState.user?.avatar || 'XX', 'sm')}
                             </button>
-                            <button onclick="handleLogout()" class="text-white/60 hover:text-white transition-colors" title="Sign Out">
+                            <button onclick="handleLogout()" class="text-white/60 hover:text-white transition-colors p-1" title="Sign Out">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
                             </button>
                         </div>
                     </div>
                     <!-- Mobile nav -->
-                    <div class="flex md:hidden gap-1 pb-2 overflow-x-auto">
+                    <div class="flex md:hidden gap-1 pb-2 overflow-x-auto -mx-1 px-1">
                         ${navItems.map(item => `
                             <button onclick="AppState.navigate('${item.id}')"
-                                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap
+                                class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap
                                 ${AppState.currentPage === item.id ? 'bg-white/20 text-white' : 'text-white/70'}">
-                                ${item.icon} ${item.label}
+                                ${item.label}
                             </button>
                         `).join('')}
                     </div>

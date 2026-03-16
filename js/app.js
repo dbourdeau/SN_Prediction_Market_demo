@@ -85,7 +85,7 @@ async function handleSignup() {
 
     if (!name) { showAuthError('Please enter your name'); return; }
     if (!email) { showAuthError('Please enter your email'); return; }
-    if (!password || password.length < 6) { showAuthError('Password must be at least 6 characters'); return; }
+    if (!password || password.length < 8) { showAuthError('Password must be at least 8 characters'); return; }
 
     btn.disabled = true;
     btn.textContent = 'Creating account...';
@@ -99,6 +99,18 @@ async function handleSignup() {
         showAuthError(e.message || 'Sign up failed.');
         btn.disabled = false;
         btn.textContent = 'Create Account';
+    }
+}
+
+async function handleForgotPassword() {
+    const email = document.getElementById('login-email')?.value?.trim();
+    if (!email) { showAuthError('Enter your email above, then click Forgot password'); return; }
+
+    try {
+        await AppState.resetPassword(email);
+        showAuthSuccess('Password reset email sent! Check your inbox.');
+    } catch (e) {
+        showAuthError(e.message || 'Failed to send reset email.');
     }
 }
 
@@ -123,15 +135,23 @@ async function handleLogout() {
 async function handlePrediction(marketId, direction) {
     const amountInput = document.getElementById('pred-amount');
     const amount = parseInt(amountInput?.value || '50');
+    const btn = document.getElementById(`btn-${direction}-${marketId}`);
 
     if (amount < 10) { showToast('Minimum prediction is 10 tokens', 'error'); return; }
     if (amount > AppState.user.balance) { showToast('Insufficient token balance', 'error'); return; }
 
-    const result = await AppState.placePrediction(marketId, direction, amount);
-    if (result) {
-        showToast(`Bought ${result.shares.toFixed(1)} ${direction.toUpperCase()} shares for ${amount} tokens!`, 'success');
-    } else {
+    if (btn) { btn.disabled = true; btn.textContent = 'Buying...'; }
+    try {
+        const result = await AppState.placePrediction(marketId, direction, amount);
+        if (result) {
+            showToast(`Bought ${result.shares.toFixed(1)} ${direction.toUpperCase()} shares for ${amount} tokens!`, 'success');
+        } else {
+            showToast('Failed to place prediction.', 'error');
+        }
+    } catch (e) {
         showToast('Failed to place prediction.', 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = `${direction.toUpperCase()} ▲`; }
     }
 }
 
@@ -141,16 +161,10 @@ function updateTradeEstimate(marketId) {
 
     const amount = parseInt(document.getElementById('pred-amount')?.value || '50');
     const qYes = market.q_yes || 0, qNo = market.q_no || 0;
-    const estYes = AMM.estimatePayout(qYes, qNo, amount, 'yes');
-    const estNo = AMM.estimatePayout(qYes, qNo, amount, 'no');
 
     const el = document.getElementById('trade-estimate');
     if (el) {
-        el.innerHTML = `
-            <div class="flex justify-between mb-1"><span>YES shares (${amount} tokens):</span><span class="font-semibold">${estYes.shares.toFixed(1)} shares</span></div>
-            <div class="flex justify-between"><span>NO shares (${amount} tokens):</span><span class="font-semibold">${estNo.shares.toFixed(1)} shares</span></div>
-            <div class="text-xs text-gray-400 mt-2">Each winning share pays out 1 token</div>
-        `;
+        el.innerHTML = _tradeEstimateHTML(qYes, qNo, amount);
     }
 }
 
@@ -159,10 +173,18 @@ function updateTradeEstimate(marketId) {
 async function handleSellPosition(predictionId) {
     if (!confirm('Sell this position? You will receive tokens at the current market price.')) return;
 
-    const revenue = await AppState.sellPosition(predictionId);
-    if (revenue !== false) {
-        showToast(`Position sold for ${revenue} tokens!`, 'success');
-    } else {
+    const btn = document.getElementById(`sell-btn-${predictionId}`);
+    if (btn) { btn.disabled = true; btn.textContent = 'Selling...'; }
+
+    try {
+        const result = await AppState.sellPosition(predictionId);
+        if (result && result !== false) {
+            const profitLabel = result.profit >= 0 ? `+${result.profit}` : `${result.profit}`;
+            showToast(`Position sold for ${result.revenue} tokens (${profitLabel} profit)!`, result.profit >= 0 ? 'success' : 'info');
+        } else {
+            showToast('Failed to sell position.', 'error');
+        }
+    } catch (e) {
         showToast('Failed to sell position.', 'error');
     }
 }
@@ -174,17 +196,49 @@ async function handleCreateMarket() {
     const desc = document.getElementById('create-desc')?.value?.trim();
     const category = document.getElementById('create-category')?.value;
     const closesAt = document.getElementById('create-closes')?.value;
+    const btn = document.getElementById('create-market-btn');
 
     if (!title) { showToast('Please enter a question', 'error'); return; }
     if (!desc) { showToast('Please enter a description', 'error'); return; }
     if (!closesAt) { showToast('Please set a closing date', 'error'); return; }
 
+    if (btn) { btn.disabled = true; btn.textContent = 'Creating...'; }
     try {
         const newMarket = await AppState.addMarket({ title, description: desc, category, closesAt });
         showToast('Market created!', 'success');
         await AppState.navigate('market', { marketId: newMarket.id });
     } catch (e) {
         showToast('Failed to create market.', 'error');
+        if (btn) { btn.disabled = false; btn.textContent = 'Create Market'; }
+    }
+}
+
+// ==================== MARKET EDITING ====================
+
+function toggleEditMarket() {
+    const form = document.getElementById('edit-market-form');
+    if (form) {
+        form.classList.toggle('hidden');
+    }
+}
+
+async function handleEditMarket(marketId) {
+    const title = document.getElementById('edit-title')?.value?.trim();
+    const desc = document.getElementById('edit-desc')?.value?.trim();
+    const closesAt = document.getElementById('edit-closes')?.value;
+    const btn = document.getElementById('save-edit-btn');
+
+    if (!title) { showToast('Title cannot be empty', 'error'); return; }
+
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+    try {
+        await AppState.editMarket(marketId, { title, description: desc, closes_at: closesAt || undefined });
+        showToast('Market updated!', 'success');
+        toggleEditMarket();
+    } catch (e) {
+        showToast('Failed to update market.', 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
     }
 }
 
@@ -196,11 +250,15 @@ async function handleResolveMarket(marketId, resolution) {
 
     if (!confirm(`Resolve "${market?.title || 'this market'}" as ${label}? This will trigger payouts and cannot be undone.`)) return;
 
+    const btn = document.getElementById(`resolve-${resolution}-${marketId}`);
+    if (btn) { btn.disabled = true; btn.textContent = '...'; }
+
     try {
         await AppState.resolveMarket(marketId, resolution);
         showToast(`Market resolved as ${label}! Payouts processed.`, 'success');
     } catch (e) {
         showToast('Failed to resolve: ' + (e.message || 'Unknown error'), 'error');
+        if (btn) { btn.disabled = false; btn.textContent = label; }
     }
 }
 
@@ -216,6 +274,40 @@ async function handleAddComment(marketId) {
         showToast('Comment posted!', 'success');
     } catch (e) {
         showToast('Failed to post comment.', 'error');
+    }
+}
+
+async function handleDeleteComment(commentId) {
+    if (!confirm('Delete this comment?')) return;
+
+    try {
+        await AppState.deleteComment(commentId);
+        showToast('Comment deleted.', 'info');
+    } catch (e) {
+        showToast('Failed to delete comment.', 'error');
+    }
+}
+
+// ==================== ADMIN: USER MANAGEMENT ====================
+
+async function handleToggleAdmin(userId, isAdmin) {
+    const action = isAdmin ? 'grant admin to' : 'remove admin from';
+    if (!confirm(`Are you sure you want to ${action} this user?`)) return;
+
+    try {
+        await AppState.setUserAdmin(userId, isAdmin);
+        showToast(isAdmin ? 'Admin access granted.' : 'Admin access removed.', 'success');
+    } catch (e) {
+        showToast('Failed to update user role.', 'error');
+    }
+}
+
+async function handleAdjustBalance(userId, amount) {
+    try {
+        await AppState.adjustUserBalance(userId, amount);
+        showToast(`Added ${amount} tokens to user balance.`, 'success');
+    } catch (e) {
+        showToast('Failed to adjust balance.', 'error');
     }
 }
 
