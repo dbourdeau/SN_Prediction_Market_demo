@@ -133,6 +133,7 @@ async function handleLogout() {
 // ==================== PREDICTIONS ====================
 
 async function handlePrediction(marketId, direction) {
+    console.log('handlePrediction called:', marketId, direction);
     const amountInput = document.getElementById('pred-amount');
     const amount = parseInt(amountInput?.value || '50');
     const btn = document.getElementById(`btn-${direction}-${marketId}`);
