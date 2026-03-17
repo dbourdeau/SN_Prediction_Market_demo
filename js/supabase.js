@@ -180,7 +180,7 @@ const DB = {
     async createComment(comment) {
         const { data, error } = await supabaseClient
             .from('comments').insert(comment)
-            .select('*, profiles(name, department, avatar)').single();
+            .select('*, profiles!user_id(name, department, avatar)').single();
         if (error) throw error;
         return data;
     },
