@@ -203,6 +203,7 @@ const AppState = {
 
     async placePrediction(marketId, direction, amount) {
         const market = this.markets.find(m => m.id === marketId);
+        console.log('placePrediction:', { marketId, direction, amount, found: !!market, balance: this.user?.balance, status: market?.status, resolution: market?.resolution });
         if (!market || amount > this.user.balance || market.status !== 'active' || market.resolution) return false;
 
         const qYes = market.q_yes || 0, qNo = market.q_no || 0;
