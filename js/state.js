@@ -144,28 +144,35 @@ const AppState = {
 
         if (data?.marketId) {
             try {
-                const [market, comments, predictions] = await Promise.all([
-                    DB.getMarket(data.marketId), DB.getComments(data.marketId), DB.getMarketPredictions(data.marketId)
-                ]);
-                this.selectedMarket = market;
-                this.selectedMarketComments = comments;
-                this.selectedMarketPredictions = predictions;
+                this.selectedMarket = await DB.getMarket(data.marketId);
+            } catch (e) { console.error('Failed to load market:', e); }
 
-                // Live comments
-                this._commentsChannel = DB.subscribeToComments(data.marketId, async () => {
+            try {
+                this.selectedMarketComments = await DB.getComments(data.marketId);
+            } catch (e) { this.selectedMarketComments = []; console.warn('Comments load failed:', e); }
+
+            try {
+                this.selectedMarketPredictions = await DB.getMarketPredictions(data.marketId);
+            } catch (e) { this.selectedMarketPredictions = []; console.warn('Predictions load failed:', e); }
+
+            // Live comments
+            this._commentsChannel = DB.subscribeToComments(data.marketId, async () => {
+                try {
                     this.selectedMarketComments = await DB.getComments(data.marketId);
                     this.notify();
-                });
-                // Live trades
-                this._predictionsChannel = DB.subscribeToPredictions(data.marketId, async () => {
+                } catch (e) {}
+            });
+            // Live trades
+            this._predictionsChannel = DB.subscribeToPredictions(data.marketId, async () => {
+                try {
                     this.selectedMarketPredictions = await DB.getMarketPredictions(data.marketId);
                     const updatedMarket = await DB.getMarket(data.marketId);
                     this.selectedMarket = updatedMarket;
                     const idx = this.markets.findIndex(m => m.id === data.marketId);
                     if (idx >= 0) this.markets[idx] = updatedMarket;
                     this.notify();
-                });
-            } catch (e) { console.error('Failed to load market:', e); }
+                } catch (e) {}
+            });
         }
 
         if (data?.profileId) {
