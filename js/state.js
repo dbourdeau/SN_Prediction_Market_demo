@@ -144,9 +144,8 @@ const AppState = {
 
         if (data?.marketId) {
             try {
-                console.log('Loading market ID:', data.marketId, typeof data.marketId);
                 this.selectedMarket = await DB.getMarket(data.marketId);
-            } catch (e) { console.error('Failed to load market:', e.message, e.code, e.details, e); }
+            } catch (e) { console.error('Failed to load market:', e); }
 
             try {
                 this.selectedMarketComments = await DB.getComments(data.marketId);

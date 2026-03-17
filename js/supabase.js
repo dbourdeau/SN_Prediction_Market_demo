@@ -170,7 +170,7 @@ const DB = {
     // ---- Comments ----
     async getComments(marketId) {
         const { data, error } = await supabaseClient
-            .from('comments').select('*, profiles(name, department, avatar)')
+            .from('comments').select('*, profiles!user_id(name, department, avatar)')
             .eq('market_id', marketId).is('deleted_at', null)
             .order('created_at', { ascending: false });
         if (error) throw error;
