@@ -215,7 +215,7 @@ const Pages = {
                                 <textarea id="edit-desc" rows="3" maxlength="5000" class="w-full px-3 py-2 border rounded-lg text-sm">${esc(m.description)}</textarea>
                                 <input type="date" id="edit-closes" value="${m.closes_at}" class="px-3 py-2 border rounded-lg text-sm"/>
                                 <div class="flex gap-2">
-                                    <button onclick="handleEditMarket('${m.id}')" id="save-edit-btn" class="bg-shark-600 text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
+                                    <button onclick="handleEditMarket(${m.id})" id="save-edit-btn" class="bg-shark-600 text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
                                     <button onclick="toggleEditMarket()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm">Cancel</button>
                                 </div>
                             </div>` : ''}
@@ -260,8 +260,8 @@ const Pages = {
                             ${!isResolved ? `
                             <div class="flex gap-2 sm:gap-3 mb-6">
                                 <div class="hidden sm:block">${Components.avatar(AppState.user?.avatar || 'XX', 'sm')}</div>
-                                <input type="text" id="comment-input" placeholder="Share your insight..." maxlength="2000" onkeydown="if(event.key==='Enter') handleAddComment('${m.id}')" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500"/>
-                                <button onclick="handleAddComment('${m.id}')" id="comment-btn" class="bg-shark-600 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-medium hover:bg-shark-700 transition-colors shrink-0">Post</button>
+                                <input type="text" id="comment-input" placeholder="Share your insight..." maxlength="2000" onkeydown="if(event.key==='Enter') handleAddComment(${m.id})" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500"/>
+                                <button onclick="handleAddComment(${m.id})" id="comment-btn" class="bg-shark-600 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-medium hover:bg-shark-700 transition-colors shrink-0">Post</button>
                             </div>` : ''}
                             <div class="space-y-4">
                                 ${comments.length > 0 ? comments.map(c => {
@@ -276,7 +276,7 @@ const Pages = {
                                             <div class="flex items-center gap-2">
                                                 <span class="text-sm font-semibold text-gray-900 truncate">${displayName}</span>
                                                 <span class="text-xs text-gray-400 shrink-0">${getTimeAgo(c.created_at)}</span>
-                                                ${canDelete ? `<button onclick="handleDeleteComment('${c.id}')" class="text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">delete</button>` : ''}
+                                                ${canDelete ? `<button onclick="handleDeleteComment(${c.id})" class="text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">delete</button>` : ''}
                                             </div>
                                             <p class="text-sm text-gray-600 mt-1 break-words">${esc(c.text)}</p>
                                         </div>
@@ -301,7 +301,7 @@ const Pages = {
                                     <div>
                                         <label class="block text-sm text-gray-600 mb-1">Amount (tokens)</label>
                                         <input type="number" id="pred-amount" value="50" min="10" max="${AppState.user?.balance || 0}" step="10"
-                                            oninput="updateTradeEstimate('${m.id}')"
+                                            oninput="updateTradeEstimate(${m.id})"
                                             onkeydown="if(event.key==='Enter'){event.preventDefault()}"
                                             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500"/>
                                         <div class="text-xs text-gray-400 mt-1">Balance: ${(AppState.user?.balance || 0).toLocaleString()} tokens</div>
@@ -310,10 +310,10 @@ const Pages = {
                                         ${_tradeEstimateHTML(qYes, qNo, 50)}
                                     </div>
                                     <div class="grid grid-cols-2 gap-3">
-                                        <button onclick="handlePrediction('${m.id}', 'yes')" id="btn-yes-${m.id}" class="prediction-btn bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-bold text-sm">
+                                        <button onclick="handlePrediction(${m.id}, 'yes')" id="btn-yes-${m.id}" class="prediction-btn bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-bold text-sm">
                                             YES ↑<div class="text-xs font-normal opacity-80">at ${pct}%</div>
                                         </button>
-                                        <button onclick="handlePrediction('${m.id}', 'no')" id="btn-no-${m.id}" class="prediction-btn bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-bold text-sm">
+                                        <button onclick="handlePrediction(${m.id}, 'no')" id="btn-no-${m.id}" class="prediction-btn bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-bold text-sm">
                                             NO ↓<div class="text-xs font-normal opacity-80">at ${100 - pct}%</div>
                                         </button>
                                     </div>
@@ -345,7 +345,7 @@ const Pages = {
                                             <span class="text-gray-500">Sell value</span>
                                             <span class="font-semibold">${Math.round(sellValue)}t <span class="${profit >= 0 ? 'text-green-600' : 'text-red-500'}">(${profit >= 0 ? '+' : ''}${profit})</span></span>
                                         </div>
-                                        <button onclick="handleSellPosition('${p.id}')" id="sell-btn-${p.id}" class="w-full mt-2 bg-gray-200 hover:bg-gray-300 text-gray-700 py-1.5 rounded-lg text-xs font-semibold transition-colors">Sell Position</button>
+                                        <button onclick="handleSellPosition(${p.id})" id="sell-btn-${p.id}" class="w-full mt-2 bg-gray-200 hover:bg-gray-300 text-gray-700 py-1.5 rounded-lg text-xs font-semibold transition-colors">Sell Position</button>
                                         ` : ''}
                                     </div>`;
                                 }).join('')}
@@ -357,9 +357,9 @@ const Pages = {
                             <h3 class="font-semibold text-gray-900 mb-2">Resolve Market</h3>
                             <p class="text-xs text-gray-500 mb-4">This will trigger payouts and cannot be undone.</p>
                             <div class="grid grid-cols-3 gap-2">
-                                <button onclick="handleResolveMarket('${m.id}', 'yes')" id="resolve-yes-${m.id}" class="bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg text-sm font-bold">YES</button>
-                                <button onclick="handleResolveMarket('${m.id}', 'no')" id="resolve-no-${m.id}" class="bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-sm font-bold">NO</button>
-                                <button onclick="handleResolveMarket('${m.id}', 'void')" id="resolve-void-${m.id}" class="bg-gray-400 hover:bg-gray-500 text-white py-2 rounded-lg text-sm font-bold">VOID</button>
+                                <button onclick="handleResolveMarket(${m.id}, 'yes')" id="resolve-yes-${m.id}" class="bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg text-sm font-bold">YES</button>
+                                <button onclick="handleResolveMarket(${m.id}, 'no')" id="resolve-no-${m.id}" class="bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-sm font-bold">NO</button>
+                                <button onclick="handleResolveMarket(${m.id}, 'void')" id="resolve-void-${m.id}" class="bg-gray-400 hover:bg-gray-500 text-white py-2 rounded-lg text-sm font-bold">VOID</button>
                             </div>
                         </div>` : ''}
 
@@ -497,7 +497,7 @@ const Pages = {
                     ${notifs.length > 0 ? notifs.map(n => {
                         const icons = { resolution: '📊', payout: '💰', comment: '💬', closing_soon: '⏰', welcome: '👋' };
                         return `<div class="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 ${!n.is_read ? 'border-l-4 border-l-shark-500' : ''} ${n.market_id ? 'cursor-pointer hover:bg-gray-50' : ''}"
-                            onclick="${n.market_id ? `handleNotificationClick('${n.id}', '${n.market_id}')` : `handleMarkNotifRead('${n.id}')`}">
+                            onclick="${n.market_id ? `handleNotificationClick(${n.id}, ${n.market_id})` : `handleMarkNotifRead(${n.id})`}">
                             <div class="flex items-start gap-3">
                                 <span class="text-lg sm:text-xl shrink-0">${icons[n.type] || '📢'}</span>
                                 <div class="flex-1 min-w-0">
@@ -625,14 +625,14 @@ const Pages = {
                     <div class="space-y-3">
                         ${expiredMarkets.map(m => `
                             <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-amber-50 rounded-lg gap-3">
-                                <div class="flex-1 min-w-0 cursor-pointer" onclick="AppState.navigate('market', { marketId: '${m.id}' })">
+                                <div class="flex-1 min-w-0 cursor-pointer" onclick="AppState.navigate('market', { marketId: ${m.id} })">
                                     <div class="text-sm font-medium text-gray-900 truncate">${esc(m.title)}</div>
                                     <div class="text-xs text-gray-500 mt-1">${m.traders} traders · ${m.volume} vol · expired ${formatDate(m.closes_at)}</div>
                                 </div>
                                 <div class="flex items-center gap-2 shrink-0">
-                                    <button onclick="event.stopPropagation(); handleResolveMarket('${m.id}', 'yes')" class="px-3 py-1.5 rounded text-xs font-bold bg-green-500 text-white hover:bg-green-600">YES</button>
-                                    <button onclick="event.stopPropagation(); handleResolveMarket('${m.id}', 'no')" class="px-3 py-1.5 rounded text-xs font-bold bg-red-500 text-white hover:bg-red-600">NO</button>
-                                    <button onclick="event.stopPropagation(); handleResolveMarket('${m.id}', 'void')" class="px-3 py-1.5 rounded text-xs font-bold bg-gray-400 text-white hover:bg-gray-500">VOID</button>
+                                    <button onclick="event.stopPropagation(); handleResolveMarket(${m.id}, 'yes')" class="px-3 py-1.5 rounded text-xs font-bold bg-green-500 text-white hover:bg-green-600">YES</button>
+                                    <button onclick="event.stopPropagation(); handleResolveMarket(${m.id}, 'no')" class="px-3 py-1.5 rounded text-xs font-bold bg-red-500 text-white hover:bg-red-600">NO</button>
+                                    <button onclick="event.stopPropagation(); handleResolveMarket(${m.id}, 'void')" class="px-3 py-1.5 rounded text-xs font-bold bg-gray-400 text-white hover:bg-gray-500">VOID</button>
                                 </div>
                             </div>
                         `).join('')}
@@ -645,7 +645,7 @@ const Pages = {
                     <div class="space-y-3 max-h-96 overflow-y-auto">
                         ${activeMarkets.length > 0 ? activeMarkets.map(m => `
                             <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-gray-50 rounded-lg gap-2">
-                                <div class="flex-1 min-w-0 cursor-pointer" onclick="AppState.navigate('market', { marketId: '${m.id}' })">
+                                <div class="flex-1 min-w-0 cursor-pointer" onclick="AppState.navigate('market', { marketId: ${m.id} })">
                                     <div class="text-sm font-medium text-gray-900 truncate">${esc(m.title)}</div>
                                     <div class="flex items-center gap-2 mt-1 text-xs text-gray-500 flex-wrap">
                                         ${Components.probBadge(m.probability)}
@@ -654,10 +654,10 @@ const Pages = {
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2 shrink-0">
-                                    <button onclick="event.stopPropagation(); AppState.setMarketTrending('${m.id}', ${!m.trending})" class="px-2 py-1 rounded text-xs font-medium ${m.trending ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}">${m.trending ? '🔥' : 'Trend'}</button>
-                                    <button onclick="event.stopPropagation(); handleResolveMarket('${m.id}', 'yes')" class="px-2 py-1 rounded text-xs font-bold bg-green-100 text-green-700">Y</button>
-                                    <button onclick="event.stopPropagation(); handleResolveMarket('${m.id}', 'no')" class="px-2 py-1 rounded text-xs font-bold bg-red-100 text-red-700">N</button>
-                                    <button onclick="event.stopPropagation(); handleResolveMarket('${m.id}', 'void')" class="px-2 py-1 rounded text-xs font-bold bg-gray-100 text-gray-600">V</button>
+                                    <button onclick="event.stopPropagation(); AppState.setMarketTrending(${m.id}, ${!m.trending})" class="px-2 py-1 rounded text-xs font-medium ${m.trending ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}">${m.trending ? '🔥' : 'Trend'}</button>
+                                    <button onclick="event.stopPropagation(); handleResolveMarket(${m.id}, 'yes')" class="px-2 py-1 rounded text-xs font-bold bg-green-100 text-green-700">Y</button>
+                                    <button onclick="event.stopPropagation(); handleResolveMarket(${m.id}, 'no')" class="px-2 py-1 rounded text-xs font-bold bg-red-100 text-red-700">N</button>
+                                    <button onclick="event.stopPropagation(); handleResolveMarket(${m.id}, 'void')" class="px-2 py-1 rounded text-xs font-bold bg-gray-100 text-gray-600">V</button>
                                 </div>
                             </div>
                         `).join('') : '<div class="text-center py-6 text-gray-400">No active markets.</div>'}
