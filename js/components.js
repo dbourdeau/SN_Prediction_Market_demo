@@ -121,7 +121,7 @@ const Components = {
 
         return `
             <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 card-hover cursor-pointer fade-in ${isResolved ? 'opacity-75' : ''}"
-                 onclick="AppState.navigate('market', { marketId: ${market.id} })">
+                 onclick="AppState.navigate('market', { marketId: '${market.id}' })">
                 <div class="flex items-start justify-between gap-3 mb-3">
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-1.5 mb-2 flex-wrap">
