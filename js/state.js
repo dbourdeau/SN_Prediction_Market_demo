@@ -429,7 +429,14 @@ const AppState = {
             }
             this.notify();
             return { revenue: roundedRevenue, profit: roundedRevenue - pred.amount };
-        } catch (e) { console.error('Sell error:', e); return false; }
+        } catch (e) {
+            console.error('Sell error:', e.message || e);
+            if (e.message?.includes('updated by another trade')) {
+                await this._refreshMarkets();
+                return { error: 'Price changed — please review and try again' };
+            }
+            return { error: e.message || 'Sell failed' };
+        }
     },
 
     // ==================== MARKET RESOLUTION ====================

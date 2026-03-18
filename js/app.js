@@ -209,7 +209,9 @@ async function handleSellPosition(predictionId) {
 
     try {
         const result = await AppState.sellPosition(predictionId);
-        if (result && result !== false) {
+        if (result && result.error) {
+            showToast(result.error, 'error');
+        } else if (result && result.revenue !== undefined) {
             const profitLabel = result.profit >= 0 ? `+${result.profit}` : `${result.profit}`;
             showToast(`Position sold for ${result.revenue} tokens (${profitLabel} profit)!`, result.profit >= 0 ? 'success' : 'info');
         } else {
