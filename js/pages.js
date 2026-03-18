@@ -361,7 +361,7 @@ const Pages = {
                             </div>
                             <div class="mt-6">
                                 <h3 class="text-sm font-semibold text-gray-700 mb-2">Price History</h3>
-                                <div class="bg-gray-50 rounded-lg p-3 sm:p-4">${Components.chart(isMulti && m.history ? m.history.map(h => Array.isArray(h) ? Math.max(...h) : h) : m.history)}</div>
+                                <div class="bg-gray-50 rounded-lg p-3 sm:p-4">${isMulti ? Components.chartMulti(m.history, m.options) : Components.chart(m.history)}</div>
                             </div>
                         </div>
 

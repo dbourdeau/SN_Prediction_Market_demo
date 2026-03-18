@@ -173,10 +173,8 @@ const Components = {
             multiLeader = market.options[maxIdx]?.label || '';
         }
 
-        // Sparkline data: for multi, extract the max probability from each history entry
-        const sparkData = isMulti && market.history
-            ? market.history.map(h => Array.isArray(h) ? Math.max(...h) : h)
-            : market.history;
+        // Sparkline data
+        const sparkData = isMulti ? null : market.history;
 
         return `
             <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 card-hover cursor-pointer fade-in ${isResolved ? 'opacity-75' : ''}"
@@ -196,7 +194,7 @@ const Components = {
                     </div>
                     <div class="flex flex-col items-end gap-1 shrink-0">
                         ${isMulti ? `<span class="inline-flex items-center rounded-full font-bold bg-indigo-100 text-indigo-800 text-sm px-2.5 py-1">${market.options?.length || '?'} options</span>` : this.probBadge(market.probability)}
-                        <div class="hidden sm:block">${this.sparkline(sparkData)}</div>
+                        <div class="hidden sm:block">${isMulti ? this.sparklineMulti(market.history, market.options) : this.sparkline(sparkData)}</div>
                     </div>
                 </div>
                 <div class="flex items-center justify-between text-xs sm:text-sm text-gray-500">
@@ -297,6 +295,81 @@ const Components = {
             <polyline fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="${points}"/>
             <circle cx="${padding.left + (data.length - 1) * step}" cy="${padding.top + chartH - ((lastVal - min) / range) * chartH}" r="4" fill="${color}" stroke="white" stroke-width="2"/>
         </svg>`;
+    },
+
+    // Multi-outcome chart: one line per option
+    chartMulti(history, options, width = 500, height = 180) {
+        if (!history || history.length < 2 || !options) return '<div class="text-gray-400 text-sm">Not enough data</div>';
+        const padding = { top: 20, right: 15, bottom: 40, left: 40 };
+        const chartW = width - padding.left - padding.right;
+        const chartH = height - padding.top - padding.bottom;
+        const n = options.length;
+        const step = chartW / (history.length - 1);
+        const colors = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#ec4899', '#06b6d4', '#6366f1'];
+
+        // Y-axis: always 0–100%
+        const yLabels = [0, 0.25, 0.5, 0.75, 1].map(v => {
+            const y = padding.top + chartH - v * chartH;
+            return `<text x="${padding.left - 5}" y="${y + 4}" text-anchor="end" fill="#9ca3af" font-size="10">${Math.round(v * 100)}%</text>
+                    <line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="#f3f4f6" stroke-width="1"/>`;
+        }).join('');
+
+        // X-axis labels
+        const xPositions = [0, Math.floor(history.length / 2), history.length - 1];
+        const xLabels = xPositions.map(i => {
+            const x = padding.left + i * step;
+            return `<text x="${x}" y="${height - padding.bottom + 15}" text-anchor="middle" fill="#9ca3af" font-size="9">${i === 0 ? 'Start' : i === history.length - 1 ? 'Now' : 'Mid'}</text>`;
+        }).join('');
+
+        // One polyline per option
+        const lines = Array.from({ length: n }, (_, optIdx) => {
+            const points = history.map((h, i) => {
+                const prob = Array.isArray(h) ? (h[optIdx] || 0) : 0;
+                const x = padding.left + i * step;
+                const y = padding.top + chartH - prob * chartH;
+                return `${x},${y}`;
+            }).join(' ');
+            const color = colors[optIdx % colors.length];
+            const lastProb = Array.isArray(history[history.length - 1]) ? (history[history.length - 1][optIdx] || 0) : 0;
+            const lastX = padding.left + (history.length - 1) * step;
+            const lastY = padding.top + chartH - lastProb * chartH;
+            return `<polyline fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="${points}" opacity="0.85"/>
+                    <circle cx="${lastX}" cy="${lastY}" r="3.5" fill="${color}" stroke="white" stroke-width="1.5"/>`;
+        }).join('');
+
+        // Legend below chart
+        const legend = options.map((opt, i) => {
+            const color = colors[i % colors.length];
+            const lastProb = Array.isArray(history[history.length - 1]) ? (history[history.length - 1][i] || 0) : 0;
+            return `<span class="inline-flex items-center gap-1 mr-3 text-xs">
+                <span class="inline-block w-3 h-1.5 rounded" style="background:${color}"></span>
+                <span class="text-gray-600">${esc(opt.label)}</span>
+                <span class="font-medium text-gray-800">${Math.round(lastProb * 100)}%</span>
+            </span>`;
+        }).join('');
+
+        return `<svg width="100%" viewBox="0 0 ${width} ${height}" class="block">
+            ${yLabels}${xLabels}${lines}
+        </svg>
+        <div class="flex flex-wrap gap-y-1 mt-2">${legend}</div>`;
+    },
+
+    // Multi-outcome sparkline: one line per option (compact)
+    sparklineMulti(history, options, width = 120, height = 32) {
+        if (!history || history.length < 2 || !options) return '';
+        const n = options.length;
+        const colors = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#ec4899', '#06b6d4', '#6366f1'];
+        const step = width / (history.length - 1);
+
+        const lines = Array.from({ length: n }, (_, optIdx) => {
+            const points = history.map((h, i) => {
+                const prob = Array.isArray(h) ? (h[optIdx] || 0) : 0;
+                return `${i * step},${height - prob * height}`;
+            }).join(' ');
+            return `<polyline fill="none" stroke="${colors[optIdx % colors.length]}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" points="${points}" opacity="0.8"/>`;
+        }).join('');
+
+        return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" class="inline-block">${lines}</svg>`;
     },
 
     // Skeleton loading placeholder
