@@ -3,8 +3,8 @@
 
 const AMM = {
     // Liquidity parameter: higher = more stable prices, lower = more volatile
-    // At b=100, a 50-token trade moves price ~1.2%
-    b: 100,
+    // At b=200, a 50-token trade moves price ~0.6% — better for small user bases
+    b: 200,
 
     // Get YES probability from logit score
     // logit = ln(p / (1-p)), so p = sigmoid(logit) = 1 / (1 + e^(-logit))
@@ -81,5 +81,63 @@ const AMM = {
             potentialProfit: shares - budget,
             impliedProbability: shares > 0 ? budget / shares : 0,
         };
-    }
+    },
+
+    // ==================== MULTI-OUTCOME LMSR ====================
+    // Generalized cost function: C(q) = b * ln(sum(exp(q_i / b)))
+
+    _C_multi(qValues) {
+        const scaled = qValues.map(q => q / this.b);
+        const maxVal = Math.max(...scaled);
+        const sumExp = scaled.reduce((s, v) => s + Math.exp(v - maxVal), 0);
+        return this.b * (maxVal + Math.log(sumExp));
+    },
+
+    // Softmax probabilities for all outcomes
+    multiProbabilities(qValues) {
+        const scaled = qValues.map(q => q / this.b);
+        const maxVal = Math.max(...scaled);
+        const exps = scaled.map(v => Math.exp(v - maxVal));
+        const sumExp = exps.reduce((s, v) => s + v, 0);
+        return exps.map(e => e / sumExp);
+    },
+
+    // Cost to buy shares of a specific option
+    buyCostMulti(qValues, shares, optionIndex) {
+        const newQ = [...qValues];
+        newQ[optionIndex] += shares;
+        return this._C_multi(newQ) - this._C_multi(qValues);
+    },
+
+    // Binary search: how many shares of option can you buy with budget?
+    sharesForBudgetMulti(qValues, budget, optionIndex) {
+        if (budget <= 0) return 0;
+        let lo = 0, hi = budget * 20;
+        for (let i = 0; i < 60; i++) {
+            const mid = (lo + hi) / 2;
+            if (this.buyCostMulti(qValues, mid, optionIndex) < budget) lo = mid;
+            else hi = mid;
+        }
+        return Math.floor(lo * 100) / 100;
+    },
+
+    // Revenue from selling shares of an option back
+    sellRevenueMulti(qValues, shares, optionIndex) {
+        const newQ = [...qValues];
+        newQ[optionIndex] -= shares;
+        if (newQ[optionIndex] < 0) return 0;
+        return this._C_multi(qValues) - this._C_multi(newQ);
+    },
+
+    // Estimate payout for a multi-outcome trade
+    estimatePayoutMulti(qValues, budget, optionIndex) {
+        const shares = this.sharesForBudgetMulti(qValues, budget, optionIndex);
+        return {
+            shares,
+            costPerShare: shares > 0 ? budget / shares : 0,
+            potentialPayout: shares,
+            potentialProfit: shares - budget,
+            impliedProbability: shares > 0 ? budget / shares : 0,
+        };
+    },
 };

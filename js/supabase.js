@@ -75,6 +75,13 @@ const DB = {
         return data;
     },
 
+    async getMarketCount() {
+        const { count, error } = await supabaseClient
+            .from('markets').select('*', { count: 'exact', head: true });
+        if (error) throw error;
+        return count || 0;
+    },
+
     async getMarket(id) {
         const { data, error } = await supabaseClient
             .from('markets').select('*').eq('id', id).single();
@@ -106,9 +113,25 @@ const DB = {
         return data;
     },
 
+    async resolveMultiMarket(marketId, winningIndex, resolvedBy) {
+        const { data, error } = await supabaseClient.rpc('resolve_multi_market', {
+            p_market_id: marketId,
+            p_winning_index: winningIndex,
+            p_resolved_by: resolvedBy
+        });
+        if (error) throw error;
+        return data;
+    },
+
     async closeExpiredMarkets() {
         const { data, error } = await supabaseClient.rpc('close_expired_markets');
         if (error) console.warn('Auto-close error:', error);
+        return data;
+    },
+
+    async notifyClosingSoon() {
+        const { data, error } = await supabaseClient.rpc('notify_closing_soon');
+        if (error) console.warn('Closing-soon notify error:', error);
         return data;
     },
 
@@ -138,11 +161,23 @@ const DB = {
         return data;
     },
 
+    async placePrediction(params) {
+        const { data, error } = await supabaseClient.rpc('place_prediction', params);
+        if (error) throw error;
+        return data; // returns prediction id
+    },
+
+    async sellPositionRPC(params) {
+        const { data, error } = await supabaseClient.rpc('sell_position', params);
+        if (error) throw error;
+        return data; // returns revenue
+    },
+
     async updatePrediction(id, updates) {
         const { data, error } = await supabaseClient
-            .from('predictions').update(updates).eq('id', id).select().single();
+            .from('predictions').update(updates).eq('id', id).select();
         if (error) throw error;
-        return data;
+        return data?.[0];
     },
 
     // ---- Profiles ----
@@ -190,6 +225,95 @@ const DB = {
             .from('comments').update({ deleted_at: new Date().toISOString(), deleted_by: deletedBy })
             .eq('id', commentId);
         if (error) throw error;
+    },
+
+    // ---- Transactions ----
+    async getTransactions(userId, limit = 50, offset = 0) {
+        const { data, error } = await supabaseClient
+            .from('transactions').select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .range(offset, offset + limit - 1);
+        if (error) throw error;
+        return data;
+    },
+
+    async logTransaction(tx) {
+        const { error } = await supabaseClient
+            .from('transactions').insert(tx);
+        if (error) console.warn('Transaction log error:', error);
+    },
+
+    // ---- Watchlist ----
+    async getWatchlist(userId) {
+        const { data, error } = await supabaseClient
+            .from('watchlist').select('market_id')
+            .eq('user_id', userId);
+        if (error) throw error;
+        return (data || []).map(w => w.market_id);
+    },
+
+    async addToWatchlist(userId, marketId) {
+        const { error } = await supabaseClient
+            .from('watchlist').insert({ user_id: userId, market_id: marketId });
+        if (error && error.code !== '23505') throw error; // ignore duplicate
+    },
+
+    async removeFromWatchlist(userId, marketId) {
+        const { error } = await supabaseClient
+            .from('watchlist').delete()
+            .eq('user_id', userId).eq('market_id', marketId);
+        if (error) throw error;
+    },
+
+    // ---- Market Approval ----
+    async approveMarket(marketId, approvedBy) {
+        const { error } = await supabaseClient.rpc('approve_market', {
+            p_market_id: marketId, p_approved_by: approvedBy
+        });
+        if (error) throw error;
+    },
+
+    async rejectMarket(marketId, rejectedBy, reason) {
+        const { error } = await supabaseClient.rpc('reject_market', {
+            p_market_id: marketId, p_rejected_by: rejectedBy, p_reason: reason
+        });
+        if (error) throw error;
+    },
+
+    async getPendingMarkets() {
+        const { data, error } = await supabaseClient
+            .from('markets').select('*')
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        return data || [];
+    },
+
+    // ---- Audit Log ----
+    async logAuditEvent(actorId, action, targetType, targetId, details = {}) {
+        const { error } = await supabaseClient
+            .from('audit_log').insert({ actor_id: actorId, action, target_type: targetType, target_id: String(targetId), details });
+        if (error) console.warn('Audit log error:', error);
+    },
+
+    async getAuditLog(limit = 50) {
+        const { data, error } = await supabaseClient
+            .from('audit_log').select('*')
+            .order('created_at', { ascending: false })
+            .limit(limit);
+        if (error) throw error;
+        return data || [];
+    },
+
+    // ---- Activity Feed ----
+    async getRecentActivity(limit = 20) {
+        const { data, error } = await supabaseClient
+            .from('predictions').select('id, user_id, market_id, direction, amount, shares, status, created_at, profiles(name, avatar), markets(title)')
+            .order('created_at', { ascending: false })
+            .limit(limit);
+        if (error) throw error;
+        return data;
     },
 
     // ---- Leaderboard ----

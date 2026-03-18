@@ -13,24 +13,42 @@ function render() {
         return;
     }
 
-    let pageContent = '';
-    switch (AppState.currentPage) {
-        case 'login': pageContent = Pages.login(); break;
-        case 'dashboard': pageContent = Pages.dashboard(); break;
-        case 'markets': pageContent = Pages.markets(); break;
-        case 'market': pageContent = Pages.market(); break;
-        case 'leaderboard': pageContent = Pages.leaderboard(); break;
-        case 'create': pageContent = Pages.create(); break;
-        case 'notifications': pageContent = Pages.notifications(); break;
-        case 'profile': pageContent = Pages.profile(); break;
-        case 'admin': pageContent = Pages.admin(); break;
-        default: pageContent = Pages.dashboard();
-    }
+    try {
+        let pageContent = '';
+        switch (AppState.currentPage) {
+            case 'login': pageContent = Pages.login(); break;
+            case 'dashboard': pageContent = Pages.dashboard(); break;
+            case 'markets': pageContent = Pages.markets(); break;
+            case 'market': pageContent = Pages.market(); break;
+            case 'leaderboard': pageContent = Pages.leaderboard(); break;
+            case 'create': pageContent = Pages.create(); break;
+            case 'notifications': pageContent = Pages.notifications(); break;
+            case 'profile': pageContent = Pages.profile(); break;
+            case 'admin': pageContent = Pages.admin(); break;
+            case 'transactions': pageContent = Pages.transactions(); break;
+            case 'analytics': pageContent = Pages.analytics(); break;
+            default: pageContent = Pages.dashboard();
+        }
 
-    if (AppState.currentPage === 'login') {
-        app.innerHTML = pageContent;
-    } else {
-        app.innerHTML = Components.header() + '<main>' + pageContent + '</main>';
+        if (AppState.currentPage === 'login') {
+            app.innerHTML = pageContent;
+        } else {
+            app.innerHTML = Components.header() + '<main>' + pageContent + '</main>';
+        }
+    } catch (err) {
+        console.error('Render error:', err);
+        app.innerHTML = Components.header() + `<main>
+            <div class="max-w-xl mx-auto px-4 py-16 text-center">
+                <div class="text-4xl mb-4">⚠️</div>
+                <h2 class="text-xl font-bold text-gray-900 mb-2">Something went wrong</h2>
+                <p class="text-gray-500 text-sm mb-6">An error occurred rendering this page. Try navigating elsewhere.</p>
+                <div class="flex gap-3 justify-center">
+                    <button onclick="AppState.navigate('dashboard')" class="bg-shark-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-shark-700">Go to Dashboard</button>
+                    <button onclick="location.reload()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200">Reload Page</button>
+                </div>
+                <p class="text-xs text-gray-400 mt-4">${esc(err.message)}</p>
+            </div>
+        </main>`;
     }
 }
 
@@ -132,18 +150,23 @@ async function handleLogout() {
 
 // ==================== PREDICTIONS ====================
 
-async function handlePrediction(marketId, direction) {
+async function handlePrediction(marketId, direction, optionIndex) {
     const amountInput = document.getElementById('pred-amount');
     const amount = parseInt(amountInput?.value || '50');
-    const btn = document.getElementById(`btn-${direction}-${marketId}`);
+    const isMulti = optionIndex !== undefined && optionIndex !== null;
+    const btn = isMulti
+        ? document.getElementById(`btn-opt-${optionIndex}-${marketId}`)
+        : document.getElementById(`btn-${direction}-${marketId}`);
 
     if (amount < 10) { showToast('Minimum prediction is 10 tokens', 'error'); return; }
     if (amount > AppState.user.balance) { showToast('Insufficient token balance', 'error'); return; }
 
     if (btn) { btn.disabled = true; btn.textContent = 'Buying...'; }
     try {
-        const result = await AppState.placePrediction(marketId, direction, amount);
-        if (result) {
+        const result = await AppState.placePrediction(marketId, direction, amount, isMulti ? optionIndex : null);
+        if (result && result.error) {
+            showToast(result.error, 'error');
+        } else if (result) {
             showToast(`Bought ${result.shares.toFixed(1)} ${direction.toUpperCase()} shares for ${amount} tokens!`, 'success');
         } else {
             showToast('Failed to place prediction.', 'error');
@@ -151,7 +174,7 @@ async function handlePrediction(marketId, direction) {
     } catch (e) {
         showToast('Failed to place prediction.', 'error');
     } finally {
-        if (btn) { btn.disabled = false; btn.textContent = `${direction.toUpperCase()} ▲`; }
+        if (btn) { btn.disabled = false; }
     }
 }
 
@@ -160,18 +183,26 @@ function updateTradeEstimate(marketId) {
     if (!market) return;
 
     const amount = parseInt(document.getElementById('pred-amount')?.value || '50');
-    const qYes = market.q_yes || 0, qNo = market.q_no || 0;
-
     const el = document.getElementById('trade-estimate');
     if (el) {
-        el.innerHTML = _tradeEstimateHTML(qYes, qNo, amount);
+        if (market.market_type === 'multi') {
+            el.innerHTML = _tradeEstimateHTMLMulti(market.q_values || [], market.options || [], amount);
+        } else {
+            el.innerHTML = _tradeEstimateHTML(market.q_yes || 0, market.q_no || 0, amount);
+        }
     }
 }
 
 // ==================== SELL POSITION ====================
 
 async function handleSellPosition(predictionId) {
-    if (!confirm('Sell this position? You will receive tokens at the current market price.')) return;
+    const confirmed = await showModal({
+        title: 'Sell Position',
+        message: 'Sell this position? You will receive tokens at the current market price.',
+        confirmText: 'Sell',
+        danger: false,
+    });
+    if (!confirmed) return;
 
     const btn = document.getElementById(`sell-btn-${predictionId}`);
     if (btn) { btn.disabled = true; btn.textContent = 'Selling...'; }
@@ -189,6 +220,21 @@ async function handleSellPosition(predictionId) {
     }
 }
 
+// ==================== MARKET TEMPLATES ====================
+
+function applyMarketTemplate(index) {
+    const t = MARKET_TEMPLATES[index];
+    if (!t) return;
+    const titleEl = document.getElementById('create-title');
+    const descEl = document.getElementById('create-desc');
+    const catEl = document.getElementById('create-category');
+    if (titleEl) { titleEl.value = t.title; document.getElementById('title-count').textContent = t.title.length + '/200'; }
+    if (descEl) { descEl.value = t.description; document.getElementById('desc-count').textContent = t.description.length + '/5000'; }
+    if (catEl) catEl.value = t.category;
+    titleEl?.focus();
+    titleEl?.setSelectionRange(0, 0);
+}
+
 // ==================== MARKET CREATION ====================
 
 async function handleCreateMarket() {
@@ -197,16 +243,33 @@ async function handleCreateMarket() {
     const category = document.getElementById('create-category')?.value;
     const closesAt = document.getElementById('create-closes')?.value;
     const btn = document.getElementById('create-market-btn');
+    const isMulti = document.getElementById('type-multi')?.classList.contains('border-shark-600');
 
     if (!title) { showToast('Please enter a question', 'error'); return; }
     if (!desc) { showToast('Please enter a description', 'error'); return; }
     if (!closesAt) { showToast('Please set a closing date', 'error'); return; }
 
+    let marketData = { title, description: desc, category, closesAt };
+
+    if (isMulti) {
+        const inputs = document.querySelectorAll('.multi-option-input');
+        const options = Array.from(inputs).map(i => i.value.trim()).filter(v => v.length > 0);
+        if (options.length < 2) { showToast('Multi-outcome markets need at least 2 options', 'error'); return; }
+        if (options.length > 8) { showToast('Maximum 8 options allowed', 'error'); return; }
+        marketData.market_type = 'multi';
+        marketData.options = options;
+    }
+
     if (btn) { btn.disabled = true; btn.textContent = 'Creating...'; }
     try {
-        const newMarket = await AppState.addMarket({ title, description: desc, category, closesAt });
-        showToast('Market created!', 'success');
-        await AppState.navigate('market', { marketId: newMarket.id });
+        const newMarket = await AppState.addMarket(marketData);
+        if (newMarket.status === 'pending') {
+            showToast('Market submitted for admin approval!', 'success');
+            await AppState.navigate('markets');
+        } else {
+            showToast('Market created!', 'success');
+            await AppState.navigate('market', { marketId: newMarket.id });
+        }
     } catch (e) {
         showToast('Failed to create market.', 'error');
         if (btn) { btn.disabled = false; btn.textContent = 'Create Market'; }
@@ -244,17 +307,31 @@ async function handleEditMarket(marketId) {
 
 // ==================== MARKET RESOLUTION ====================
 
-async function handleResolveMarket(marketId, resolution) {
+async function handleResolveMarket(marketId, resolution, winningIndex) {
     const market = AppState.markets.find(m => m.id === marketId);
-    const label = resolution.toUpperCase();
+    const isMulti = market?.market_type === 'multi';
+    let label;
+    if (isMulti && winningIndex >= 0 && market.options?.[winningIndex]) {
+        label = market.options[winningIndex].label;
+    } else {
+        label = resolution.toUpperCase();
+    }
 
-    if (!confirm(`Resolve "${market?.title || 'this market'}" as ${label}? This will trigger payouts and cannot be undone.`)) return;
+    const confirmed = await showModal({
+        title: `Resolve as ${label}?`,
+        message: `Resolve "${market?.title || 'this market'}" as ${label}? This will trigger payouts and cannot be undone.`,
+        confirmText: `Resolve ${label}`,
+        danger: true,
+    });
+    if (!confirmed) return;
 
-    const btn = document.getElementById(`resolve-${resolution}-${marketId}`);
+    const btn = isMulti
+        ? document.getElementById(`resolve-opt-${winningIndex}-${marketId}`) || document.getElementById(`resolve-void-${marketId}`)
+        : document.getElementById(`resolve-${resolution}-${marketId}`);
     if (btn) { btn.disabled = true; btn.textContent = '...'; }
 
     try {
-        await AppState.resolveMarket(marketId, resolution);
+        await AppState.resolveMarket(marketId, resolution, isMulti ? winningIndex : null);
         showToast(`Market resolved as ${label}! Payouts processed.`, 'success');
     } catch (e) {
         showToast('Failed to resolve: ' + (e.message || 'Unknown error'), 'error');
@@ -278,7 +355,13 @@ async function handleAddComment(marketId) {
 }
 
 async function handleDeleteComment(commentId) {
-    if (!confirm('Delete this comment?')) return;
+    const confirmed = await showModal({
+        title: 'Delete Comment',
+        message: 'Are you sure you want to delete this comment?',
+        confirmText: 'Delete',
+        danger: true,
+    });
+    if (!confirmed) return;
 
     try {
         await AppState.deleteComment(commentId);
@@ -292,7 +375,13 @@ async function handleDeleteComment(commentId) {
 
 async function handleToggleAdmin(userId, isAdmin) {
     const action = isAdmin ? 'grant admin to' : 'remove admin from';
-    if (!confirm(`Are you sure you want to ${action} this user?`)) return;
+    const confirmed = await showModal({
+        title: isAdmin ? 'Grant Admin Access' : 'Remove Admin Access',
+        message: `Are you sure you want to ${action} this user?`,
+        confirmText: isAdmin ? 'Grant Admin' : 'Remove Admin',
+        danger: !isAdmin,
+    });
+    if (!confirmed) return;
 
     try {
         await AppState.setUserAdmin(userId, isAdmin);
@@ -327,6 +416,106 @@ async function handleMarkAllRead() {
     showToast('All notifications marked as read', 'info');
 }
 
+// ==================== MARKET APPROVAL ====================
+
+async function handleApproveMarket(marketId) {
+    try {
+        await AppState.approveMarket(marketId);
+        showToast('Market approved and now live!', 'success');
+    } catch (e) {
+        showToast('Failed to approve: ' + (e.message || 'Unknown error'), 'error');
+    }
+}
+
+async function handleRejectMarket(marketId) {
+    const reason = prompt('Rejection reason (optional):') || 'Does not meet guidelines';
+    try {
+        await AppState.rejectMarket(marketId, reason);
+        showToast('Market rejected.', 'info');
+    } catch (e) {
+        showToast('Failed to reject: ' + (e.message || 'Unknown error'), 'error');
+    }
+}
+
+// ==================== CSV EXPORT ====================
+
+function exportToCSV(filename, headers, rows) {
+    const escape = (val) => {
+        const s = String(val ?? '');
+        return s.includes(',') || s.includes('"') || s.includes('\n') ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    const csv = [headers.join(','), ...rows.map(r => r.map(escape).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+function handleExportTransactions() {
+    const txns = AppState.transactions || [];
+    if (!txns.length) { showToast('No transactions to export', 'info'); return; }
+    exportToCSV('transactions.csv',
+        ['Date', 'Type', 'Amount', 'Balance After', 'Description'],
+        txns.map(t => [new Date(t.created_at).toISOString(), t.type, t.amount, t.balance_after, t.description])
+    );
+    showToast('Transactions exported!', 'success');
+}
+
+function handleExportPredictions() {
+    const preds = AppState.userPredictions || [];
+    if (!preds.length) { showToast('No predictions to export', 'info'); return; }
+    exportToCSV('predictions.csv',
+        ['Date', 'Market', 'Direction', 'Amount', 'Shares', 'Status', 'Payout'],
+        preds.map(p => [new Date(p.created_at).toISOString(), p.markets?.title || '', p.direction, p.amount, p.shares?.toFixed(2) || '', p.status, p.payout || 0])
+    );
+    showToast('Predictions exported!', 'success');
+}
+
+function handleExportMarkets() {
+    const markets = AppState.markets || [];
+    if (!markets.length) { showToast('No markets to export', 'info'); return; }
+    exportToCSV('markets.csv',
+        ['ID', 'Title', 'Category', 'Status', 'Probability', 'Volume', 'Traders', 'Created', 'Closes', 'Resolution'],
+        markets.map(m => [m.id, m.title, m.category, m.status, Math.round(m.probability * 100) + '%', m.volume, m.traders, m.created_at, m.closes_at, m.resolution || ''])
+    );
+    showToast('Markets exported!', 'success');
+}
+
+// ==================== AVATAR ====================
+
+async function handleSetAvatar(avatar) {
+    try {
+        await DB.updateProfile(AppState.session.user.id, { avatar });
+        AppState.user.avatar = avatar;
+        if (AppState.viewingProfile?.id === AppState.user.id) AppState.viewingProfile.avatar = avatar;
+        AppState.notify();
+        showToast('Avatar updated!', 'success');
+    } catch (e) {
+        showToast('Failed to update avatar.', 'error');
+    }
+}
+
+// ==================== COMMENTS PAGINATION ====================
+
+function handleShowMoreComments() {
+    AppState._commentsShown = (AppState._commentsShown || 10) + 10;
+    AppState.notify();
+}
+
+// ==================== WATCHLIST ====================
+
+async function handleToggleWatchlist(marketId) {
+    try {
+        const wasWatching = AppState.isWatching(marketId);
+        await AppState.toggleWatchlist(marketId);
+        showToast(wasWatching ? 'Removed from watchlist' : 'Added to watchlist', 'info');
+    } catch (e) {
+        showToast('Failed to update watchlist.', 'error');
+    }
+}
+
 // ==================== TOAST ====================
 
 function showToast(message, type = 'info') {
@@ -345,6 +534,88 @@ function showToast(message, type = 'info') {
         toast.style.transition = 'opacity 0.3s';
         setTimeout(() => toast.remove(), 300);
     }, 3000);
+}
+
+// ==================== MULTI-OUTCOME HELPERS ====================
+
+function toggleMarketType(type) {
+    const binaryBtn = document.getElementById('type-binary');
+    const multiBtn = document.getElementById('type-multi');
+    const multiSection = document.getElementById('multi-options-section');
+    if (!binaryBtn || !multiBtn || !multiSection) return;
+
+    if (type === 'multi') {
+        multiBtn.className = 'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border-2 border-shark-600 bg-shark-50 text-shark-700';
+        binaryBtn.className = 'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-500 hover:border-gray-300';
+        multiSection.classList.remove('hidden');
+    } else {
+        binaryBtn.className = 'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border-2 border-shark-600 bg-shark-50 text-shark-700';
+        multiBtn.className = 'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-500 hover:border-gray-300';
+        multiSection.classList.add('hidden');
+    }
+}
+
+function addMultiOption() {
+    const list = document.getElementById('multi-options-list');
+    if (!list) return;
+    const count = list.querySelectorAll('.multi-option-input').length;
+    if (count >= 8) { showToast('Maximum 8 options', 'info'); return; }
+    const div = document.createElement('div');
+    div.className = 'flex gap-2';
+    div.innerHTML = `<input type="text" class="multi-option-input flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500" placeholder="Option ${count + 1}" maxlength="100"/>
+        <button onclick="this.parentElement.remove()" class="px-2 text-gray-400 hover:text-red-500 text-sm font-bold">✕</button>`;
+    list.appendChild(div);
+}
+
+function _tradeEstimateHTMLMulti(qValues, options, amount) {
+    if (!qValues || !options || options.length === 0) return '';
+    const lines = options.map((opt, i) => {
+        const est = AMM.estimatePayoutMulti(qValues, amount, i);
+        return `<div class="flex justify-between mb-1"><span class="truncate mr-2">${esc(opt.label)} (${amount}t):</span><span class="font-semibold shrink-0">${est.shares.toFixed(1)}sh → ${est.shares.toFixed(0)}t</span></div>`;
+    }).join('');
+
+    // Calculate max price impact
+    let maxImpact = 0;
+    const currentProbs = AMM.multiProbabilities(qValues);
+    options.forEach((_, i) => {
+        const est = AMM.estimatePayoutMulti(qValues, amount, i);
+        const newQ = [...qValues];
+        newQ[i] += est.shares;
+        const newProbs = AMM.multiProbabilities(newQ);
+        const impact = Math.abs(newProbs[i] - currentProbs[i]) * 100;
+        if (impact > maxImpact) maxImpact = impact;
+    });
+
+    const slippageWarning = maxImpact > 5
+        ? `<div class="text-xs mt-2 px-2 py-1 rounded ${maxImpact > 15 ? 'bg-red-50 text-red-600' : 'bg-yellow-50 text-yellow-600'}">⚠ Price impact: ~${maxImpact.toFixed(1)}%</div>`
+        : '';
+    return lines + `<div class="text-xs text-gray-400 mt-2">Winning shares pay 1 token each</div>${slippageWarning}`;
+}
+
+// ==================== SHARE / DEEP LINKS ====================
+
+async function handleShareMarket(marketId) {
+    const market = AppState.markets.find(m => m.id === marketId);
+    const url = window.location.origin + window.location.pathname + '#market=' + marketId;
+    const text = market
+        ? `📈 ${market.title} — currently at ${Math.round(market.probability * 100)}%\n${url}`
+        : url;
+
+    try {
+        await navigator.clipboard.writeText(text);
+        showToast('Link copied to clipboard!', 'success');
+    } catch (e) {
+        // Fallback for older browsers
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+        showToast('Link copied to clipboard!', 'success');
+    }
 }
 
 // ==================== INIT ====================

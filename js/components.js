@@ -67,6 +67,34 @@ function withLoading(btnId, asyncFn) {
 }
 
 // ============================================================
+// Modal System
+// ============================================================
+
+function showModal({ title, message, confirmText = 'Confirm', cancelText = 'Cancel', danger = false }) {
+    return new Promise((resolve) => {
+        const id = 'modal-' + Date.now();
+        const backdrop = document.createElement('div');
+        backdrop.id = id;
+        backdrop.className = 'modal-backdrop';
+        backdrop.innerHTML = `
+            <div class="modal-content">
+                <h3 class="text-lg font-bold text-gray-900 mb-2">${esc(title)}</h3>
+                <p class="text-sm text-gray-600 mb-6">${esc(message)}</p>
+                <div class="flex gap-3 justify-end">
+                    <button id="${id}-cancel" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">${esc(cancelText)}</button>
+                    <button id="${id}-confirm" class="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors ${danger ? 'bg-red-600 hover:bg-red-700' : 'bg-shark-600 hover:bg-shark-700'}">${esc(confirmText)}</button>
+                </div>
+            </div>`;
+        document.body.appendChild(backdrop);
+
+        const close = (result) => { backdrop.remove(); resolve(result); };
+        document.getElementById(`${id}-cancel`).onclick = () => close(false);
+        document.getElementById(`${id}-confirm`).onclick = () => close(true);
+        backdrop.onclick = (e) => { if (e.target === backdrop) close(false); };
+    });
+}
+
+// ============================================================
 // Components
 // ============================================================
 
@@ -87,15 +115,20 @@ const Components = {
         const colors = {
             blue: 'bg-blue-100 text-blue-700', red: 'bg-red-100 text-red-700',
             green: 'bg-green-100 text-green-700', purple: 'bg-purple-100 text-purple-700',
-            amber: 'bg-amber-100 text-amber-700',
+            amber: 'bg-amber-100 text-amber-700', pink: 'bg-pink-100 text-pink-700',
         };
         return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${colors[cat.color]}">${cat.icon} ${esc(cat.label)}</span>`;
     },
 
     statusBadge(market) {
+        if (market.resolution === 'void') return '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-600">VOIDED</span>';
+        if (market.market_type === 'multi' && market.resolution) {
+            const winIdx = parseInt(market.resolution);
+            const label = !isNaN(winIdx) && market.options?.[winIdx] ? market.options[winIdx].label : market.resolution;
+            return `<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">Winner: ${esc(label)}</span>`;
+        }
         if (market.resolution === 'yes') return '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">Resolved YES</span>';
         if (market.resolution === 'no') return '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700">Resolved NO</span>';
-        if (market.resolution === 'void') return '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-600">VOIDED</span>';
         if (market.status === 'closed') return '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-600">Closed</span>';
         return '';
     },
@@ -118,6 +151,32 @@ const Components = {
         const days = daysLeft(market.closes_at);
         const isResolved = !!market.resolution;
         const isExpired = !isResolved && days <= 0;
+        const isWatching = AppState.isWatching(market.id);
+        const isMulti = market.market_type === 'multi';
+
+        // Calculate unrealized P&L for user's active positions
+        let positionPnL = 0;
+        userPreds.forEach(p => {
+            let currentValue;
+            if (isMulti) {
+                currentValue = AMM.sellRevenueMulti(market.q_values || [], p.shares, p.option_index);
+            } else {
+                currentValue = AMM.sellRevenue(market.q_yes || 0, market.q_no || 0, p.shares, p.direction);
+            }
+            positionPnL += Math.round(currentValue) - p.amount;
+        });
+
+        // For multi markets, show the leading option label
+        let multiLeader = '';
+        if (isMulti && market.options && market.probabilities) {
+            const maxIdx = market.probabilities.indexOf(Math.max(...market.probabilities));
+            multiLeader = market.options[maxIdx]?.label || '';
+        }
+
+        // Sparkline data: for multi, extract the max probability from each history entry
+        const sparkData = isMulti && market.history
+            ? market.history.map(h => Array.isArray(h) ? Math.max(...h) : h)
+            : market.history;
 
         return `
             <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 card-hover cursor-pointer fade-in ${isResolved ? 'opacity-75' : ''}"
@@ -126,22 +185,25 @@ const Components = {
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-1.5 mb-2 flex-wrap">
                             ${this.categoryTag(market.category)}
+                            ${isMulti ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">Multi</span>' : ''}
                             ${market.trending && !isResolved ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">🔥</span>' : ''}
                             ${this.statusBadge(market)}
                             ${isExpired ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Expired</span>' : ''}
-                            ${userPreds.length > 0 ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-shark-100 text-shark-700">✓ ${userPreds.length}</span>` : ''}
+                            ${userPreds.length > 0 ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium ${positionPnL >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">✓ ${userPreds.length} ${positionPnL !== 0 ? (positionPnL > 0 ? '+' : '') + positionPnL + 't' : ''}</span>` : ''}
                         </div>
                         <h3 class="font-semibold text-gray-900 text-sm sm:text-base leading-snug line-clamp-2">${esc(market.title)}</h3>
+                        ${isMulti && multiLeader ? `<div class="text-xs text-gray-500 mt-1">Leading: <span class="font-medium text-gray-700">${esc(multiLeader)}</span> at ${Math.round(Math.max(...(market.probabilities || [0])) * 100)}%</div>` : ''}
                     </div>
                     <div class="flex flex-col items-end gap-1 shrink-0">
-                        ${this.probBadge(market.probability)}
-                        <div class="hidden sm:block">${this.sparkline(market.history)}</div>
+                        ${isMulti ? `<span class="inline-flex items-center rounded-full font-bold bg-indigo-100 text-indigo-800 text-sm px-2.5 py-1">${market.options?.length || '?'} options</span>` : this.probBadge(market.probability)}
+                        <div class="hidden sm:block">${this.sparkline(sparkData)}</div>
                     </div>
                 </div>
                 <div class="flex items-center justify-between text-xs sm:text-sm text-gray-500">
                     <div class="flex items-center gap-3">
                         <span>${market.traders} traders</span>
                         <span>${market.volume.toLocaleString()} vol</span>
+                        <button onclick="event.stopPropagation(); handleToggleWatchlist(${market.id})" class="hover:text-shark-600 transition-colors ${isWatching ? 'text-shark-600' : ''}" title="${isWatching ? 'Remove from watchlist' : 'Add to watchlist'}">${isWatching ? '★' : '☆'}</button>
                     </div>
                     <span>${isResolved ? 'Resolved' : isExpired ? 'Expired' : days + 'd left'}</span>
                 </div>
@@ -161,8 +223,14 @@ const Components = {
     },
 
     avatar(name_or_initials, size = 'md') {
-        const letters = name_or_initials.length > 2 ? initials(name_or_initials) : name_or_initials;
         const sizeClass = size === 'lg' ? 'w-12 h-12 text-lg' : size === 'sm' ? 'w-8 h-8 text-xs' : 'w-10 h-10 text-sm';
+        const emojiSize = size === 'lg' ? 'text-2xl' : size === 'sm' ? 'text-base' : 'text-xl';
+        // Check if it's an emoji (single character outside ASCII range)
+        const isEmoji = name_or_initials && /^\p{Emoji}/u.test(name_or_initials) && name_or_initials.length <= 4;
+        if (isEmoji) {
+            return `<div class="rounded-full bg-gray-100 flex items-center justify-center shrink-0 ${sizeClass} ${emojiSize}">${name_or_initials}</div>`;
+        }
+        const letters = name_or_initials.length > 2 ? initials(name_or_initials) : name_or_initials;
         return `<div class="rounded-full bg-shark-600 text-white flex items-center justify-center font-semibold shrink-0 ${sizeClass}">${esc(letters)}</div>`;
     },
 
@@ -173,6 +241,21 @@ const Components = {
         </div>
         <div class="flex justify-between text-xs text-gray-500 mt-1">
             <span>YES ${pct}%</span><span>NO ${100 - pct}%</span>
+        </div>`;
+    },
+
+    probBarMulti(options, probabilities) {
+        if (!options || !probabilities) return '';
+        const colors = ['bg-blue-500', 'bg-green-500', 'bg-amber-500', 'bg-red-500', 'bg-purple-500', 'bg-pink-500', 'bg-cyan-500', 'bg-indigo-500'];
+        const textColors = ['text-blue-700', 'text-green-700', 'text-amber-700', 'text-red-700', 'text-purple-700', 'text-pink-700', 'text-cyan-700', 'text-indigo-700'];
+        return `<div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden flex">
+            ${probabilities.map((p, i) => `<div class="h-full ${colors[i % colors.length]} prob-bar" style="width:${Math.round(p * 100)}%"></div>`).join('')}
+        </div>
+        <div class="flex flex-wrap gap-x-3 gap-y-1 text-xs mt-2">
+            ${options.map((opt, i) => {
+                const pct = Math.round((probabilities[i] || 0) * 100);
+                return `<span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full ${colors[i % colors.length]} inline-block"></span><span class="${textColors[i % textColors.length]} font-medium">${esc(opt.label)} ${pct}%</span></span>`;
+            }).join('')}
         </div>`;
     },
 
@@ -226,6 +309,34 @@ const Components = {
         return `<div class="inline-block ${s} border-shark-200 border-t-shark-600 rounded-full animate-spin"></div>`;
     },
 
+    skeletonCards(count = 4) {
+        return Array.from({ length: count }, () => `
+            <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
+                <div class="flex items-start justify-between gap-3 mb-3">
+                    <div class="flex-1 space-y-2">
+                        <div class="skeleton-line" style="width:40%"></div>
+                        <div class="skeleton-line" style="width:90%"></div>
+                        <div class="skeleton-line" style="width:70%"></div>
+                    </div>
+                    <div class="skeleton-line" style="width:48px;height:32px;border-radius:9999px"></div>
+                </div>
+                <div class="flex justify-between">
+                    <div class="skeleton-line" style="width:30%"></div>
+                    <div class="skeleton-line" style="width:15%"></div>
+                </div>
+            </div>`).join('');
+    },
+
+    skeletonPage() {
+        return `
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+                <div class="skeleton-line mb-6" style="width:200px;height:28px"></div>
+                <div class="grid gap-3 sm:gap-4 md:grid-cols-2">
+                    ${this.skeletonCards(4)}
+                </div>
+            </div>`;
+    },
+
     header() {
         const navItems = [
             { id: 'dashboard', label: 'Dashboard', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>' },
@@ -235,7 +346,8 @@ const Components = {
         ];
 
         if (AppState.user?.is_admin) {
-            navItems.push({ id: 'admin', label: 'Admin', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>' });
+            const pendingCount = (AppState.pendingMarkets || []).length;
+            navItems.push({ id: 'admin', label: 'Admin' + (pendingCount > 0 ? ` (${pendingCount})` : ''), icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>' });
         }
 
         const unread = AppState.unreadCount;
@@ -266,13 +378,20 @@ const Components = {
                             `).join('')}
                         </nav>
                         <div class="flex items-center gap-2 sm:gap-3">
+                            <button onclick="AppState.toggleDarkMode()" class="text-white/70 hover:text-white transition-colors p-1" title="Toggle dark mode">
+                                ${AppState.darkMode
+                                    ? '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>'
+                                    : '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>'
+                                }
+                            </button>
                             <button onclick="AppState.navigate('notifications')" class="relative text-white/70 hover:text-white transition-colors p-1">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
                                 ${unread > 0 ? `<span class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold">${unread > 9 ? '9+' : unread}</span>` : ''}
                             </button>
-                            <div class="hidden sm:flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1.5">
-                                <span class="text-sm font-semibold">${(AppState.user?.balance || 0).toLocaleString()}</span>
-                                <span class="text-xs text-white/60">tokens</span>
+                            <div class="flex items-center gap-1 sm:gap-2 bg-white/10 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5">
+                                <span class="text-xs sm:text-sm font-semibold">${(AppState.user?.balance || 0).toLocaleString()}</span>
+                                <span class="text-xs text-white/60 hidden sm:inline">tokens</span>
+                                <span class="text-xs text-white/60 sm:hidden">t</span>
                             </div>
                             <button onclick="AppState.navigate('profile', { profileId: '${uid}' })" class="cursor-pointer">
                                 ${this.avatar(AppState.user?.avatar || 'XX', 'sm')}
@@ -283,7 +402,7 @@ const Components = {
                         </div>
                     </div>
                     <!-- Mobile nav -->
-                    <div class="flex md:hidden gap-1 pb-2 overflow-x-auto -mx-1 px-1">
+                    <div class="flex md:hidden gap-1 pb-2 overflow-x-auto scrollbar-hide -mx-1 px-1">
                         ${navItems.map(item => `
                             <button onclick="AppState.navigate('${item.id}')"
                                 class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap

@@ -76,18 +76,76 @@ const Pages = {
         const activeMarkets = AppState.markets.filter(m => m.status === 'active' && !m.resolution).length;
         const userRank = AppState.leaderboard.findIndex(p => p.id === AppState.user?.id) + 1;
         const activePreds = (AppState.userPredictions || []).filter(p => p.status === 'active');
+        const portfolio = AppState.getPortfolioSummary();
 
         return `
             <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 fade-in">
+                ${!AppState.hasSeenOnboarding ? `
+                <div class="bg-white rounded-2xl border-2 border-shark-200 p-6 sm:p-8 mb-6 sm:mb-8 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-shark-100/50 to-transparent rounded-full -translate-y-1/2 translate-x-1/2"></div>
+                    <div class="relative" id="onboarding-content">
+                        <div id="onboard-step-1">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div class="w-12 h-12 rounded-xl bg-shark-600 text-white flex items-center justify-center text-2xl">📈</div>
+                                <div>
+                                    <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Welcome to SharkNinja Predictions!</h2>
+                                    <p class="text-sm text-gray-500">Forecast what matters, earn points, prove your insight.</p>
+                                </div>
+                            </div>
+                            <div class="grid sm:grid-cols-3 gap-4 mb-6">
+                                <div class="bg-gray-50 rounded-xl p-4">
+                                    <div class="text-2xl mb-2">🎯</div>
+                                    <h3 class="font-semibold text-gray-900 text-sm mb-1">Make Predictions</h3>
+                                    <p class="text-xs text-gray-500">Buy YES or NO shares on questions about products, strategy, and more.</p>
+                                </div>
+                                <div class="bg-gray-50 rounded-xl p-4">
+                                    <div class="text-2xl mb-2">💰</div>
+                                    <h3 class="font-semibold text-gray-900 text-sm mb-1">You Start with 1,000 Tokens</h3>
+                                    <p class="text-xs text-gray-500">Use tokens to trade. Winning predictions pay out — grow your balance!</p>
+                                </div>
+                                <div class="bg-gray-50 rounded-xl p-4">
+                                    <div class="text-2xl mb-2">🏆</div>
+                                    <h3 class="font-semibold text-gray-900 text-sm mb-1">Climb the Leaderboard</h3>
+                                    <p class="text-xs text-gray-500">Earn points for correct predictions. Compete with your team!</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-3">
+                                <button onclick="AppState.navigate('markets')" class="bg-shark-600 text-white px-6 py-2.5 rounded-lg font-semibold text-sm hover:bg-shark-700 transition-colors">Browse Markets</button>
+                                <button onclick="AppState.navigate('create')" class="bg-gray-100 text-gray-700 px-5 py-2.5 rounded-lg font-semibold text-sm hover:bg-gray-200 transition-colors">Create a Market</button>
+                                <button onclick="AppState.completeOnboarding()" class="text-gray-400 text-sm hover:text-gray-600 ml-auto">Skip</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                ` : `
                 <div class="bg-gradient-to-r from-shark-800 to-shark-600 rounded-2xl p-5 sm:p-8 text-white mb-6 sm:mb-8">
                     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <div>
                             <h1 class="text-xl sm:text-3xl font-bold mb-2">Welcome back, ${esc(AppState.user?.name?.split(' ')[0] || 'Forecaster')}</h1>
                             <p class="text-shark-200 text-sm">Harness the collective intelligence of SharkNinja employees to forecast what matters.</p>
                         </div>
-                        <button onclick="AppState.navigate('create')" class="bg-white text-shark-800 px-5 py-2.5 rounded-lg font-semibold text-sm hover:bg-shark-50 transition-colors shrink-0">+ Create Market</button>
+                        <div class="flex gap-2">
+                            <button onclick="AppState.navigate('transactions')" class="bg-white/10 text-white px-4 py-2.5 rounded-lg font-semibold text-sm hover:bg-white/20 transition-colors shrink-0">Transactions</button>
+                            <button onclick="AppState.navigate('create')" class="bg-white text-shark-800 px-5 py-2.5 rounded-lg font-semibold text-sm hover:bg-shark-50 transition-colors shrink-0">+ Create Market</button>
+                        </div>
                     </div>
                 </div>
+                `}
+
+                <!-- Portfolio P&L Summary -->
+                ${activePreds.length > 0 ? `
+                <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 mb-6 sm:mb-8">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-sm font-semibold text-gray-500 uppercase">Portfolio Summary</h2>
+                        <span class="text-xs text-gray-400">Unrealized values update in real-time</span>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                        <div><div class="text-xs text-gray-500">Invested</div><div class="text-lg font-bold text-gray-900">${portfolio.totalInvested.toLocaleString()}t</div></div>
+                        <div><div class="text-xs text-gray-500">Current Value</div><div class="text-lg font-bold text-gray-900">${portfolio.unrealizedValue.toLocaleString()}t</div></div>
+                        <div><div class="text-xs text-gray-500">Unrealized P&L</div><div class="text-lg font-bold ${portfolio.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}">${portfolio.unrealizedPnL >= 0 ? '+' : ''}${portfolio.unrealizedPnL.toLocaleString()}t</div></div>
+                        <div><div class="text-xs text-gray-500">Realized P&L</div><div class="text-lg font-bold ${portfolio.realizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}">${portfolio.realizedPnL >= 0 ? '+' : ''}${portfolio.realizedPnL.toLocaleString()}t</div></div>
+                    </div>
+                </div>` : ''}
 
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
                     ${Components.statCard('Active Markets', activeMarkets, '', '📊')}
@@ -120,9 +178,32 @@ const Pages = {
                         <button onclick="AppState.navigate('markets')" class="text-sm text-shark-600 font-medium hover:text-shark-800">View all →</button>
                     </div>
                     <div class="grid gap-3 sm:gap-4 md:grid-cols-2">
-                        ${trending.length > 0 ? trending.map(m => Components.marketCard(m)).join('') : '<div class="text-gray-400 text-sm col-span-2 text-center py-8">No trending markets yet.</div>'}
+                        ${trending.length > 0 ? trending.map(m => Components.marketCard(m)).join('') : `<div class="col-span-2 text-center py-8 bg-white rounded-xl border border-gray-200 p-6">
+                            <div class="text-3xl mb-2">📊</div>
+                            <div class="text-gray-500 text-sm mb-3">No trending markets yet. Be the first to create one!</div>
+                            <button onclick="AppState.navigate('create')" class="bg-shark-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-shark-700">+ Create Market</button>
+                        </div>`}
                     </div>
                 </div>
+
+                ${AppState.activityFeed.length > 0 ? `
+                <div class="mb-6 sm:mb-8">
+                    <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-4">Recent Activity</h2>
+                    <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-50">
+                        ${AppState.activityFeed.slice(0, 8).map(a => {
+                            const name = a.profiles?.name || 'Someone';
+                            const title = a.markets?.title || 'a market';
+                            const verb = a.status === 'sold' ? 'sold' : 'bought';
+                            return `<div class="flex items-center gap-3 p-3 sm:p-4 hover:bg-gray-50 cursor-pointer" onclick="AppState.navigate('market', { marketId: ${a.market_id} })">
+                                ${Components.avatar(a.profiles?.avatar || name, 'sm')}
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-sm text-gray-900 truncate"><span class="font-semibold">${esc(name)}</span> ${verb} <span class="font-medium ${a.direction === 'yes' ? 'text-green-600' : 'text-red-500'}">${a.direction.toUpperCase()}</span> on <span class="font-medium">${esc(title)}</span></div>
+                                    <div class="text-xs text-gray-400">${a.amount}t · ${getTimeAgo(a.created_at)}</div>
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>` : ''}
 
                 <div class="mb-6 sm:mb-8">
                     <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-4">Browse by Category</h2>
@@ -154,6 +235,7 @@ const Pages = {
                         <input type="text" placeholder="Search markets..." value="${esc(AppState.searchQuery)}" oninput="AppState.setSearch(this.value)" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500 focus:border-transparent"/>
                         <div class="flex gap-1.5 flex-wrap">
                             <button onclick="AppState.setFilter('all')" class="px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium ${AppState.categoryFilter === 'all' ? 'bg-shark-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">All</button>
+                            <button onclick="AppState.setFilter('watchlist')" class="px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium ${AppState.categoryFilter === 'watchlist' ? 'bg-shark-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">★ <span class="hidden sm:inline">Watchlist</span></button>
                             ${Object.values(CATEGORIES).map(cat => `
                                 <button onclick="AppState.setFilter('${cat.id}')" class="px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium ${AppState.categoryFilter === cat.id ? 'bg-shark-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">${cat.icon} <span class="hidden sm:inline">${esc(cat.label)}</span></button>
                             `).join('')}
@@ -167,7 +249,14 @@ const Pages = {
                     </div>
                 </div>
                 <div class="grid gap-3 sm:gap-4">
-                    ${filtered.length > 0 ? filtered.map(m => Components.marketCard(m)).join('') : '<div class="text-center py-12 text-gray-400">No markets found.</div>'}
+                    ${filtered.length > 0 ? filtered.map(m => Components.marketCard(m)).join('') : `<div class="text-center py-12 bg-white rounded-xl border border-gray-200 p-8">
+                        <div class="text-3xl mb-2">🔍</div>
+                        <div class="text-gray-500 text-sm mb-3">${AppState.searchQuery ? 'No markets match your search.' : AppState.categoryFilter === 'watchlist' ? 'Your watchlist is empty. Star markets to track them here.' : 'No markets in this category yet.'}</div>
+                        <div class="flex gap-2 justify-center">
+                            ${AppState.searchQuery || AppState.categoryFilter !== 'all' ? '<button onclick="AppState.setSearch(&quot;&quot;); AppState.setFilter(&quot;all&quot;)" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200">Clear filters</button>' : ''}
+                            <button onclick="AppState.navigate(\'create\')" class="bg-shark-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-shark-700">+ Create Market</button>
+                        </div>
+                    </div>`}
                 </div>
             </div>`;
     },
@@ -175,7 +264,28 @@ const Pages = {
     // ==================== MARKET DETAIL ====================
     market() {
         const m = AppState.selectedMarket;
-        if (!m) return '<div class="text-center py-12">Market not found.</div>';
+        if (!m) return `
+            <div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+                <div class="skeleton-line mb-6" style="width:140px;height:20px"></div>
+                <div class="grid lg:grid-cols-3 gap-4 sm:gap-6">
+                    <div class="lg:col-span-2 space-y-4">
+                        <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 space-y-4">
+                            <div class="skeleton-line" style="width:30%;height:14px"></div>
+                            <div class="skeleton-line" style="width:85%;height:22px"></div>
+                            <div class="skeleton-line" style="width:60%"></div>
+                            <div class="skeleton-line" style="height:12px;border-radius:9999px"></div>
+                            <div class="skeleton-line" style="height:120px"></div>
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 space-y-3">
+                            <div class="skeleton-line" style="width:50%;height:16px"></div>
+                            <div class="skeleton-line" style="height:40px"></div>
+                            <div class="skeleton-line" style="height:40px"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
 
         const userPreds = (AppState.userPredictions || []).filter(p => p.market_id === m.id && p.status === 'active');
         const allPreds = AppState.selectedMarketPredictions || [];
@@ -188,13 +298,28 @@ const Pages = {
         const canEdit = !isResolved && (AppState.user?.is_admin || m.created_by === AppState.session?.user?.id);
         const qYes = m.q_yes || 0, qNo = m.q_no || 0;
         const canTrade = !isResolved && !isExpired && m.status === 'active';
+        const isWatching = AppState.isWatching(m.id);
+        const isMulti = m.market_type === 'multi';
+        const options = m.options || [];
+        const probs = m.probabilities || [];
 
         return `
-            <div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 fade-in">
-                <button onclick="AppState.navigate('markets')" class="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-4 sm:mb-6">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-                    Back to Markets
-                </button>
+            <div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-20 lg:pb-8 fade-in">
+                <div class="flex items-center justify-between mb-4 sm:mb-6">
+                    <button onclick="AppState.navigate('markets')" class="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                        Back to Markets
+                    </button>
+                    <div class="flex items-center gap-3">
+                        <button onclick="handleShareMarket(${m.id})" class="flex items-center gap-1 text-sm font-medium text-gray-400 hover:text-shark-600 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+                            Share
+                        </button>
+                        <button onclick="handleToggleWatchlist(${m.id})" class="flex items-center gap-1 text-sm font-medium ${isWatching ? 'text-shark-600' : 'text-gray-400 hover:text-shark-600'} transition-colors">
+                            ${isWatching ? '★ Watching' : '☆ Watch'}
+                        </button>
+                    </div>
+                </div>
 
                 <div class="grid lg:grid-cols-3 gap-4 sm:gap-6">
                     <div class="lg:col-span-2 space-y-4 sm:space-y-6">
@@ -221,15 +346,22 @@ const Pages = {
                             </div>` : ''}
 
                             <div class="mb-4">
+                                ${isMulti ? `
+                                <div class="mb-2">
+                                    <span class="text-sm text-gray-500">${isResolved ? 'Final probabilities' : 'Current probabilities'}</span>
+                                </div>
+                                ${Components.probBarMulti(options, probs)}
+                                ` : `
                                 <div class="flex items-center justify-between mb-2">
                                     <span class="text-2xl sm:text-3xl font-bold ${pct >= 50 ? 'text-green-600' : 'text-red-500'}">${pct}%</span>
                                     <span class="text-sm text-gray-500">${isResolved ? 'Final' : 'chance of YES'}</span>
                                 </div>
                                 ${Components.probBar(m.probability)}
+                                `}
                             </div>
                             <div class="mt-6">
                                 <h3 class="text-sm font-semibold text-gray-700 mb-2">Price History</h3>
-                                <div class="bg-gray-50 rounded-lg p-3 sm:p-4">${Components.chart(m.history)}</div>
+                                <div class="bg-gray-50 rounded-lg p-3 sm:p-4">${Components.chart(isMulti && m.history ? m.history.map(h => Array.isArray(h) ? Math.max(...h) : h) : m.history)}</div>
                             </div>
                         </div>
 
@@ -263,8 +395,8 @@ const Pages = {
                                 <input type="text" id="comment-input" placeholder="Share your insight..." maxlength="2000" onkeydown="if(event.key==='Enter') handleAddComment(${m.id})" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500"/>
                                 <button onclick="handleAddComment(${m.id})" id="comment-btn" class="bg-shark-600 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-medium hover:bg-shark-700 transition-colors shrink-0">Post</button>
                             </div>` : ''}
-                            <div class="space-y-4">
-                                ${comments.length > 0 ? comments.map(c => {
+                            <div class="space-y-4" id="comments-list">
+                                ${comments.length > 0 ? comments.slice(0, AppState._commentsShown || 10).map(c => {
                                     const profile = c.profiles || {};
                                     const userName = profile.name || 'Unknown';
                                     const dept = profile.department || '';
@@ -282,6 +414,8 @@ const Pages = {
                                         </div>
                                     </div>`;
                                 }).join('') : '<div class="text-sm text-gray-400 text-center py-4">No comments yet.</div>'}
+                                ${comments.length > (AppState._commentsShown || 10) ? `
+                                <button onclick="handleShowMoreComments()" class="w-full text-center text-sm text-shark-600 font-medium hover:text-shark-800 py-2">Show more (${comments.length - (AppState._commentsShown || 10)} remaining)</button>` : ''}
                             </div>
                         </div>
                     </div>
@@ -291,10 +425,19 @@ const Pages = {
                         <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
                             ${isResolved ? `
                                 <h3 class="font-semibold text-gray-900 mb-4">Market Resolved</h3>
+                                ${isMulti ? (() => {
+                                    const winIdx = parseInt(m.resolution);
+                                    const isVoid = m.resolution === 'void' || isNaN(winIdx);
+                                    const winLabel = !isVoid && options[winIdx] ? options[winIdx].label : 'VOIDED';
+                                    return `<div class="text-center p-4 rounded-lg ${isVoid ? 'bg-gray-50' : 'bg-green-50'}">
+                                        <div class="text-2xl font-bold ${isVoid ? 'text-gray-600' : 'text-green-600'}">${isVoid ? 'VOIDED' : esc(winLabel)}</div>
+                                        <div class="text-sm text-gray-500 mt-1">Resolved ${getTimeAgo(m.resolved_at)}</div>
+                                    </div>`;
+                                })() : `
                                 <div class="text-center p-4 rounded-lg ${m.resolution === 'yes' ? 'bg-green-50' : m.resolution === 'no' ? 'bg-red-50' : 'bg-gray-50'}">
                                     <div class="text-3xl font-bold ${m.resolution === 'yes' ? 'text-green-600' : m.resolution === 'no' ? 'text-red-600' : 'text-gray-600'}">${m.resolution.toUpperCase()}</div>
                                     <div class="text-sm text-gray-500 mt-1">Resolved ${getTimeAgo(m.resolved_at)}</div>
-                                </div>
+                                </div>`}
                             ` : canTrade ? `
                                 <h3 class="font-semibold text-gray-900 mb-4">Make a Prediction</h3>
                                 <div class="space-y-4">
@@ -307,8 +450,20 @@ const Pages = {
                                         <div class="text-xs text-gray-400 mt-1">Balance: ${(AppState.user?.balance || 0).toLocaleString()} tokens</div>
                                     </div>
                                     <div id="trade-estimate" class="bg-gray-50 rounded-lg p-3 text-xs text-gray-600">
-                                        ${_tradeEstimateHTML(qYes, qNo, 50)}
+                                        ${isMulti ? _tradeEstimateHTMLMulti(m.q_values || [], options, 50) : _tradeEstimateHTML(qYes, qNo, 50)}
                                     </div>
+                                    ${isMulti ? `
+                                    <div class="space-y-2">
+                                        ${options.map((opt, i) => {
+                                            const optPct = Math.round((probs[i] || 0) * 100);
+                                            const btnColors = ['bg-blue-500 hover:bg-blue-600', 'bg-green-500 hover:bg-green-600', 'bg-amber-500 hover:bg-amber-600', 'bg-red-500 hover:bg-red-600', 'bg-purple-500 hover:bg-purple-600', 'bg-pink-500 hover:bg-pink-600', 'bg-cyan-500 hover:bg-cyan-600', 'bg-indigo-500 hover:bg-indigo-600'];
+                                            return `<button onclick="handlePrediction(${m.id}, '${esc(opt.label)}', ${i})" id="btn-opt-${i}-${m.id}" class="prediction-btn w-full ${btnColors[i % btnColors.length]} text-white py-2.5 rounded-lg font-bold text-sm flex items-center justify-between px-4">
+                                                <span>${esc(opt.label)}</span>
+                                                <span class="text-xs font-normal opacity-80">${optPct}%</span>
+                                            </button>`;
+                                        }).join('')}
+                                    </div>
+                                    ` : `
                                     <div class="grid grid-cols-2 gap-3">
                                         <button onclick="handlePrediction(${m.id}, 'yes')" id="btn-yes-${m.id}" class="prediction-btn bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-bold text-sm">
                                             YES ↑<div class="text-xs font-normal opacity-80">at ${pct}%</div>
@@ -317,6 +472,7 @@ const Pages = {
                                             NO ↓<div class="text-xs font-normal opacity-80">at ${100 - pct}%</div>
                                         </button>
                                     </div>
+                                    `}
                                 </div>
                             ` : `
                                 <h3 class="font-semibold text-gray-900 mb-4">Trading Closed</h3>
@@ -329,7 +485,7 @@ const Pages = {
                             <h3 class="font-semibold text-gray-900 mb-4">Your Positions</h3>
                             <div class="space-y-3">
                                 ${userPreds.map(p => {
-                                    const sellValue = canTrade ? AMM.sellRevenue(qYes, qNo, p.shares, p.direction) : 0;
+                                    const sellValue = canTrade ? (isMulti ? AMM.sellRevenueMulti(m.q_values || [], p.shares, p.option_index) : AMM.sellRevenue(qYes, qNo, p.shares, p.direction)) : 0;
                                     const profit = Math.round(sellValue) - p.amount;
                                     return `<div class="bg-gray-50 rounded-lg p-3">
                                         <div class="flex items-center justify-between mb-2">
@@ -356,11 +512,20 @@ const Pages = {
                         <div class="bg-white rounded-xl border-2 border-amber-200 p-4 sm:p-6">
                             <h3 class="font-semibold text-gray-900 mb-2">Resolve Market</h3>
                             <p class="text-xs text-gray-500 mb-4">This will trigger payouts and cannot be undone.</p>
+                            ${isMulti ? `
+                            <div class="space-y-2">
+                                ${options.map((opt, i) => `
+                                    <button onclick="handleResolveMarket(${m.id}, '${i}', ${i})" id="resolve-opt-${i}-${m.id}" class="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg text-sm font-bold text-left px-4">${esc(opt.label)} wins</button>
+                                `).join('')}
+                                <button onclick="handleResolveMarket(${m.id}, 'void', -1)" id="resolve-void-${m.id}" class="w-full bg-gray-400 hover:bg-gray-500 text-white py-2 rounded-lg text-sm font-bold">VOID</button>
+                            </div>
+                            ` : `
                             <div class="grid grid-cols-3 gap-2">
                                 <button onclick="handleResolveMarket(${m.id}, 'yes')" id="resolve-yes-${m.id}" class="bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg text-sm font-bold">YES</button>
                                 <button onclick="handleResolveMarket(${m.id}, 'no')" id="resolve-no-${m.id}" class="bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-sm font-bold">NO</button>
                                 <button onclick="handleResolveMarket(${m.id}, 'void')" id="resolve-void-${m.id}" class="bg-gray-400 hover:bg-gray-500 text-white py-2 rounded-lg text-sm font-bold">VOID</button>
                             </div>
+                            `}
                         </div>` : ''}
 
                         <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
@@ -377,6 +542,21 @@ const Pages = {
                         </div>
                     </div>
                 </div>
+
+                ${canTrade ? `
+                <!-- Mobile sticky trade bar -->
+                <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 flex items-center gap-2 lg:hidden z-40 shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
+                    <div class="flex-1 text-xs text-gray-500 min-w-0">
+                        ${isMulti ? `<span class="font-bold text-gray-900">${options.length} options</span> · ` : `<span class="font-bold text-gray-900">${pct}%</span> YES · `}<span class="truncate">${(AppState.user?.balance || 0).toLocaleString()}t bal</span>
+                    </div>
+                    ${isMulti ? options.slice(0, 3).map((opt, i) => {
+                        const btnColors = ['bg-blue-500', 'bg-green-500', 'bg-amber-500'];
+                        return `<button onclick="handlePrediction(${m.id}, '${esc(opt.label)}', ${i})" class="${btnColors[i % 3]} text-white px-3 py-2 rounded-lg text-xs font-bold truncate max-w-[80px]">${esc(opt.label)}</button>`;
+                    }).join('') : `
+                    <button onclick="handlePrediction(${m.id}, 'yes')" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold">YES</button>
+                    <button onclick="handlePrediction(${m.id}, 'no')" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold">NO</button>
+                    `}
+                </div>` : ''}
             </div>`;
     },
 
@@ -384,12 +564,20 @@ const Pages = {
     leaderboard() {
         const lb = AppState.leaderboard;
         const top3 = lb.slice(0, 3);
+        const tab = AppState.leaderboardTab || 'individual';
 
         return `
             <div class="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 fade-in">
                 <h1 class="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Leaderboard</h1>
-                <p class="text-gray-500 text-sm mb-6 sm:mb-8">Top forecasters ranked by points earned from correct predictions.</p>
+                <p class="text-gray-500 text-sm mb-4">Top forecasters ranked by points earned from correct predictions.</p>
 
+                <!-- Tabs -->
+                <div class="flex gap-1 mb-6 sm:mb-8 bg-gray-100 rounded-lg p-1 max-w-xs">
+                    <button onclick="AppState.setLeaderboardTab('individual')" class="flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${tab === 'individual' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}">Individual</button>
+                    <button onclick="AppState.setLeaderboardTab('departments')" class="flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${tab === 'departments' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}">Departments</button>
+                </div>
+
+                ${tab === 'departments' ? this._departmentLeaderboard() : `
                 ${top3.length >= 3 ? `
                 <div class="grid grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
                     ${[1, 0, 2].map(idx => {
@@ -441,6 +629,45 @@ const Pages = {
                         </table>
                     </div>
                 </div>
+                `}
+            </div>`;
+    },
+
+    _departmentLeaderboard() {
+        const depts = AppState.getDepartmentLeaderboard();
+        const medals = ['🥇', '🥈', '🥉'];
+        if (depts.length === 0) return '<div class="text-center py-12 text-gray-400">No department data yet.</div>';
+
+        return `
+            <div class="grid gap-3 sm:gap-4">
+                ${depts.map((d, idx) => {
+                    const top = d.topPlayer;
+                    return `<div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 card-hover">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-3">
+                                <span class="text-xl sm:text-2xl font-bold ${idx < 3 ? 'text-shark-600' : 'text-gray-400'}">${idx < 3 ? medals[idx] : '#' + (idx + 1)}</span>
+                                <div>
+                                    <h3 class="font-bold text-gray-900 text-sm sm:text-base">${esc(d.department)}</h3>
+                                    <span class="text-xs text-gray-500">${d.members} member${d.members !== 1 ? 's' : ''}</span>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-lg sm:text-xl font-bold text-shark-600">${d.totalPoints.toLocaleString()}</div>
+                                <div class="text-xs text-gray-500">points</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between text-sm">
+                            <div class="flex items-center gap-4">
+                                <span class="text-gray-500">Avg accuracy: <span class="font-semibold text-gray-700">${Math.round(d.avgAccuracy * 100)}%</span></span>
+                            </div>
+                            ${top ? `<div class="flex items-center gap-2 text-xs text-gray-500">
+                                Top: ${Components.avatar(top.avatar || top.name || 'XX', 'sm')}
+                                <span class="font-medium text-gray-700 cursor-pointer hover:text-shark-600" onclick="AppState.navigate('profile', { profileId: '${top.id}' })">${esc(top.name)}</span>
+                                <span class="text-gray-400">${top.points.toLocaleString()}pts</span>
+                            </div>` : ''}
+                        </div>
+                    </div>`;
+                }).join('')}
             </div>`;
     },
 
@@ -449,8 +676,27 @@ const Pages = {
         return `
             <div class="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8 fade-in">
                 <h1 class="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Create a New Market</h1>
-                <p class="text-gray-500 text-sm mb-6 sm:mb-8">Ask a yes/no question with clear resolution criteria.</p>
+                <p class="text-gray-500 text-sm mb-4">Create a prediction market for the team.${AppState.user?.is_admin ? '' : ' Markets require admin approval before going live.'}</p>
+
+                <!-- Templates -->
+                <div class="mb-6">
+                    <div class="text-xs font-semibold text-gray-500 uppercase mb-2">Start from a template</div>
+                    <div class="flex gap-2 flex-wrap">
+                        ${MARKET_TEMPLATES.map((t, i) => `
+                            <button onclick="applyMarketTemplate(${i})" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-600 hover:bg-shark-100 hover:text-shark-700 transition-colors">${esc(t.label)}</button>
+                        `).join('')}
+                    </div>
+                </div>
+
                 <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 space-y-5">
+                    <!-- Market Type Toggle -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Market Type</label>
+                        <div class="flex gap-2">
+                            <button onclick="toggleMarketType('binary')" id="type-binary" class="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border-2 border-shark-600 bg-shark-50 text-shark-700">Yes / No</button>
+                            <button onclick="toggleMarketType('multi')" id="type-multi" class="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-500 hover:border-gray-300">Multiple Choice</button>
+                        </div>
+                    </div>
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Question * <span class="font-normal text-gray-400" id="title-count">0/200</span></label>
                         <input type="text" id="create-title" placeholder="Will [specific outcome] happen by [date]?" maxlength="200"
@@ -463,6 +709,15 @@ const Pages = {
                         <textarea id="create-desc" rows="4" maxlength="5000" placeholder="Provide context, resolution criteria, and relevant background..."
                             oninput="document.getElementById('desc-count').textContent=this.value.length+'/5000'"
                             class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500 focus:border-transparent resize-none"></textarea>
+                    </div>
+                    <!-- Multi-outcome options (hidden by default) -->
+                    <div id="multi-options-section" class="hidden">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Options * <span class="font-normal text-gray-400">2-8 choices</span></label>
+                        <div id="multi-options-list" class="space-y-2">
+                            <div class="flex gap-2"><input type="text" class="multi-option-input flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500" placeholder="Option 1" maxlength="100"/></div>
+                            <div class="flex gap-2"><input type="text" class="multi-option-input flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500" placeholder="Option 2" maxlength="100"/></div>
+                        </div>
+                        <button onclick="addMultiOption()" class="mt-2 text-sm text-shark-600 font-medium hover:text-shark-800">+ Add option</button>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
@@ -532,13 +787,28 @@ const Pages = {
             <div class="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 fade-in">
                 <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 mb-6">
                     <div class="flex items-center gap-4">
-                        ${Components.avatar(p.avatar || p.name || 'XX', 'lg')}
+                        <div class="relative group">
+                            ${Components.avatar(p.avatar || p.name || 'XX', 'lg')}
+                            ${isOwnProfile ? `<button onclick="document.getElementById('avatar-picker').classList.toggle('hidden')" class="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/30 flex items-center justify-center transition-colors cursor-pointer">
+                                <span class="text-white opacity-0 group-hover:opacity-100 text-xs font-bold transition-opacity">Edit</span>
+                            </button>` : ''}
+                        </div>
                         <div class="flex-1 min-w-0">
                             <h1 class="text-xl sm:text-2xl font-bold text-gray-900 truncate">${esc(p.name)} ${isOwnProfile ? '<span class="text-sm text-shark-600 font-normal">(You)</span>' : ''}</h1>
                             <p class="text-gray-500 truncate">${esc(p.department)}</p>
                             ${p.is_admin ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700 mt-1">Admin</span>' : ''}
                         </div>
                     </div>
+                    ${isOwnProfile ? `
+                    <div id="avatar-picker" class="hidden mt-4 p-3 bg-gray-50 rounded-lg">
+                        <div class="text-xs font-semibold text-gray-500 uppercase mb-2">Choose an avatar</div>
+                        <div class="flex flex-wrap gap-2">
+                            ${AVATAR_PRESETS.map(emoji => `
+                                <button onclick="handleSetAvatar('${emoji}')" class="w-10 h-10 rounded-full bg-white border-2 ${p.avatar === emoji ? 'border-shark-500 ring-2 ring-shark-200' : 'border-gray-200 hover:border-shark-300'} flex items-center justify-center text-xl transition-colors">${emoji}</button>
+                            `).join('')}
+                            <button onclick="handleSetAvatar('${initials(p.name)}')" class="w-10 h-10 rounded-full bg-shark-600 text-white border-2 ${!AVATAR_PRESETS.includes(p.avatar) ? 'border-shark-500 ring-2 ring-shark-200' : 'border-transparent'} flex items-center justify-center text-xs font-bold">${initials(p.name)}</button>
+                        </div>
+                    </div>` : ''}
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
                         <div class="text-center p-2.5 bg-gray-50 rounded-lg">
                             <div class="text-xl sm:text-2xl font-bold text-gray-900">${rank > 0 ? '#' + rank : '—'}</div>
@@ -563,6 +833,59 @@ const Pages = {
                         <span class="text-lg sm:text-xl font-bold text-shark-700">${(p.balance || 0).toLocaleString()}</span>
                     </div>` : ''}
                 </div>
+
+                <!-- Achievements -->
+                ${(() => {
+                    const achievements = AppState.getAchievements(preds, p, rank);
+                    const earned = achievements.filter(a => a.earned);
+                    const locked = achievements.filter(a => !a.earned);
+                    return `
+                <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 mb-6">
+                    <h2 class="text-lg font-bold text-gray-900 mb-3">Achievements <span class="text-sm font-normal text-gray-400">${earned.length}/${achievements.length}</span></h2>
+                    <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 sm:gap-3">
+                        ${earned.map(a => `
+                            <div class="text-center p-2 sm:p-3 bg-gradient-to-b from-amber-50 to-white rounded-xl border border-amber-200" title="${esc(a.desc)}">
+                                <div class="text-2xl sm:text-3xl mb-1">${a.icon}</div>
+                                <div class="text-xs font-semibold text-gray-900 leading-tight">${esc(a.name)}</div>
+                            </div>`).join('')}
+                        ${locked.map(a => `
+                            <div class="text-center p-2 sm:p-3 bg-gray-50 rounded-xl border border-gray-100 opacity-40" title="${esc(a.desc)}">
+                                <div class="text-2xl sm:text-3xl mb-1 grayscale">🔒</div>
+                                <div class="text-xs font-semibold text-gray-400 leading-tight">${esc(a.name)}</div>
+                            </div>`).join('')}
+                    </div>
+                </div>`;
+                })()}
+
+                <!-- Calibration Chart -->
+                ${(() => {
+                    const calData = AppState.getCalibrationData(preds);
+                    if (!calData) return '';
+                    return `
+                <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 mb-6">
+                    <h2 class="text-lg font-bold text-gray-900 mb-2">Forecaster Calibration</h2>
+                    <p class="text-xs text-gray-500 mb-4">When you say X%, how often are you right?</p>
+                    <div class="flex items-end gap-2 sm:gap-4 h-40 px-4">
+                        ${calData.map(b => {
+                            const predH = Math.round(b.predicted * 100);
+                            const actH = Math.round(b.actual * 100);
+                            return `<div class="flex-1 flex flex-col items-center gap-1">
+                                <div class="w-full flex items-end justify-center gap-1" style="height:128px">
+                                    <div class="w-4 sm:w-6 bg-shark-200 rounded-t" style="height:${predH * 1.28}px" title="You said: ${predH}%"></div>
+                                    <div class="w-4 sm:w-6 ${Math.abs(actH - predH) < 15 ? 'bg-green-500' : 'bg-red-400'} rounded-t" style="height:${actH * 1.28}px" title="Actual: ${actH}%"></div>
+                                </div>
+                                <div class="text-xs text-gray-500">${b.label}</div>
+                                <div class="text-xs text-gray-400">(${b.count})</div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                    <div class="flex items-center gap-4 mt-3 text-xs text-gray-500 justify-center">
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 bg-shark-200 rounded"></span> Your confidence</span>
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 bg-green-500 rounded"></span> Actual (good)</span>
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 bg-red-400 rounded"></span> Actual (off)</span>
+                    </div>
+                </div>`;
+                })()}
 
                 <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
                     <h2 class="text-lg font-bold text-gray-900 mb-3">Prediction History</h2>
@@ -604,19 +927,48 @@ const Pages = {
         const activeMarkets = AppState.markets.filter(m => m.status === 'active' && !m.resolution);
         const expiredMarkets = AppState.markets.filter(m => !m.resolution && daysLeft(m.closes_at) <= 0);
         const resolvedMarkets = AppState.markets.filter(m => !!m.resolution);
+        const pending = AppState.pendingMarkets || [];
         const users = AppState.allUsers || [];
+        const inactiveUsers = users.filter(u => !u.is_admin && (u.trades || 0) === 0);
 
         return `
             <div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 fade-in">
-                <h1 class="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Admin Panel</h1>
-                <p class="text-gray-500 text-sm mb-6">Manage markets, users, and moderate content.</p>
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h1 class="text-xl sm:text-2xl font-bold text-gray-900 mb-1">Admin Panel</h1>
+                        <p class="text-gray-500 text-sm">Manage markets, users, and moderate content.</p>
+                    </div>
+                    <button onclick="AppState.navigate('analytics')" class="bg-shark-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-shark-700">Platform Analytics</button>
+                </div>
 
-                <div class="grid sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
+                <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4 mb-6">
+                    ${Components.statCard('Pending', pending.length, 'Need approval', '📝')}
                     ${Components.statCard('Active', activeMarkets.length, '', '📊')}
                     ${Components.statCard('Expired', expiredMarkets.length, 'Need resolution', '⏰')}
                     ${Components.statCard('Resolved', resolvedMarkets.length, '', '✅')}
-                    ${Components.statCard('Users', users.length, '', '👥')}
+                    ${Components.statCard('Users', users.length, `${inactiveUsers.length} inactive`, '👥')}
                 </div>
+
+                <!-- Pending Approval -->
+                ${pending.length > 0 ? `
+                <div class="bg-white rounded-xl border-2 border-blue-200 p-4 sm:p-6 mb-6">
+                    <h2 class="text-lg font-bold text-blue-700 mb-4">📝 Pending Approval (${pending.length})</h2>
+                    <div class="space-y-3">
+                        ${pending.map(m => `
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-blue-50 rounded-lg gap-3">
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-sm font-medium text-gray-900">${esc(m.title)}</div>
+                                    <div class="text-xs text-gray-500 mt-1">${esc(m.created_by_name || 'Unknown')} · ${esc(m.category)} · closes ${formatDate(m.closes_at)}</div>
+                                    <div class="text-xs text-gray-500 mt-1 line-clamp-2">${esc(m.description)}</div>
+                                </div>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <button onclick="event.stopPropagation(); handleApproveMarket(${m.id})" class="px-3 py-1.5 rounded text-xs font-bold bg-green-500 text-white hover:bg-green-600">Approve</button>
+                                    <button onclick="event.stopPropagation(); handleRejectMarket(${m.id})" class="px-3 py-1.5 rounded text-xs font-bold bg-red-500 text-white hover:bg-red-600">Reject</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>` : ''}
 
                 <!-- Expired needing resolution -->
                 ${expiredMarkets.length > 0 ? `
@@ -685,6 +1037,192 @@ const Pages = {
                         `).join('')}
                     </div>
                 </div>
+
+                <!-- Inactive Users -->
+                ${inactiveUsers.length > 0 ? `
+                <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 mt-6">
+                    <h2 class="text-lg font-bold text-gray-900 mb-3">Inactive Users (${inactiveUsers.length})</h2>
+                    <p class="text-xs text-gray-500 mb-3">Users who have never made a trade.</p>
+                    <div class="flex flex-wrap gap-2">
+                        ${inactiveUsers.slice(0, 20).map(u => `
+                            <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100" onclick="AppState.navigate('profile', { profileId: '${u.id}' })">
+                                ${Components.avatar(u.avatar || u.name || 'XX', 'sm')}
+                                <div class="text-xs">
+                                    <div class="font-medium text-gray-900">${esc(u.name)}</div>
+                                    <div class="text-gray-400">${esc(u.department)}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                        ${inactiveUsers.length > 20 ? `<div class="flex items-center px-3 py-2 text-xs text-gray-400">+${inactiveUsers.length - 20} more</div>` : ''}
+                    </div>
+                </div>` : ''}
+
+                <!-- Audit Log -->
+                ${(() => {
+                    const log = AppState.auditLog || [];
+                    if (log.length === 0) return '';
+                    const actionLabels = {
+                        resolve_market: '✅ Resolved market',
+                        approve_market: '👍 Approved market',
+                        reject_market: '❌ Rejected market',
+                        grant_admin: '🔑 Granted admin',
+                        revoke_admin: '🔒 Revoked admin',
+                        adjust_balance: '💰 Adjusted balance',
+                    };
+                    return `
+                    <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 mt-6">
+                        <h2 class="text-lg font-bold text-gray-900 mb-4">Audit Log</h2>
+                        <div class="space-y-2 max-h-96 overflow-y-auto">
+                            ${log.slice(0, 50).map(e => {
+                                const label = actionLabels[e.action] || e.action;
+                                const detail = e.details?.title || e.details?.userName || e.details?.reason || '';
+                                const extra = e.action === 'adjust_balance' && e.details?.amount ? ` (${e.details.amount > 0 ? '+' : ''}${e.details.amount}t)` : '';
+                                const resolution = e.details?.resolution ? ` → ${e.details.resolution.toUpperCase()}` : '';
+                                return `<div class="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 text-sm">
+                                    <div class="shrink-0 text-xs text-gray-400 w-28">${new Date(e.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                                    <div class="flex-1 min-w-0">
+                                        <span class="font-medium text-gray-700">${esc(label)}${resolution}</span>
+                                        ${detail ? `<span class="text-gray-500"> — ${esc(detail)}${extra}</span>` : extra ? `<span class="text-gray-500">${extra}</span>` : ''}
+                                    </div>
+                                </div>`;
+                            }).join('')}
+                        </div>
+                    </div>`;
+                })()}
+            </div>`;
+    },
+
+    // ==================== ANALYTICS ====================
+    analytics() {
+        const stats = AppState.getPlatformAnalytics();
+        const cal = stats.calibration;
+
+        return `
+            <div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 fade-in">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h1 class="text-xl sm:text-2xl font-bold text-gray-900">Platform Analytics</h1>
+                        <p class="text-gray-500 text-sm">Insights across all markets and forecasters.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="handleExportMarkets()" class="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-xs font-medium hover:bg-gray-200">Export Markets CSV</button>
+                    </div>
+                </div>
+
+                <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+                    ${Components.statCard('Total Markets', stats.totalMarkets, `${stats.activeMarkets} active`, '📊')}
+                    ${Components.statCard('Total Volume', stats.totalVolume.toLocaleString(), 'tokens traded', '💰')}
+                    ${Components.statCard('Participation', Math.round(stats.participationRate * 100) + '%', 'markets with trades', '👥')}
+                    ${Components.statCard('Resolved', stats.resolvedMarkets, 'markets', '✅')}
+                </div>
+
+                <!-- Volume by Category -->
+                <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 mb-6">
+                    <h2 class="text-lg font-bold text-gray-900 mb-4">Volume by Category</h2>
+                    <div class="space-y-3">
+                        ${Object.entries(stats.volByCategory).map(([catId, vol]) => {
+                            const cat = Object.values(CATEGORIES).find(c => c.id === catId);
+                            const maxVol = Math.max(...Object.values(stats.volByCategory), 1);
+                            const pct = (vol / maxVol) * 100;
+                            return `<div>
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span class="font-medium text-gray-700">${cat ? cat.icon + ' ' + cat.label : catId}</span>
+                                    <span class="text-gray-500">${vol.toLocaleString()}t</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                    <div class="h-full rounded-full bg-shark-500" style="width:${pct}%"></div>
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>
+
+                <!-- Platform Calibration Chart -->
+                <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 mb-6">
+                    <h2 class="text-lg font-bold text-gray-900 mb-2">Platform Calibration</h2>
+                    <p class="text-xs text-gray-500 mb-4">How well do market prices predict outcomes? Perfect calibration means the diagonal line.</p>
+                    ${cal.some(b => b.count > 0) ? `
+                    <div class="flex items-end gap-2 sm:gap-4 h-48 px-4">
+                        ${cal.map(b => {
+                            const predH = Math.round(b.predicted * 100);
+                            const actH = b.count > 0 ? Math.round(b.actual * 100) : 0;
+                            return `<div class="flex-1 flex flex-col items-center gap-1">
+                                <div class="w-full flex items-end justify-center gap-1" style="height:160px">
+                                    <div class="w-5 sm:w-8 bg-shark-200 rounded-t" style="height:${predH * 1.6}px" title="Predicted: ${predH}%"></div>
+                                    <div class="w-5 sm:w-8 ${Math.abs(actH - predH) < 15 ? 'bg-green-500' : 'bg-red-400'} rounded-t" style="height:${actH * 1.6}px" title="Actual: ${actH}%"></div>
+                                </div>
+                                <div class="text-xs text-gray-500 text-center">${b.label}</div>
+                                <div class="text-xs text-gray-400">(${b.count})</div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                    <div class="flex items-center gap-4 mt-3 text-xs text-gray-500 justify-center">
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 bg-shark-200 rounded"></span> Predicted</span>
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 bg-green-500 rounded"></span> Actual (calibrated)</span>
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 bg-red-400 rounded"></span> Actual (miscalibrated)</span>
+                    </div>` : '<div class="text-center py-8 text-gray-400 text-sm">Not enough resolved markets for calibration data.</div>'}
+                </div>
+
+                <!-- Flagged Markets -->
+                ${stats.flaggedMarkets.length > 0 ? `
+                <div class="bg-white rounded-xl border-2 border-amber-200 p-4 sm:p-6 mb-6">
+                    <h2 class="text-lg font-bold text-amber-700 mb-3">Flagged: No Activity (${stats.flaggedMarkets.length})</h2>
+                    <p class="text-xs text-gray-500 mb-3">Active markets with 0 traders after 7+ days.</p>
+                    <div class="space-y-2">
+                        ${stats.flaggedMarkets.map(m => `
+                            <div class="flex items-center justify-between p-3 bg-amber-50 rounded-lg cursor-pointer hover:bg-amber-100" onclick="AppState.navigate('market', { marketId: ${m.id} })">
+                                <div class="text-sm font-medium text-gray-900 truncate flex-1 mr-3">${esc(m.title)}</div>
+                                <span class="text-xs text-gray-500 shrink-0">${daysLeft(m.closes_at)}d left</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>` : ''}
+            </div>`;
+    },
+
+    // ==================== TRANSACTIONS ====================
+    transactions() {
+        const txns = AppState.transactions || [];
+        const typeColors = {
+            buy: 'bg-blue-100 text-blue-700',
+            sell: 'bg-green-100 text-green-700',
+            payout: 'bg-emerald-100 text-emerald-700',
+            void_refund: 'bg-yellow-100 text-yellow-700',
+            admin_adjust: 'bg-purple-100 text-purple-700',
+            signup_bonus: 'bg-shark-100 text-shark-700',
+        };
+
+        return `
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 fade-in">
+                <div class="flex items-center justify-between mb-6">
+                    <h1 class="text-xl sm:text-2xl font-bold text-gray-900">Transaction History</h1>
+                    <div class="flex gap-2">
+                        <button onclick="handleExportTransactions()" class="bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-200">Export CSV</button>
+                        <button onclick="handleExportPredictions()" class="bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-200">Export Predictions</button>
+                        <button onclick="AppState.navigate('dashboard')" class="text-sm text-gray-500 hover:text-gray-700">← Dashboard</button>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl border border-gray-200">
+                    ${txns.length > 0 ? `
+                    <div class="divide-y divide-gray-100">
+                        ${txns.map(tx => `
+                            <div class="flex items-center justify-between p-3 sm:p-4 hover:bg-gray-50">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-bold ${typeColors[tx.type] || 'bg-gray-100 text-gray-600'}">${tx.type.replace('_', ' ')}</span>
+                                    <div class="min-w-0">
+                                        <div class="text-sm text-gray-900 truncate">${esc(tx.description)}</div>
+                                        <div class="text-xs text-gray-400">${new Date(tx.created_at).toLocaleString()}</div>
+                                    </div>
+                                </div>
+                                <div class="text-right shrink-0 ml-3">
+                                    <div class="text-sm font-bold ${tx.amount >= 0 ? 'text-green-600' : 'text-red-600'}">${tx.amount >= 0 ? '+' : ''}${tx.amount}t</div>
+                                    <div class="text-xs text-gray-400">bal: ${tx.balance_after}t</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>` : `
+                    <div class="text-center py-12 text-gray-400 text-sm">No transactions yet. Start trading to see your history!</div>`}
+                </div>
             </div>`;
     },
 };
@@ -693,7 +1231,14 @@ const Pages = {
 function _tradeEstimateHTML(qYes, qNo, amount) {
     const estYes = AMM.estimatePayout(qYes, qNo, amount, 'yes');
     const estNo = AMM.estimatePayout(qYes, qNo, amount, 'no');
+    const oldPrice = AMM.yesPrice(qYes, qNo);
+    const priceAfterYes = AMM.yesPrice(qYes + estYes.shares, qNo);
+    const priceAfterNo = AMM.yesPrice(qYes, qNo + estNo.shares);
+    const maxImpact = Math.max(Math.abs(priceAfterYes - oldPrice), Math.abs(priceAfterNo - oldPrice)) * 100;
+    const slippageWarning = maxImpact > 5
+        ? `<div class="text-xs mt-2 px-2 py-1 rounded ${maxImpact > 15 ? 'bg-red-50 text-red-600' : 'bg-yellow-50 text-yellow-600'}">⚠ Price impact: ~${maxImpact.toFixed(1)}% — ${maxImpact > 15 ? 'large trade, consider splitting' : 'moderate slippage'}</div>`
+        : '';
     return `<div class="flex justify-between mb-1"><span>YES (${amount}t):</span><span class="font-semibold">${estYes.shares.toFixed(1)} shares → ${estYes.shares.toFixed(0)}t if YES</span></div>
         <div class="flex justify-between"><span>NO (${amount}t):</span><span class="font-semibold">${estNo.shares.toFixed(1)} shares → ${estNo.shares.toFixed(0)}t if NO</span></div>
-        <div class="text-xs text-gray-400 mt-2">Winning shares pay 1 token each</div>`;
+        <div class="text-xs text-gray-400 mt-2">Winning shares pay 1 token each</div>${slippageWarning}`;
 }
