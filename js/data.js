@@ -1,4 +1,4 @@
-// Constants for the SharkNinja Prediction Market
+// Constants for SharkPool
 
 const CATEGORIES = {
     PRODUCT_LAUNCH: { id: 'product_launch', label: 'Product Launches', icon: '🚀', color: 'blue' },

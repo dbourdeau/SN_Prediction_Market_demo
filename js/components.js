@@ -482,13 +482,9 @@ const Components = {
                         <div class="flex items-center gap-2 cursor-pointer shrink-0" onclick="AppState.navigate('dashboard')">
                             <svg class="w-7 h-7 sm:w-8 sm:h-8" viewBox="0 0 32 32" fill="none">
                                 <rect width="32" height="32" rx="8" fill="white" fill-opacity="0.15"/>
-                                <path d="M8 16C8 11.58 11.58 8 16 8s8 3.58 8 8-3.58 8-8 8" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-                                <path d="M16 12v8l4-4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M16 6 L18 18 L26 22 L6 22 L14 18 Z" fill="white" opacity="0.9"/>
                             </svg>
-                            <div class="hidden sm:block">
-                                <span class="font-bold text-lg tracking-tight">SharkNinja</span>
-                                <span class="text-shark-200 text-sm ml-1">Predictions</span>
-                            </div>
+                            <span class="hidden sm:block font-bold text-lg tracking-tight">SharkPool</span>
                         </div>
                         <nav class="hidden md:flex items-center gap-1">
                             ${navItems.map(item => `

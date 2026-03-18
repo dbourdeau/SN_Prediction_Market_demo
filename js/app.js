@@ -673,7 +673,7 @@ async function handleShareMarket(marketId) {
     const market = AppState.markets.find(m => m.id === marketId);
     const url = window.location.origin + window.location.pathname + '#market=' + marketId;
     const text = market
-        ? `📈 ${market.title} — currently at ${Math.round(market.probability * 100)}%\n${url}`
+        ? `🦈 ${market.title} — currently at ${Math.round(market.probability * 100)}%\n${url}`
         : url;
 
     try {
@@ -690,6 +690,27 @@ async function handleShareMarket(marketId) {
         document.execCommand('copy');
         ta.remove();
         showToast('Link copied to clipboard!', 'success');
+    }
+}
+
+// ==================== QUARTERLY PRIZE POOL ====================
+
+async function handleRunQuarterlyAwards(offset = 0) {
+    const btn = document.getElementById('qtr-awards-btn');
+    const container = document.getElementById('qtr-awards-results');
+    if (btn) btn.disabled = true;
+    if (container) container.innerHTML = '<div class="text-center py-4 text-gray-400">Calculating awards...</div>';
+
+    try {
+        const result = await AppState.computeQuarterlyAwards(offset);
+        AppState._quarterlyResults = result;
+        AppState._quarterlyOffset = offset;
+        AppState.notify();
+    } catch (e) {
+        console.error('Quarterly awards error:', e);
+        if (container) container.innerHTML = `<div class="text-red-600 text-sm">Error: ${esc(e.message)}</div>`;
+    } finally {
+        if (btn) btn.disabled = false;
     }
 }
 

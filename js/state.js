@@ -841,6 +841,280 @@ const AppState = {
         }
     },
 
+    // ==================== QUARTERLY PRIZE POOL ====================
+
+    getQuarterDates(quarterOffset = 0) {
+        const now = new Date();
+        let year = now.getFullYear();
+        let quarter = Math.floor(now.getMonth() / 3); // 0-indexed: 0=Q1, 1=Q2, 2=Q3, 3=Q4
+        quarter += quarterOffset;
+        while (quarter < 0) { quarter += 4; year--; }
+        while (quarter > 3) { quarter -= 4; year++; }
+        const startMonth = quarter * 3;
+        const start = new Date(year, startMonth, 1).toISOString();
+        const end = new Date(year, startMonth + 3, 0, 23, 59, 59).toISOString();
+        const label = `Q${quarter + 1} ${year}`;
+        return { start, end, label, quarter: quarter + 1, year };
+    },
+
+    async computeQuarterlyAwards(quarterOffset = 0) {
+        const { start, end, label } = this.getQuarterDates(quarterOffset);
+        const [preds, allPreds, markets] = await Promise.all([
+            DB.getResolvedPredictions(start, end),
+            DB.getAllPredictionsInRange(start, end),
+            DB.getMarketsCreatedInRange(start, end),
+        ]);
+        const profiles = this.allUsers?.length ? this.allUsers : this.leaderboard;
+
+        if (!preds.length && !allPreds.length) return { quarter: label, awards: [], milestones: [], streaks: [], raffleEligible: [], bestMarket: null, stats: { totalPredictions: 0, participants: 0 } };
+
+        // Aggregate resolved predictions per user
+        const byUser = {};
+        preds.forEach(p => {
+            if (!byUser[p.user_id]) byUser[p.user_id] = { wins: 0, losses: 0, totalInvested: 0, totalPayout: 0, points: 0, preds: [] };
+            const u = byUser[p.user_id];
+            u.preds.push(p);
+            u.totalInvested += p.amount;
+            u.totalPayout += (p.payout || 0);
+            if (p.status === 'won') {
+                u.wins++;
+                u.points += Math.max(10, Math.round((p.payout || 0) - p.amount));
+            } else {
+                u.losses++;
+            }
+        });
+
+        const userList = Object.entries(byUser).map(([userId, data]) => {
+            const profile = profiles.find(p => p.id === userId) || {};
+            const total = data.wins + data.losses;
+            return {
+                userId,
+                name: profile.name || 'Unknown',
+                department: profile.department || 'Unknown',
+                avatar: profile.avatar || '??',
+                wins: data.wins,
+                losses: data.losses,
+                total,
+                accuracy: total > 0 ? data.wins / total : 0,
+                points: data.points,
+                invested: data.totalInvested,
+                payout: data.totalPayout,
+                profit: data.totalPayout - data.totalInvested,
+                roi: data.totalInvested > 0 ? (data.totalPayout - data.totalInvested) / data.totalInvested : 0,
+            };
+        });
+
+        // Count all predictions per user (including active/sold, for milestones)
+        const allPredsByUser = {};
+        allPreds.forEach(p => {
+            if (!allPredsByUser[p.user_id]) allPredsByUser[p.user_id] = [];
+            allPredsByUser[p.user_id].push(p);
+        });
+
+        // --- AWARDS (top prizes) ---
+        const awards = [];
+
+        // 1. Top Forecaster
+        const topForecaster = [...userList].sort((a, b) => b.points - a.points)[0];
+        if (topForecaster) {
+            awards.push({
+                title: 'Top Forecaster',
+                emoji: '🏆',
+                description: 'Most points earned this quarter',
+                prize: '$150-200 gift card',
+                winner: topForecaster,
+                metric: `${topForecaster.points} pts`,
+            });
+        }
+
+        // 2. Sharpest Mind
+        const accuracyCandidates = userList.filter(u => u.total >= 10);
+        const sharpest = [...accuracyCandidates].sort((a, b) => b.accuracy - a.accuracy || b.total - a.total)[0];
+        if (sharpest) {
+            awards.push({
+                title: 'Sharpest Mind',
+                emoji: '🎯',
+                description: 'Best accuracy (min 10 predictions)',
+                prize: '$100-150 gift card',
+                winner: sharpest,
+                metric: `${Math.round(sharpest.accuracy * 100)}% (${sharpest.wins}/${sharpest.total})`,
+            });
+        }
+
+        // 3. Best ROI
+        const roiCandidates = userList.filter(u => u.total >= 5 && u.invested > 0);
+        const bestROI = [...roiCandidates].sort((a, b) => b.roi - a.roi || b.profit - a.profit)[0];
+        if (bestROI) {
+            awards.push({
+                title: 'Best ROI',
+                emoji: '📈',
+                description: 'Highest return on investment (min 5 trades)',
+                prize: '$75-100 gift card',
+                winner: bestROI,
+                metric: `${bestROI.roi >= 0 ? '+' : ''}${Math.round(bestROI.roi * 100)}% (${bestROI.profit >= 0 ? '+' : ''}${Math.round(bestROI.profit)}t)`,
+            });
+        }
+
+        // 4. Volume King
+        const volumeKing = [...userList].sort((a, b) => b.total - a.total || b.points - a.points)[0];
+        if (volumeKing && volumeKing.total >= 3) {
+            awards.push({
+                title: 'Volume King',
+                emoji: '⚡',
+                description: 'Most predictions resolved this quarter',
+                prize: '$50 gift card',
+                winner: volumeKing,
+                metric: `${volumeKing.total} predictions`,
+            });
+        }
+
+        // 5. Department Champion
+        const byDept = {};
+        userList.forEach(u => {
+            if (!byDept[u.department]) byDept[u.department] = { department: u.department, members: [], totalPoints: 0 };
+            byDept[u.department].members.push(u);
+            byDept[u.department].totalPoints += u.points;
+        });
+        const deptCandidates = Object.values(byDept).filter(d => d.members.length >= 3);
+        const topDept = [...deptCandidates].sort((a, b) => (b.totalPoints / b.members.length) - (a.totalPoints / a.members.length))[0];
+        if (topDept) {
+            const avgPts = Math.round(topDept.totalPoints / topDept.members.length);
+            const star = [...topDept.members].sort((a, b) => b.points - a.points)[0];
+            awards.push({
+                title: 'Department Champion',
+                emoji: '🏅',
+                description: 'Best avg points per member (min 3)',
+                prize: 'Team lunch ($100-150)',
+                winner: { name: topDept.department, department: `${topDept.members.length} members`, avatar: '🏢' },
+                metric: `${avgPts} avg pts · Star: ${star.name}`,
+            });
+        }
+
+        // 6. Best Market Creator: market with most engagement (traders * volume)
+        let bestMarket = null;
+        if (markets.length > 0) {
+            const sorted = [...markets].sort((a, b) => (b.traders || 0) * (b.volume || 0) - (a.traders || 0) * (a.volume || 0));
+            const top = sorted[0];
+            if (top && (top.traders || 0) >= 2) {
+                const creator = profiles.find(p => p.id === top.created_by) || {};
+                bestMarket = {
+                    title: top.title,
+                    traders: top.traders || 0,
+                    volume: top.volume || 0,
+                    creatorName: top.created_by_name || creator.name || 'Unknown',
+                    creatorAvatar: creator.avatar || '??',
+                    creatorDept: creator.department || 'Unknown',
+                    creatorId: top.created_by,
+                };
+                awards.push({
+                    title: 'Best Question',
+                    emoji: '💡',
+                    description: 'Most engaging market created this quarter',
+                    prize: '$50 gift card',
+                    winner: { name: bestMarket.creatorName, department: bestMarket.creatorDept, avatar: bestMarket.creatorAvatar },
+                    metric: `"${top.title.length > 40 ? top.title.slice(0, 40) + '…' : top.title}" · ${bestMarket.traders} traders`,
+                });
+            }
+        }
+
+        // --- MILESTONES (participation rewards) ---
+        const milestones = [];
+        const milestoneTiers = [
+            { threshold: 50, label: '50 Predictions', emoji: '💎', prize: '$15 coffee card' },
+            { threshold: 25, label: '25 Predictions', emoji: '🥈', prize: '$15 coffee card' },
+            { threshold: 10, label: '10 Predictions', emoji: '🥉', prize: '$10 coffee card' },
+        ];
+        Object.entries(allPredsByUser).forEach(([userId, userPreds]) => {
+            const count = userPreds.length;
+            const profile = profiles.find(p => p.id === userId) || {};
+            // Award highest milestone only
+            for (const tier of milestoneTiers) {
+                if (count >= tier.threshold) {
+                    milestones.push({
+                        userId,
+                        name: profile.name || 'Unknown',
+                        avatar: profile.avatar || '??',
+                        department: profile.department || 'Unknown',
+                        count,
+                        ...tier,
+                    });
+                    break;
+                }
+            }
+        });
+        milestones.sort((a, b) => b.count - a.count);
+
+        // --- STREAKS (traded every week of the quarter) ---
+        const streaks = [];
+        const qStart = new Date(start);
+        const qEnd = new Date(end);
+        // Count weeks in this quarter
+        const totalWeeks = Math.ceil((qEnd - qStart) / (7 * 24 * 60 * 60 * 1000));
+        Object.entries(allPredsByUser).forEach(([userId, userPreds]) => {
+            const weeks = new Set();
+            userPreds.forEach(p => {
+                const d = new Date(p.created_at);
+                // Week number relative to quarter start
+                const weekNum = Math.floor((d - qStart) / (7 * 24 * 60 * 60 * 1000));
+                weeks.add(weekNum);
+            });
+            const weeksActive = weeks.size;
+            // Streak = traded in every week of the quarter (or every week so far if current quarter)
+            const now = new Date();
+            const weeksElapsed = now < qEnd
+                ? Math.max(1, Math.floor((now - qStart) / (7 * 24 * 60 * 60 * 1000)))
+                : totalWeeks;
+            if (weeksActive >= weeksElapsed && weeksElapsed >= 4) {
+                const profile = profiles.find(p => p.id === userId) || {};
+                streaks.push({
+                    userId,
+                    name: profile.name || 'Unknown',
+                    avatar: profile.avatar || '??',
+                    department: profile.department || 'Unknown',
+                    weeksActive,
+                    weeksTotal: weeksElapsed,
+                });
+            }
+        });
+        streaks.sort((a, b) => b.weeksActive - a.weeksActive);
+
+        // --- RAFFLE ELIGIBLE (5+ predictions in quarter) ---
+        const raffleEligible = [];
+        Object.entries(allPredsByUser).forEach(([userId, userPreds]) => {
+            if (userPreds.length >= 5) {
+                const profile = profiles.find(p => p.id === userId) || {};
+                raffleEligible.push({
+                    userId,
+                    name: profile.name || 'Unknown',
+                    avatar: profile.avatar || '??',
+                    department: profile.department || 'Unknown',
+                    count: userPreds.length,
+                });
+            }
+        });
+        raffleEligible.sort((a, b) => b.count - a.count);
+
+        const participants = new Set([...Object.keys(byUser), ...Object.keys(allPredsByUser)]).size;
+        return {
+            quarter: label,
+            dateRange: { start, end },
+            awards,
+            milestones,
+            streaks,
+            raffleEligible,
+            bestMarket,
+            stats: {
+                totalPredictions: allPreds.length,
+                resolvedPredictions: preds.length,
+                participants,
+                marketsCreated: markets.length,
+                totalVolume: preds.reduce((s, p) => s + p.amount, 0),
+                avgAccuracy: userList.length > 0 ? Math.round(userList.reduce((s, u) => s + u.accuracy, 0) / userList.length * 100) : 0,
+            },
+            leaderboard: [...userList].sort((a, b) => b.points - a.points).slice(0, 10),
+        };
+    },
+
     // ==================== DEPARTMENT LEADERBOARD ====================
 
     setLeaderboardTab(tab) {

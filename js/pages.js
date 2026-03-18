@@ -10,15 +10,11 @@ const Pages = {
                         <div class="inline-flex items-center gap-2 mb-4">
                             <svg class="w-10 h-10" viewBox="0 0 32 32" fill="none">
                                 <rect width="32" height="32" rx="8" fill="#0059a3"/>
-                                <path d="M8 16C8 11.58 11.58 8 16 8s8 3.58 8 8-3.58 8-8 8" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-                                <path d="M16 12v8l4-4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M16 6 L18 18 L26 22 L6 22 L14 18 Z" fill="white" opacity="0.9"/>
                             </svg>
-                            <div>
-                                <span class="font-bold text-2xl text-gray-900">SharkNinja</span>
-                                <span class="text-shark-500 text-lg ml-1">Predictions</span>
-                            </div>
+                            <span class="font-bold text-2xl text-gray-900">SharkPool</span>
                         </div>
-                        <p class="text-gray-500 text-sm">Harness the collective intelligence of SharkNinja employees</p>
+                        <p class="text-gray-500 text-sm">Harness the collective intelligence of SharkNinja</p>
                     </div>
                     <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8">
                         <div class="flex mb-6">
@@ -88,7 +84,7 @@ const Pages = {
                             <div class="flex items-center gap-3 mb-4">
                                 <div class="w-12 h-12 rounded-xl bg-shark-600 text-white flex items-center justify-center text-2xl">📈</div>
                                 <div>
-                                    <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Welcome to SharkNinja Predictions!</h2>
+                                    <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Welcome to SharkPool!</h2>
                                     <p class="text-sm text-gray-500">Forecast what matters, earn points, prove your insight.</p>
                                 </div>
                             </div>
@@ -122,7 +118,7 @@ const Pages = {
                     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <div>
                             <h1 class="text-xl sm:text-3xl font-bold mb-2">Welcome back, ${esc(AppState.user?.name?.split(' ')[0] || 'Forecaster')}</h1>
-                            <p class="text-shark-200 text-sm">Harness the collective intelligence of SharkNinja employees to forecast what matters.</p>
+                            <p class="text-shark-200 text-sm">Harness the collective intelligence of SharkNinja to forecast what matters.</p>
                         </div>
                         <div class="flex gap-2">
                             <button onclick="AppState.navigate('transactions')" class="bg-white/10 text-white px-4 py-2.5 rounded-lg font-semibold text-sm hover:bg-white/20 transition-colors shrink-0">Transactions</button>
@@ -741,7 +737,7 @@ const Pages = {
         return `
             <div class="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8 fade-in">
                 <h1 class="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Create a New Market</h1>
-                <p class="text-gray-500 text-sm mb-4">Create a prediction market for the team.${AppState.user?.is_admin ? '' : ' Markets require admin approval before going live.'}</p>
+                <p class="text-gray-500 text-sm mb-4">Create a market for the team.${AppState.user?.is_admin ? '' : ' Markets require admin approval before going live.'}</p>
 
                 <!-- Templates -->
                 <div class="mb-6">
@@ -1142,6 +1138,192 @@ Background: [Provide relevant context for traders]"
                         ${inactiveUsers.length > 20 ? `<div class="flex items-center px-3 py-2 text-xs text-gray-400">+${inactiveUsers.length - 20} more</div>` : ''}
                     </div>
                 </div>` : ''}
+
+                <!-- Quarterly Prize Pool -->
+                <div class="bg-white rounded-xl border-2 border-purple-200 p-4 sm:p-6 mt-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 class="text-lg font-bold text-purple-700">🏆 Quarterly Awards</h2>
+                            <p class="text-xs text-gray-500 mt-1">Automated prize pool analysis for the most accurate forecasters.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="handleRunQuarterlyAwards((AppState._quarterlyOffset || 0) - 1)" class="px-2 py-1.5 rounded text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200">&larr; Prev</button>
+                            <button onclick="handleRunQuarterlyAwards(0)" id="qtr-awards-btn" class="bg-purple-600 text-white px-4 py-1.5 rounded-lg text-xs font-medium hover:bg-purple-700">Current Quarter</button>
+                            <button onclick="handleRunQuarterlyAwards((AppState._quarterlyOffset || 0) + 1)" class="px-2 py-1.5 rounded text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200">Next &rarr;</button>
+                        </div>
+                    </div>
+                    <div id="qtr-awards-results">
+                    ${(() => {
+                        const r = AppState._quarterlyResults;
+                        if (!r) return '<div class="text-sm text-gray-400">Click "Current Quarter" to generate awards.</div>';
+                        if (r.stats.totalPredictions === 0) return `<div class="text-sm text-gray-400">No predictions in ${esc(r.quarter)}.</div>`;
+
+                        return `
+                            <div class="mb-4">
+                                <div class="text-sm font-semibold text-gray-900 mb-2">${esc(r.quarter)} Results</div>
+                                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+                                    <div class="bg-purple-50 rounded-lg p-3 text-center">
+                                        <div class="text-lg font-bold text-purple-700">${r.stats.totalPredictions}</div>
+                                        <div class="text-xs text-gray-500">Predictions</div>
+                                    </div>
+                                    <div class="bg-purple-50 rounded-lg p-3 text-center">
+                                        <div class="text-lg font-bold text-purple-700">${r.stats.resolvedPredictions}</div>
+                                        <div class="text-xs text-gray-500">Resolved</div>
+                                    </div>
+                                    <div class="bg-purple-50 rounded-lg p-3 text-center">
+                                        <div class="text-lg font-bold text-purple-700">${r.stats.participants}</div>
+                                        <div class="text-xs text-gray-500">Participants</div>
+                                    </div>
+                                    <div class="bg-purple-50 rounded-lg p-3 text-center">
+                                        <div class="text-lg font-bold text-purple-700">${r.stats.marketsCreated}</div>
+                                        <div class="text-xs text-gray-500">Markets</div>
+                                    </div>
+                                    <div class="bg-purple-50 rounded-lg p-3 text-center">
+                                        <div class="text-lg font-bold text-purple-700">${r.stats.totalVolume.toLocaleString()}</div>
+                                        <div class="text-xs text-gray-500">Volume</div>
+                                    </div>
+                                    <div class="bg-purple-50 rounded-lg p-3 text-center">
+                                        <div class="text-lg font-bold text-purple-700">${r.stats.avgAccuracy}%</div>
+                                        <div class="text-xs text-gray-500">Avg Accuracy</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Top Awards -->
+                            ${r.awards.length > 0 ? `
+                            <div class="mb-5">
+                                <div class="text-sm font-semibold text-gray-900 mb-2">Top Awards</div>
+                                <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                    ${r.awards.map(a => `
+                                        <div class="border border-purple-100 rounded-xl p-4 bg-gradient-to-br from-purple-50 to-white">
+                                            <div class="flex items-center gap-2 mb-1">
+                                                <span class="text-2xl">${a.emoji}</span>
+                                                <div>
+                                                    <div class="text-sm font-bold text-purple-800">${esc(a.title)}</div>
+                                                    <div class="text-xs text-gray-500">${esc(a.description)}</div>
+                                                </div>
+                                            </div>
+                                            ${a.prize ? `<div class="text-xs text-purple-600 font-medium mb-2 ml-10">Prize: ${esc(a.prize)}</div>` : ''}
+                                            <div class="flex items-center gap-2 p-2 bg-white rounded-lg border border-purple-100">
+                                                ${typeof a.winner.avatar === 'string' && a.winner.avatar.length <= 3 ? Components.avatar(a.winner.avatar, 'sm') : `<span class="text-xl">${a.winner.avatar}</span>`}
+                                                <div class="flex-1 min-w-0">
+                                                    <div class="text-sm font-semibold text-gray-900 truncate">${esc(a.winner.name)}</div>
+                                                    <div class="text-xs text-gray-500">${esc(a.winner.department)}</div>
+                                                </div>
+                                                <div class="text-xs font-bold text-purple-700 shrink-0">${esc(a.metric)}</div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>` : ''}
+
+                            <!-- Milestone Rewards + Streaks + Raffle in a 3-col layout -->
+                            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
+                                <!-- Milestone Rewards -->
+                                <div class="border border-green-100 rounded-xl p-4 bg-gradient-to-br from-green-50 to-white">
+                                    <div class="text-sm font-bold text-green-800 mb-1">🎖️ Milestone Rewards</div>
+                                    <div class="text-xs text-gray-500 mb-3">Earned by reaching prediction thresholds this quarter.</div>
+                                    ${r.milestones.length > 0 ? `
+                                        <div class="space-y-2 max-h-48 overflow-y-auto">
+                                            ${r.milestones.map(m => `
+                                                <div class="flex items-center gap-2 p-2 bg-white rounded-lg border border-green-100">
+                                                    ${Components.avatar(m.avatar, 'sm')}
+                                                    <div class="flex-1 min-w-0">
+                                                        <div class="text-xs font-semibold text-gray-900 truncate">${esc(m.name)}</div>
+                                                        <div class="text-xs text-gray-400">${esc(m.department)}</div>
+                                                    </div>
+                                                    <div class="text-right shrink-0">
+                                                        <div class="text-xs font-bold text-green-700">${m.emoji} ${esc(m.label)}</div>
+                                                        <div class="text-xs text-green-600">${esc(m.prize)}</div>
+                                                    </div>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    ` : '<div class="text-xs text-gray-400">No milestones reached yet.</div>'}
+                                </div>
+
+                                <!-- Consistency Streaks -->
+                                <div class="border border-amber-100 rounded-xl p-4 bg-gradient-to-br from-amber-50 to-white">
+                                    <div class="text-sm font-bold text-amber-800 mb-1">🔥 Consistency Streaks</div>
+                                    <div class="text-xs text-gray-500 mb-3">Traded every week of the quarter. Prize: $15 gift card.</div>
+                                    ${r.streaks.length > 0 ? `
+                                        <div class="space-y-2 max-h-48 overflow-y-auto">
+                                            ${r.streaks.map(s => `
+                                                <div class="flex items-center gap-2 p-2 bg-white rounded-lg border border-amber-100">
+                                                    ${Components.avatar(s.avatar, 'sm')}
+                                                    <div class="flex-1 min-w-0">
+                                                        <div class="text-xs font-semibold text-gray-900 truncate">${esc(s.name)}</div>
+                                                        <div class="text-xs text-gray-400">${esc(s.department)}</div>
+                                                    </div>
+                                                    <div class="text-xs font-bold text-amber-700 shrink-0">${s.weeksActive}/${s.weeksTotal} wks</div>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    ` : '<div class="text-xs text-gray-400">No full-quarter streaks yet.</div>'}
+                                </div>
+
+                                <!-- Raffle Eligible -->
+                                <div class="border border-blue-100 rounded-xl p-4 bg-gradient-to-br from-blue-50 to-white">
+                                    <div class="text-sm font-bold text-blue-800 mb-1">🎲 Lucky Draw Eligible</div>
+                                    <div class="text-xs text-gray-500 mb-3">5+ predictions = entered in $50 random draw.</div>
+                                    ${r.raffleEligible.length > 0 ? `
+                                        <div class="text-xs font-medium text-blue-700 mb-2">${r.raffleEligible.length} participant${r.raffleEligible.length !== 1 ? 's' : ''} eligible</div>
+                                        <div class="space-y-1.5 max-h-48 overflow-y-auto">
+                                            ${r.raffleEligible.map(u => `
+                                                <div class="flex items-center gap-2 p-1.5 bg-white rounded border border-blue-50">
+                                                    ${Components.avatar(u.avatar, 'sm')}
+                                                    <div class="flex-1 min-w-0 text-xs text-gray-700 truncate">${esc(u.name)}</div>
+                                                    <div class="text-xs text-blue-600 shrink-0">${u.count} preds</div>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    ` : '<div class="text-xs text-gray-400">No eligible participants yet (need 5+ predictions).</div>'}
+                                </div>
+                            </div>
+
+                            <!-- Quarterly Leaderboard -->
+                            ${r.leaderboard.length > 0 ? `
+                            <div>
+                                <div class="text-sm font-semibold text-gray-900 mb-2">Quarterly Leaderboard (Top 10)</div>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-sm">
+                                        <thead>
+                                            <tr class="text-left text-xs text-gray-500 border-b">
+                                                <th class="pb-2 pr-2">#</th>
+                                                <th class="pb-2 pr-2">Forecaster</th>
+                                                <th class="pb-2 pr-2 text-right">Points</th>
+                                                <th class="pb-2 pr-2 text-right">W-L</th>
+                                                <th class="pb-2 pr-2 text-right">Accuracy</th>
+                                                <th class="pb-2 text-right">P&L</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${r.leaderboard.map((u, i) => `
+                                                <tr class="border-b border-gray-50 ${i < 3 ? 'font-semibold' : ''}">
+                                                    <td class="py-2 pr-2 text-gray-400">${i + 1}</td>
+                                                    <td class="py-2 pr-2">
+                                                        <div class="flex items-center gap-2">
+                                                            ${Components.avatar(u.avatar, 'sm')}
+                                                            <div>
+                                                                <div class="text-gray-900">${esc(u.name)}</div>
+                                                                <div class="text-xs text-gray-400">${esc(u.department)}</div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td class="py-2 pr-2 text-right font-medium text-purple-700">${u.points}</td>
+                                                    <td class="py-2 pr-2 text-right text-gray-600">${u.wins}-${u.losses}</td>
+                                                    <td class="py-2 pr-2 text-right">${Math.round(u.accuracy * 100)}%</td>
+                                                    <td class="py-2 text-right ${u.profit >= 0 ? 'text-green-600' : 'text-red-500'}">${u.profit >= 0 ? '+' : ''}${Math.round(u.profit)}</td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>` : ''}
+                        `;
+                    })()}
+                    </div>
+                </div>
 
                 <!-- Audit Log -->
                 ${(() => {

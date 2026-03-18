@@ -290,6 +290,39 @@ const DB = {
         return data || [];
     },
 
+    // ---- Quarterly Prize Pool ----
+    async getResolvedPredictions(startDate, endDate) {
+        const { data, error } = await supabaseClient
+            .from('predictions')
+            .select('id, user_id, market_id, direction, amount, shares, entry_prob, status, payout, option_index, created_at')
+            .in('status', ['won', 'lost'])
+            .gte('created_at', startDate)
+            .lte('created_at', endDate);
+        if (error) throw error;
+        return data || [];
+    },
+
+    async getAllPredictionsInRange(startDate, endDate) {
+        const { data, error } = await supabaseClient
+            .from('predictions')
+            .select('id, user_id, market_id, created_at, status')
+            .gte('created_at', startDate)
+            .lte('created_at', endDate);
+        if (error) throw error;
+        return data || [];
+    },
+
+    async getMarketsCreatedInRange(startDate, endDate) {
+        const { data, error } = await supabaseClient
+            .from('markets')
+            .select('id, title, created_by, created_by_name, status, traders, volume, category, created_at')
+            .gte('created_at', startDate)
+            .lte('created_at', endDate)
+            .neq('status', 'pending');
+        if (error) throw error;
+        return data || [];
+    },
+
     // ---- Balance Reconciliation ----
     async getAllTransactions() {
         const { data, error } = await supabaseClient
