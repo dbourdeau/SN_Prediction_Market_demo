@@ -41,6 +41,11 @@ CREATE TRIGGER cap_history_trigger
     BEFORE UPDATE ON markets
     FOR EACH ROW EXECUTE FUNCTION cap_market_history();
 
+-- ==================== 0b. DROP direction CHECK constraint ====================
+-- The original schema restricted direction to 'yes'/'no', but multi-outcome
+-- markets use the option label as direction. Remove the constraint.
+ALTER TABLE predictions DROP CONSTRAINT IF EXISTS predictions_direction_check;
+
 -- ==================== 1. PLACE PREDICTION ====================
 CREATE OR REPLACE FUNCTION place_prediction(
     p_user_id UUID,
