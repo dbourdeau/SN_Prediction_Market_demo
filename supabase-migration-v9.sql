@@ -12,12 +12,16 @@ DROP TRIGGER IF EXISTS cap_history_trigger ON markets;
 DROP FUNCTION IF EXISTS cap_market_history();
 
 -- Convert column: real[] → JSONB (preserves existing data)
+-- Always attempt the conversion; if already JSONB it's a no-op
 DO $$
+DECLARE
+    col_type TEXT;
 BEGIN
-    IF EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_name = 'markets' AND column_name = 'history' AND data_type = 'ARRAY'
-    ) THEN
+    SELECT data_type INTO col_type
+    FROM information_schema.columns
+    WHERE table_name = 'markets' AND column_name = 'history';
+
+    IF col_type IS NOT NULL AND col_type != 'jsonb' THEN
         ALTER TABLE markets ALTER COLUMN history TYPE JSONB USING to_jsonb(history);
     END IF;
 END $$;
