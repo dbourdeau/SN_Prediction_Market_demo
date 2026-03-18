@@ -1092,6 +1092,7 @@ Background: [Provide relevant context for traders]"
                                     <button onclick="event.stopPropagation(); handleResolveMarket(${m.id}, 'yes')" class="px-2 py-1 rounded text-xs font-bold bg-green-100 text-green-700">Y</button>
                                     <button onclick="event.stopPropagation(); handleResolveMarket(${m.id}, 'no')" class="px-2 py-1 rounded text-xs font-bold bg-red-100 text-red-700">N</button>
                                     <button onclick="event.stopPropagation(); handleResolveMarket(${m.id}, 'void')" class="px-2 py-1 rounded text-xs font-bold bg-gray-100 text-gray-600">V</button>
+                                    <button onclick="event.stopPropagation(); handleDeleteMarket(${m.id})" class="px-2 py-1 rounded text-xs font-bold bg-red-50 text-red-500 hover:bg-red-100" title="Delete market">🗑</button>
                                 </div>
                             </div>
                         `).join('') : '<div class="text-center py-6 text-gray-400">No active markets.</div>'}

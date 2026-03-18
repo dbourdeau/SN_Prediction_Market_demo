@@ -96,6 +96,14 @@ const DB = {
         return data;
     },
 
+    async deleteMarket(marketId) {
+        // Delete in FK order: predictions, comments, then market
+        await supabaseClient.from('predictions').delete().eq('market_id', marketId);
+        await supabaseClient.from('comments').delete().eq('market_id', marketId);
+        const { error } = await supabaseClient.from('markets').delete().eq('id', marketId);
+        if (error) throw error;
+    },
+
     async updateMarket(id, updates) {
         const { data, error } = await supabaseClient
             .from('markets').update(updates).eq('id', id).select().single();

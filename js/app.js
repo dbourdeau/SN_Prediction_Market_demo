@@ -440,6 +440,25 @@ async function handleRejectMarket(marketId) {
     }
 }
 
+async function handleDeleteMarket(marketId) {
+    const market = AppState.markets.find(m => m.id === marketId);
+    const title = market?.title || `Market #${marketId}`;
+    showModal('Delete Market',
+        `<p class="text-sm text-gray-700 mb-2">Permanently delete <strong>${esc(title)}</strong>?</p>
+         <p class="text-xs text-red-600">This will remove the market, all predictions, and comments. This cannot be undone.</p>`,
+        'Delete', async () => {
+            try {
+                await DB.deleteMarket(marketId);
+                DB.logAuditEvent(AppState.session.user.id, 'delete_market', 'market', marketId, { title });
+                await AppState._refreshMarkets();
+                AppState.notify();
+                showToast('Market deleted.', 'info');
+            } catch (e) {
+                showToast('Failed to delete: ' + (e.message || 'Unknown error'), 'error');
+            }
+        });
+}
+
 // ==================== CSV EXPORT ====================
 
 function exportToCSV(filename, headers, rows) {
