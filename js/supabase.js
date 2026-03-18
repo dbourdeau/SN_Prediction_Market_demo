@@ -96,11 +96,11 @@ const DB = {
         return data;
     },
 
-    async deleteMarket(marketId) {
-        // Delete in FK order: predictions, comments, then market
-        await supabaseClient.from('predictions').delete().eq('market_id', marketId);
-        await supabaseClient.from('comments').delete().eq('market_id', marketId);
-        const { error } = await supabaseClient.from('markets').delete().eq('id', marketId);
+    async deleteMarket(marketId, deletedBy) {
+        const { error } = await supabaseClient.rpc('delete_market', {
+            p_market_id: marketId,
+            p_deleted_by: deletedBy
+        });
         if (error) throw error;
     },
 

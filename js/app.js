@@ -448,7 +448,7 @@ async function handleDeleteMarket(marketId) {
          <p class="text-xs text-red-600">This will remove the market, all predictions, and comments. This cannot be undone.</p>`,
         'Delete', async () => {
             try {
-                await DB.deleteMarket(marketId);
+                await DB.deleteMarket(marketId, AppState.session.user.id);
                 DB.logAuditEvent(AppState.session.user.id, 'delete_market', 'market', marketId, { title });
                 await AppState._refreshMarkets();
                 if (AppState.currentPage === 'market') AppState.navigate('markets');
