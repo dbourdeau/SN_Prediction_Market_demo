@@ -352,6 +352,7 @@ const Pages = {
                         <button onclick="handleToggleWatchlist(${m.id})" class="flex items-center gap-1 text-sm font-medium ${isWatching ? 'text-shark-600' : 'text-gray-400 hover:text-shark-600'} transition-colors">
                             ${isWatching ? '★ Watching' : '☆ Watch'}
                         </button>
+                        ${AppState.user?.is_admin ? `<button onclick="handleDeleteMarket(${m.id})" class="flex items-center gap-1 text-sm font-medium text-red-400 hover:text-red-600 transition-colors">🗑 Delete</button>` : ''}
                     </div>
                 </div>
 

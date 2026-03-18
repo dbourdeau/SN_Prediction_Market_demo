@@ -451,7 +451,8 @@ async function handleDeleteMarket(marketId) {
                 await DB.deleteMarket(marketId);
                 DB.logAuditEvent(AppState.session.user.id, 'delete_market', 'market', marketId, { title });
                 await AppState._refreshMarkets();
-                AppState.notify();
+                if (AppState.currentPage === 'market') AppState.navigate('markets');
+                else AppState.notify();
                 showToast('Market deleted.', 'info');
             } catch (e) {
                 showToast('Failed to delete: ' + (e.message || 'Unknown error'), 'error');
