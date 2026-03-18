@@ -3,7 +3,50 @@
 -- update markets they didn't create (the v4 RLS policy).
 -- Run this in your Supabase SQL Editor after all previous migrations.
 
--- ==================== PLACE PREDICTION (BINARY) ====================
+-- ==================== 0. CONVERT history FROM real[] TO JSONB ====================
+-- Needed because multi-outcome markets store nested arrays in history,
+-- which real[] cannot represent. JSONB handles both flat and nested.
+
+-- Drop the old trigger that uses array_length (incompatible with JSONB)
+DROP TRIGGER IF EXISTS cap_history_trigger ON markets;
+DROP FUNCTION IF EXISTS cap_market_history();
+
+-- Convert column: real[] → JSONB (preserves existing data)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'markets' AND column_name = 'history' AND data_type = 'ARRAY'
+    ) THEN
+        ALTER TABLE markets ALTER COLUMN history TYPE JSONB USING to_jsonb(history);
+    END IF;
+END $$;
+
+-- Recreate cap_history trigger for JSONB arrays
+CREATE OR REPLACE FUNCTION cap_market_history()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF jsonb_array_length(COALESCE(NEW.history, '[]'::jsonb)) > 100 THEN
+        NEW.history := (
+            SELECT jsonb_agg(elem)
+            FROM (
+                SELECT elem
+                FROM jsonb_array_elements(NEW.history) WITH ORDINALITY AS t(elem, ord)
+                ORDER BY ord DESC
+                LIMIT 100
+            ) sub
+        );
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS cap_history_trigger ON markets;
+CREATE TRIGGER cap_history_trigger
+    BEFORE UPDATE ON markets
+    FOR EACH ROW EXECUTE FUNCTION cap_market_history();
+
+-- ==================== 1. PLACE PREDICTION ====================
 CREATE OR REPLACE FUNCTION place_prediction(
     p_user_id UUID,
     p_market_id INTEGER,
@@ -75,7 +118,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- ==================== SELL POSITION ====================
+-- ==================== 2. SELL POSITION ====================
 CREATE OR REPLACE FUNCTION sell_position(
     p_user_id UUID,
     p_prediction_id INTEGER,
