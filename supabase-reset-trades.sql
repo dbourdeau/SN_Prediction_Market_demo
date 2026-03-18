@@ -23,19 +23,36 @@ UPDATE profiles SET
     accuracy = 0,
     last_daily_bonus = NULL;
 
--- 6. Reset all active markets to initial state
+-- 6a. Reset binary markets
 UPDATE markets SET
-    volume = 0,
-    traders = 0,
-    version = 0,
-    probability = CASE WHEN market_type = 'multi' THEN 1.0 / jsonb_array_length(options) ELSE 0.50 END,
-    logit = 0,
-    q_yes = 0,
-    q_no = 0,
-    q_values = CASE WHEN market_type = 'multi' THEN (SELECT jsonb_agg(0) FROM generate_series(1, jsonb_array_length(options))) ELSE NULL END,
-    probabilities = CASE WHEN market_type = 'multi' THEN (SELECT jsonb_agg(1.0 / jsonb_array_length(options)) FROM generate_series(1, jsonb_array_length(options))) ELSE NULL END,
-    history = CASE WHEN market_type = 'multi' THEN jsonb_build_array((SELECT jsonb_agg(1.0 / jsonb_array_length(options)) FROM generate_series(1, jsonb_array_length(options)))) ELSE '[0.50]'::jsonb END
-WHERE resolution IS NULL;
+    volume = 0, traders = 0, version = 0,
+    probability = 0.50, logit = 0,
+    q_yes = 0, q_no = 0,
+    q_values = NULL, probabilities = NULL,
+    history = '[0.50]'::jsonb
+WHERE resolution IS NULL AND (market_type IS NULL OR market_type = 'binary');
+
+-- 6b. Reset multi-outcome markets via a loop
+DO $$
+DECLARE
+    m RECORD;
+    n INTEGER;
+    q JSONB;
+    p JSONB;
+BEGIN
+    FOR m IN SELECT id, options FROM markets WHERE resolution IS NULL AND market_type = 'multi' LOOP
+        n := jsonb_array_length(m.options);
+        SELECT jsonb_agg(0) INTO q FROM generate_series(1, n);
+        SELECT jsonb_agg(1.0 / n) INTO p FROM generate_series(1, n);
+        UPDATE markets SET
+            volume = 0, traders = 0, version = 0,
+            probability = 1.0 / n, logit = 0,
+            q_yes = 0, q_no = 0,
+            q_values = q, probabilities = p,
+            history = jsonb_build_array(p)
+        WHERE id = m.id;
+    END LOOP;
+END $$;
 
 -- 7. Unresolve any resolved markets (optional — comment out if you want to keep resolutions)
 -- UPDATE markets SET resolution = NULL, resolved_at = NULL, resolved_by = NULL, status = 'active' WHERE resolution IS NOT NULL;
