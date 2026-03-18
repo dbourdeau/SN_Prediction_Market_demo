@@ -299,6 +299,18 @@ const DB = {
         return data || [];
     },
 
+    async insertReconciliationTx(userId, amount, balanceAfter) {
+        const { error } = await supabaseClient
+            .from('transactions').insert({
+                user_id: userId,
+                type: 'admin_adjust',
+                amount,
+                balance_after: balanceAfter,
+                description: 'Reconciliation adjustment (correcting missing transaction records)',
+            });
+        if (error) throw error;
+    },
+
     // ---- Referral ----
     async claimReferral(userId, referrerId) {
         const { data, error } = await supabaseClient.rpc('claim_referral', {

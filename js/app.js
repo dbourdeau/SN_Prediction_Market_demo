@@ -609,8 +609,14 @@ async function handleRunReconciliation() {
         } else if (data.discrepancies.length === 0) {
             results.innerHTML = `<div class="text-green-600 font-medium">All balances match! Checked ${data.totalUsers} users across ${data.totalTransactions} transactions.</div>`;
         } else {
+            // Store discrepancies for fix action
+            window._reconDiscrepancies = data.discrepancies;
             results.innerHTML = `
-                <div class="text-amber-600 font-medium mb-3">Found ${data.discrepancies.length} discrepancies (${data.totalUsers} users, ${data.totalTransactions} transactions):</div>
+                <div class="flex items-center justify-between mb-3">
+                    <div class="text-amber-600 font-medium">Found ${data.discrepancies.length} discrepancies (${data.totalUsers} users, ${data.totalTransactions} transactions):</div>
+                    <button onclick="handleFixReconciliation()" id="recon-fix-btn" class="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-medium hover:bg-amber-600">Fix All — Insert Corrective Transactions</button>
+                </div>
+                <p class="text-xs text-gray-500 mb-2">Fix inserts adjustment transactions so the ledger matches actual balances. No balances are changed.</p>
                 <div class="space-y-2 max-h-60 overflow-y-auto">
                     ${data.discrepancies.map(d => `
                         <div class="flex items-center justify-between p-2 bg-amber-50 rounded-lg text-sm">
@@ -633,6 +639,31 @@ async function handleRunReconciliation() {
     } finally {
         if (btn) { btn.disabled = false; btn.textContent = 'Run Check'; }
     }
+}
+
+async function handleFixReconciliation() {
+    const discrepancies = window._reconDiscrepancies || [];
+    if (discrepancies.length === 0) return;
+
+    const btn = document.getElementById('recon-fix-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Fixing...'; }
+
+    let fixed = 0;
+    for (const d of discrepancies) {
+        try {
+            // Insert a corrective transaction: diff is (actual - expected), so we need to
+            // add a transaction of -diff to make expected match actual
+            // e.g. actual=378, expected=927, diff=-549 → insert tx of -549 so new expected = 927 + (-549) = 378
+            await DB.insertReconciliationTx(d.userId, d.diff, d.actual);
+            fixed++;
+        } catch (e) {
+            console.error(`Failed to fix ${d.name}:`, e);
+        }
+    }
+
+    showToast(`Fixed ${fixed}/${discrepancies.length} discrepancies. Run check again to verify.`, 'success');
+    if (btn) { btn.disabled = false; btn.textContent = 'Done'; }
+    window._reconDiscrepancies = [];
 }
 
 // ==================== SHARE / DEEP LINKS ====================
