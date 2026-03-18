@@ -181,31 +181,45 @@ const AppState = {
         this.notify(); // show page immediately (with loading state)
 
         if (data?.marketId) {
-            try {
-                this.selectedMarket = await DB.getMarket(data.marketId);
-            } catch (e) { console.error('Failed to load market:', e); }
+            const mid = data.marketId;
+            const withTimeout = (promise, ms = 8000) =>
+                Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
 
+            // Load market, comments, and predictions in parallel
             try {
-                this.selectedMarketComments = await DB.getComments(data.marketId);
-            } catch (e) { this.selectedMarketComments = []; }
+                const [market, comments, predictions] = await withTimeout(Promise.all([
+                    DB.getMarket(mid).catch(e => { console.error('Failed to load market:', e); return null; }),
+                    DB.getComments(mid).catch(() => []),
+                    DB.getMarketPredictions(mid).catch(() => []),
+                ]));
+                this.selectedMarket = market;
+                this.selectedMarketComments = comments || [];
+                this.selectedMarketPredictions = predictions || [];
+            } catch (e) {
+                // Timeout — use whatever we have from the local markets cache
+                console.error('Market load timed out:', e);
+                this.selectedMarket = this.selectedMarket || this.markets.find(m => m.id === mid) || null;
+            }
+            this.notify();
 
+            // Subscribe to realtime (non-blocking, don't await)
             try {
-                this.selectedMarketPredictions = await DB.getMarketPredictions(data.marketId);
-            } catch (e) { this.selectedMarketPredictions = []; }
-
-            this._commentsChannel = DB.subscribeToComments(data.marketId, async () => {
-                try { this.selectedMarketComments = await DB.getComments(data.marketId); this.notify(); } catch (e) {}
-            });
-            this._predictionsChannel = DB.subscribeToPredictions(data.marketId, async () => {
-                try {
-                    this.selectedMarketPredictions = await DB.getMarketPredictions(data.marketId);
-                    const updatedMarket = await DB.getMarket(data.marketId);
-                    this.selectedMarket = updatedMarket;
-                    const idx = this.markets.findIndex(m => m.id === data.marketId);
-                    if (idx >= 0) this.markets[idx] = updatedMarket;
-                    this.notify();
-                } catch (e) {}
-            });
+                this._commentsChannel = DB.subscribeToComments(mid, async () => {
+                    try { this.selectedMarketComments = await DB.getComments(mid); this.notify(); } catch (e) {}
+                });
+                this._predictionsChannel = DB.subscribeToPredictions(mid, async () => {
+                    try {
+                        const [preds, updatedMarket] = await Promise.all([
+                            DB.getMarketPredictions(mid), DB.getMarket(mid)
+                        ]);
+                        this.selectedMarketPredictions = preds;
+                        this.selectedMarket = updatedMarket;
+                        const idx = this.markets.findIndex(m => m.id === mid);
+                        if (idx >= 0) this.markets[idx] = updatedMarket;
+                        this.notify();
+                    } catch (e) {}
+                });
+            } catch (e) { console.error('Realtime subscription failed:', e); }
         }
 
         if (data?.profileId) {
