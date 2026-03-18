@@ -57,8 +57,16 @@ END $$;
 -- 7. Unresolve any resolved markets (optional — comment out if you want to keep resolutions)
 -- UPDATE markets SET resolution = NULL, resolved_at = NULL, resolved_by = NULL, status = 'active' WHERE resolution IS NOT NULL;
 
--- 8. Clear audit log
-DELETE FROM audit_log;
+-- 8. Clear audit log (if table exists)
+DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'audit_log') THEN
+        EXECUTE 'DELETE FROM audit_log';
+    END IF;
+END $$;
 
 -- 9. Clear watchlist
-DELETE FROM watchlist;
+DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'watchlist') THEN
+        EXECUTE 'DELETE FROM watchlist';
+    END IF;
+END $$;
