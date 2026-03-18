@@ -99,8 +99,13 @@ function showModal({ title, message, confirmText = 'Confirm', cancelText = 'Canc
 // ============================================================
 
 const Components = {
-    probBadge(prob, size = 'md') {
+    probBadge(prob, size = 'md', traders = -1) {
         const pct = Math.round(prob * 100);
+        // Show "No trades" if market has 0 traders and is at default 50%
+        if (traders === 0) {
+            const sizeClass = size === 'lg' ? 'text-xl px-4 py-2' : 'text-sm px-2.5 py-1';
+            return `<span class="inline-flex items-center rounded-full font-medium bg-gray-100 text-gray-500 ${sizeClass}">No trades</span>`;
+        }
         let colorClass;
         if (pct >= 70) colorClass = 'bg-green-100 text-green-800';
         else if (pct >= 40) colorClass = 'bg-yellow-100 text-yellow-800';
@@ -193,7 +198,7 @@ const Components = {
                         ${isMulti && multiLeader ? `<div class="text-xs text-gray-500 mt-1">Leading: <span class="font-medium text-gray-700">${esc(multiLeader)}</span> at ${Math.round(Math.max(...(market.probabilities || [0])) * 100)}%</div>` : ''}
                     </div>
                     <div class="flex flex-col items-end gap-1 shrink-0">
-                        ${isMulti ? `<span class="inline-flex items-center rounded-full font-bold bg-indigo-100 text-indigo-800 text-sm px-2.5 py-1">${market.options?.length || '?'} options</span>` : this.probBadge(market.probability)}
+                        ${isMulti ? `<span class="inline-flex items-center rounded-full font-bold bg-indigo-100 text-indigo-800 text-sm px-2.5 py-1">${market.options?.length || '?'} options</span>` : this.probBadge(market.probability, 'md', market.traders)}
                         <div class="hidden sm:block">${isMulti ? this.sparklineMulti(market.history, market.options) : this.sparkline(sparkData)}</div>
                     </div>
                 </div>

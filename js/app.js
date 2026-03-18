@@ -592,6 +592,47 @@ function _tradeEstimateHTMLMulti(qValues, options, amount) {
     return lines + `<div class="text-xs text-gray-400 mt-2">Winning shares pay 1 token each</div>${slippageWarning}`;
 }
 
+// ==================== BALANCE RECONCILIATION ====================
+
+async function handleRunReconciliation() {
+    const btn = document.getElementById('recon-btn');
+    const results = document.getElementById('recon-results');
+    if (btn) { btn.disabled = true; btn.textContent = 'Running...'; }
+    if (results) results.innerHTML = '<div class="text-gray-400">Analyzing balances...</div>';
+
+    try {
+        const data = await AppState.runBalanceReconciliation();
+        if (data.error) {
+            results.innerHTML = `<div class="text-red-500">Error: ${esc(data.error)}</div>`;
+        } else if (data.discrepancies.length === 0) {
+            results.innerHTML = `<div class="text-green-600 font-medium">All balances match! Checked ${data.totalUsers} users across ${data.totalTransactions} transactions.</div>`;
+        } else {
+            results.innerHTML = `
+                <div class="text-amber-600 font-medium mb-3">Found ${data.discrepancies.length} discrepancies (${data.totalUsers} users, ${data.totalTransactions} transactions):</div>
+                <div class="space-y-2 max-h-60 overflow-y-auto">
+                    ${data.discrepancies.map(d => `
+                        <div class="flex items-center justify-between p-2 bg-amber-50 rounded-lg text-sm">
+                            <div>
+                                <span class="font-medium text-gray-900">${esc(d.name)}</span>
+                                <span class="text-gray-400 text-xs ml-1">${esc(d.department)}</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-gray-500">Actual: ${d.actual}t</span>
+                                <span class="mx-1 text-gray-300">|</span>
+                                <span class="text-gray-500">Expected: ${d.expected}t</span>
+                                <span class="ml-1 font-bold ${d.diff > 0 ? 'text-green-600' : 'text-red-500'}">(${d.diff > 0 ? '+' : ''}${d.diff})</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>`;
+        }
+    } catch (e) {
+        if (results) results.innerHTML = `<div class="text-red-500">Error: ${esc(e.message)}</div>`;
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Run Check'; }
+    }
+}
+
 // ==================== SHARE / DEEP LINKS ====================
 
 async function handleShareMarket(marketId) {

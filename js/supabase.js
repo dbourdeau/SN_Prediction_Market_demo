@@ -290,6 +290,31 @@ const DB = {
         return data || [];
     },
 
+    // ---- Balance Reconciliation ----
+    async getAllTransactions() {
+        const { data, error } = await supabaseClient
+            .from('transactions').select('user_id, amount')
+            .order('created_at', { ascending: true });
+        if (error) throw error;
+        return data || [];
+    },
+
+    // ---- Referral ----
+    async claimReferral(userId, referrerId) {
+        const { data, error } = await supabaseClient.rpc('claim_referral', {
+            p_user_id: userId, p_referrer_id: referrerId
+        });
+        if (error) throw error;
+        return data; // returns boolean
+    },
+
+    // ---- Daily Login Bonus ----
+    async claimDailyBonus(userId) {
+        const { data, error } = await supabaseClient.rpc('claim_daily_bonus', { p_user_id: userId });
+        if (error) throw error;
+        return data; // returns bonus amount (0 if already claimed today)
+    },
+
     // ---- Audit Log ----
     async logAuditEvent(actorId, action, targetType, targetId, details = {}) {
         const { error } = await supabaseClient

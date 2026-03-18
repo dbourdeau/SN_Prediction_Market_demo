@@ -48,6 +48,7 @@ const AppState = {
 
     async init() {
         this._applyDarkMode();
+        this._checkReferral(); // stash referral code from URL before auth
         this.loading = true;
         this.notify();
         try {
@@ -66,6 +67,9 @@ const AppState = {
                     this.currentPage = 'dashboard';
                 }
                 this._setupRealtime();
+                // Daily login bonus + referral claim
+                this._claimDailyBonus();
+                this._claimReferralIfPending();
                 // Auto-close expired markets + notify closing soon
                 DB.closeExpiredMarkets().then(() => this._refreshMarkets());
                 DB.notifyClosingSoon();
@@ -317,13 +321,15 @@ const AppState = {
                 p_new_q_values: isMulti ? marketUpdates.q_values : null,
                 p_new_probabilities: isMulti ? marketUpdates.probabilities : null,
                 p_new_history: marketUpdates.history,
+                p_expected_version: market.version ?? null,
             };
 
             await DB.placePrediction(rpcParams);
 
-            // Update local state
+            // Update local state (bump version to match server)
             this.user.balance -= amount;
             this.user.trades += 1;
+            market.version = (market.version || 0) + 1;
             Object.assign(market, marketUpdates);
             this.selectedMarket = market;
 
@@ -336,6 +342,11 @@ const AppState = {
         } catch (e) {
             console.error('Prediction error:', e);
             if (e.message?.includes('balance')) return { error: 'Insufficient balance' };
+            if (e.message?.includes('updated by another trade')) {
+                // Refresh market data and retry hint
+                await this._refreshMarkets();
+                return { error: 'Price changed — please review and try again' };
+            }
             return { error: e.message || 'Trade failed' };
         }
     },
@@ -402,11 +413,13 @@ const AppState = {
                 p_new_q_values: isMulti ? marketUpdates.q_values : null,
                 p_new_probabilities: isMulti ? marketUpdates.probabilities : null,
                 p_new_history: marketUpdates.history,
+                p_expected_version: market.version ?? null,
             };
 
             await DB.sellPositionRPC(rpcParams);
 
             this.user.balance = this.user.balance + roundedRevenue;
+            market.version = (market.version || 0) + 1;
             Object.assign(market, marketUpdates);
 
             this.userPredictions = await DB.getPredictions(this.session.user.id);
@@ -777,6 +790,50 @@ const AppState = {
         this.notify();
     },
 
+    // ==================== BALANCE RECONCILIATION ====================
+
+    async runBalanceReconciliation() {
+        try {
+            const [users, txns] = await Promise.all([
+                DB.getAllProfiles(),
+                DB.getAllTransactions(),
+            ]);
+
+            // Sum transactions per user (signup bonus = 1000 starting balance is implicit)
+            const txnSums = {};
+            txns.forEach(t => {
+                txnSums[t.user_id] = (txnSums[t.user_id] || 0) + (t.amount || 0);
+            });
+
+            // Starting balance is 1000 for all users
+            const discrepancies = [];
+            users.forEach(u => {
+                const expectedBalance = 1000 + (txnSums[u.id] || 0);
+                const actualBalance = u.balance || 0;
+                const diff = actualBalance - expectedBalance;
+                if (Math.abs(diff) > 1) { // tolerance of 1 token for rounding
+                    discrepancies.push({
+                        userId: u.id,
+                        name: u.name,
+                        department: u.department,
+                        actual: actualBalance,
+                        expected: expectedBalance,
+                        diff,
+                    });
+                }
+            });
+
+            return {
+                totalUsers: users.length,
+                totalTransactions: txns.length,
+                discrepancies: discrepancies.sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff)),
+            };
+        } catch (e) {
+            console.error('Reconciliation error:', e);
+            return { totalUsers: 0, totalTransactions: 0, discrepancies: [], error: e.message };
+        }
+    },
+
     // ==================== DEPARTMENT LEADERBOARD ====================
 
     setLeaderboardTab(tab) {
@@ -806,6 +863,62 @@ const AppState = {
         this.hasSeenOnboarding = true;
         localStorage.setItem('sn_onboarded', 'true');
         this.notify();
+    },
+
+    // ==================== REFERRAL ====================
+
+    getReferralLink() {
+        if (!this.session?.user?.id) return '';
+        const base = window.location.origin + window.location.pathname;
+        return `${base}#ref=${this.session.user.id}`;
+    },
+
+    async _checkReferral() {
+        const refMatch = window.location.hash.match(/^#ref=([a-f0-9-]+)$/i);
+        if (refMatch) {
+            const referrerId = refMatch[1];
+            localStorage.setItem('sn_referrer', referrerId);
+            // Clear hash so it doesn't interfere with navigation
+            history.replaceState(null, '', window.location.pathname);
+        }
+    },
+
+    async _claimReferralIfPending() {
+        const referrerId = localStorage.getItem('sn_referrer');
+        if (!referrerId || !this.session?.user?.id) return;
+        if (referrerId === this.session.user.id) return; // can't self-refer
+        try {
+            const result = await DB.claimReferral(this.session.user.id, referrerId);
+            if (result) {
+                this.user.balance += 100;
+                this.notify();
+                setTimeout(() => {
+                    if (typeof showToast === 'function') showToast('Referral bonus: +100 tokens!', 'success');
+                }, 600);
+            }
+            localStorage.removeItem('sn_referrer');
+        } catch (e) {
+            console.warn('Referral claim error:', e);
+            localStorage.removeItem('sn_referrer');
+        }
+    },
+
+    // ==================== DAILY LOGIN BONUS ====================
+
+    async _claimDailyBonus() {
+        try {
+            const bonus = await DB.claimDailyBonus(this.session.user.id);
+            if (bonus && bonus > 0) {
+                this.user.balance += bonus;
+                this.notify();
+                // Show toast after a brief delay so the page has rendered
+                setTimeout(() => {
+                    if (typeof showToast === 'function') showToast(`Daily bonus: +${bonus} tokens!`, 'success');
+                }, 500);
+            }
+        } catch (e) {
+            console.warn('Daily bonus error:', e);
+        }
     },
 
     // ==================== DARK MODE ====================

@@ -157,20 +157,55 @@ const Pages = {
                 ${activePreds.length > 0 ? `
                 <div class="mb-6 sm:mb-8">
                     <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-4">Your Active Positions</h2>
-                    <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-50">
+                    <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
                         ${activePreds.slice(0, 5).map(p => {
-                            const market = p.markets || {};
-                            return `<div class="flex items-center justify-between p-3 sm:p-4 hover:bg-gray-50 cursor-pointer" onclick="AppState.navigate('market', { marketId: ${p.market_id} })">
-                                <div class="flex-1 min-w-0 mr-3">
-                                    <div class="text-sm font-medium text-gray-900 truncate">${esc(market.title || 'Unknown')}</div>
-                                    <span class="text-xs text-gray-500">${p.shares?.toFixed(1) || '?'} shares · ${p.amount} tokens</span>
+                            const market = AppState.markets.find(mk => mk.id === p.market_id) || p.markets || {};
+                            const isMultiPos = market.market_type === 'multi';
+                            const sellValue = isMultiPos
+                                ? AMM.sellRevenueMulti(market.q_values || [], p.shares, p.option_index)
+                                : AMM.sellRevenue(market.q_yes || 0, market.q_no || 0, p.shares, p.direction);
+                            const roundedSell = Math.round(sellValue);
+                            const profit = roundedSell - p.amount;
+                            const canSellPos = market.status === 'active' && !market.resolution;
+                            return `<div class="p-3 sm:p-4">
+                                <div class="flex items-center justify-between mb-1 cursor-pointer" onclick="AppState.navigate('market', { marketId: ${p.market_id} })">
+                                    <div class="flex-1 min-w-0 mr-3">
+                                        <div class="text-sm font-medium text-gray-900 truncate">${esc(market.title || 'Unknown')}</div>
+                                    </div>
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-bold shrink-0 ${p.direction === 'yes' ? 'bg-green-100 text-green-700' : p.direction === 'no' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}">${esc(p.direction.length > 12 ? p.direction.slice(0, 12) + '…' : p.direction).toUpperCase()}</span>
                                 </div>
-                                <span class="px-2 py-0.5 rounded-full text-xs font-bold shrink-0 ${p.direction === 'yes' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${p.direction.toUpperCase()}</span>
+                                <div class="flex items-center justify-between text-xs text-gray-500">
+                                    <span>${p.shares?.toFixed(1) || '?'} shares · Cost: ${p.amount}t</span>
+                                    <span class="font-semibold ${profit >= 0 ? 'text-green-600' : 'text-red-500'}">Value: ${roundedSell}t (${profit >= 0 ? '+' : ''}${profit})</span>
+                                </div>
+                                ${canSellPos ? `<button onclick="event.stopPropagation(); handleSellPosition(${p.id})" class="mt-2 w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-1.5 rounded-lg text-xs font-semibold transition-colors">Sell for ${roundedSell}t</button>` : ''}
                             </div>`;
                         }).join('')}
                         ${activePreds.length > 5 ? `<div class="p-3 text-center"><button onclick="AppState.navigate('profile', { profileId: '${AppState.session?.user?.id}' })" class="text-sm text-shark-600 font-medium">View all ${activePreds.length} positions →</button></div>` : ''}
                     </div>
                 </div>` : ''}
+
+                ${(() => {
+                    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+                    const weekPreds = (AppState.userPredictions || []).filter(p => p.created_at >= weekAgo);
+                    const weekWins = weekPreds.filter(p => p.status === 'won').length;
+                    const weekLosses = weekPreds.filter(p => p.status === 'lost').length;
+                    const weekTrades = weekPreds.length;
+                    const weekResolved = AppState.markets.filter(m => m.resolution && m.resolved_at >= weekAgo).length;
+                    const weekEarnings = weekPreds.filter(p => p.status === 'won').reduce((s, p) => s + (p.payout || 0) - p.amount, 0);
+                    if (weekTrades === 0 && weekResolved === 0) return '';
+                    return `
+                    <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 mb-6 sm:mb-8">
+                        <h2 class="text-sm font-semibold text-gray-500 uppercase mb-3">This Week</h2>
+                        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                            <div><div class="text-xs text-gray-500">Your Trades</div><div class="text-lg font-bold text-gray-900">${weekTrades}</div></div>
+                            <div><div class="text-xs text-gray-500">Wins</div><div class="text-lg font-bold text-green-600">${weekWins}</div></div>
+                            <div><div class="text-xs text-gray-500">Losses</div><div class="text-lg font-bold text-red-500">${weekLosses}</div></div>
+                            <div><div class="text-xs text-gray-500">Earnings</div><div class="text-lg font-bold ${weekEarnings >= 0 ? 'text-green-600' : 'text-red-500'}">${weekEarnings >= 0 ? '+' : ''}${weekEarnings}t</div></div>
+                            <div><div class="text-xs text-gray-500">Markets Resolved</div><div class="text-lg font-bold text-gray-900">${weekResolved}</div></div>
+                        </div>
+                    </div>`;
+                })()}
 
                 <div class="mb-6 sm:mb-8">
                     <div class="flex items-center justify-between mb-4">
@@ -332,7 +367,15 @@ const Pages = {
                                 ${m.edited_at ? '<span class="text-xs text-gray-400">(edited)</span>' : ''}
                             </div>
                             <h1 class="text-lg sm:text-2xl font-bold text-gray-900 mb-3" id="market-title-display">${esc(m.title)}</h1>
-                            <p class="text-gray-600 text-sm mb-6" id="market-desc-display">${esc(m.description)}</p>
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 mb-6" id="market-desc-display">
+                                <div class="flex items-start gap-2">
+                                    <span class="text-blue-500 shrink-0 mt-0.5">📋</span>
+                                    <div>
+                                        <div class="text-xs font-semibold text-blue-700 mb-1">Resolution Criteria</div>
+                                        <p class="text-gray-700 text-sm">${esc(m.description)}</p>
+                                    </div>
+                                </div>
+                            </div>
 
                             ${canEdit ? `<button onclick="toggleEditMarket()" id="edit-market-btn" class="text-xs text-shark-600 font-medium hover:text-shark-800 mb-4">Edit market</button>
                             <div id="edit-market-form" class="hidden mb-4 p-4 bg-gray-50 rounded-lg space-y-3">
@@ -353,8 +396,13 @@ const Pages = {
                                 ${Components.probBarMulti(options, probs)}
                                 ` : `
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="text-2xl sm:text-3xl font-bold ${pct >= 50 ? 'text-green-600' : 'text-red-500'}">${pct}%</span>
-                                    <span class="text-sm text-gray-500">${isResolved ? 'Final' : 'chance of YES'}</span>
+                                    ${m.traders === 0 && !isResolved ? `
+                                        <span class="text-xl sm:text-2xl font-bold text-gray-400">50%</span>
+                                        <span class="text-sm text-gray-400">No trades yet — starting price</span>
+                                    ` : `
+                                        <span class="text-2xl sm:text-3xl font-bold ${pct >= 50 ? 'text-green-600' : 'text-red-500'}">${pct}%</span>
+                                        <span class="text-sm text-gray-500">${isResolved ? 'Final' : 'chance of YES'}</span>
+                                    `}
                                 </div>
                                 ${Components.probBar(m.probability)}
                                 `}
@@ -439,15 +487,29 @@ const Pages = {
                                     <div class="text-sm text-gray-500 mt-1">Resolved ${getTimeAgo(m.resolved_at)}</div>
                                 </div>`}
                             ` : canTrade ? `
-                                <h3 class="font-semibold text-gray-900 mb-4">Make a Prediction</h3>
+                                <h3 class="font-semibold text-gray-900 mb-3">Make a Prediction</h3>
+                                ${(() => {
+                                    const hoursLeft = (new Date(m.closes_at) - new Date()) / 3600000;
+                                    if (hoursLeft <= 1 && hoursLeft > 0) return '<div class="bg-amber-50 border border-amber-200 rounded-lg p-2 mb-3 text-xs text-amber-700 font-medium">⚠ This market closes in less than 1 hour!</div>';
+                                    if (hoursLeft <= 24 && hoursLeft > 0) return '<div class="bg-amber-50 border border-amber-200 rounded-lg p-2 mb-3 text-xs text-amber-600">Closing soon — less than 24 hours left</div>';
+                                    return '';
+                                })()}
                                 <div class="space-y-4">
                                     <div>
                                         <label class="block text-sm text-gray-600 mb-1">Amount (tokens)</label>
-                                        <input type="number" id="pred-amount" value="50" min="10" max="${AppState.user?.balance || 0}" step="10"
-                                            oninput="updateTradeEstimate(${m.id})"
-                                            onkeydown="if(event.key==='Enter'){event.preventDefault()}"
-                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500"/>
-                                        <div class="text-xs text-gray-400 mt-1">Balance: ${(AppState.user?.balance || 0).toLocaleString()} tokens</div>
+                                        <input type="range" id="pred-slider" min="10" max="${Math.min(AppState.user?.balance || 500, 500)}" step="10" value="50"
+                                            oninput="document.getElementById('pred-amount').value=this.value; updateTradeEstimate(${m.id})"
+                                            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-shark-600"/>
+                                        <div class="flex items-center gap-2 mt-2">
+                                            <input type="number" id="pred-amount" value="50" min="10" max="${AppState.user?.balance || 0}" step="10"
+                                                oninput="document.getElementById('pred-slider').value=Math.min(this.value,${Math.min(AppState.user?.balance || 500, 500)}); updateTradeEstimate(${m.id})"
+                                                onkeydown="if(event.key==='Enter'){event.preventDefault()}"
+                                                class="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-shark-500"/>
+                                            <span class="text-xs text-gray-400">of ${(AppState.user?.balance || 0).toLocaleString()}t</span>
+                                            <div class="flex gap-1 ml-auto">
+                                                ${[25, 50, 100].map(v => `<button onclick="document.getElementById('pred-amount').value=${v};document.getElementById('pred-slider').value=${v};updateTradeEstimate(${m.id})" class="px-2 py-1 rounded text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-600">${v}</button>`).join('')}
+                                            </div>
+                                        </div>
                                     </div>
                                     <div id="trade-estimate" class="bg-gray-50 rounded-lg p-3 text-xs text-gray-600">
                                         ${isMulti ? _tradeEstimateHTMLMulti(m.q_values || [], options, 50) : _tradeEstimateHTML(qYes, qNo, 50)}
@@ -705,8 +767,19 @@ const Pages = {
                             class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500 focus:border-transparent"/>
                     </div>
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">Description * <span class="font-normal text-gray-400" id="desc-count">0/5000</span></label>
-                        <textarea id="create-desc" rows="4" maxlength="5000" placeholder="Provide context, resolution criteria, and relevant background..."
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Resolution Criteria & Description * <span class="font-normal text-gray-400" id="desc-count">0/5000</span></label>
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2 text-xs text-blue-700">
+                            <div class="font-semibold mb-1">Tips for clear resolution criteria:</div>
+                            <ul class="list-disc ml-4 space-y-0.5">
+                                <li><strong>Be specific:</strong> Define exactly what outcome counts as YES vs NO</li>
+                                <li><strong>Name your source:</strong> e.g. "Per the Q3 earnings report" or "As announced in #general Slack"</li>
+                                <li><strong>Set a deadline:</strong> "By end of day March 31, 2026"</li>
+                                <li><strong>Edge cases:</strong> What happens if the event is delayed, cancelled, or ambiguous?</li>
+                            </ul>
+                        </div>
+                        <textarea id="create-desc" rows="5" maxlength="5000" placeholder="Resolution criteria: This market resolves YES if [specific condition] as confirmed by [source of truth] by [date]. It resolves NO if [condition is not met]. If [edge case], the market will be voided.
+
+Background: [Provide relevant context for traders]"
                             oninput="document.getElementById('desc-count').textContent=this.value.length+'/5000'"
                             class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500 focus:border-transparent resize-none"></textarea>
                     </div>
@@ -831,6 +904,14 @@ const Pages = {
                     <div class="mt-4 p-3 bg-shark-50 rounded-lg flex items-center justify-between">
                         <span class="text-sm text-shark-700 font-medium">Token Balance</span>
                         <span class="text-lg sm:text-xl font-bold text-shark-700">${(p.balance || 0).toLocaleString()}</span>
+                    </div>
+                    <div class="mt-3 p-3 bg-gray-50 rounded-lg">
+                        <div class="text-xs font-semibold text-gray-500 uppercase mb-1.5">Referral Link</div>
+                        <div class="flex items-center gap-2">
+                            <input type="text" readonly value="${esc(AppState.getReferralLink())}" class="flex-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-600 truncate" id="referral-link-input"/>
+                            <button onclick="navigator.clipboard.writeText(document.getElementById('referral-link-input').value).then(() => showToast('Referral link copied!', 'success'))" class="px-3 py-1.5 bg-shark-600 text-white rounded-lg text-xs font-medium hover:bg-shark-700 shrink-0">Copy</button>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">Share this link — you both earn 100 tokens when someone signs up!</p>
                     </div>` : ''}
                 </div>
 
@@ -1089,6 +1170,16 @@ const Pages = {
                         </div>
                     </div>`;
                 })()}
+
+                <!-- Balance Reconciliation -->
+                <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 mt-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold text-gray-900">Balance Reconciliation</h2>
+                        <button onclick="handleRunReconciliation()" id="recon-btn" class="bg-shark-600 text-white px-4 py-2 rounded-lg text-xs font-medium hover:bg-shark-700">Run Check</button>
+                    </div>
+                    <p class="text-xs text-gray-500 mb-3">Compares each user's balance against their transaction history to detect discrepancies.</p>
+                    <div id="recon-results" class="text-sm text-gray-400">Click "Run Check" to analyze balances.</div>
+                </div>
             </div>`;
     },
 
@@ -1236,9 +1327,25 @@ function _tradeEstimateHTML(qYes, qNo, amount) {
     const priceAfterNo = AMM.yesPrice(qYes, qNo + estNo.shares);
     const maxImpact = Math.max(Math.abs(priceAfterYes - oldPrice), Math.abs(priceAfterNo - oldPrice)) * 100;
     const slippageWarning = maxImpact > 5
-        ? `<div class="text-xs mt-2 px-2 py-1 rounded ${maxImpact > 15 ? 'bg-red-50 text-red-600' : 'bg-yellow-50 text-yellow-600'}">⚠ Price impact: ~${maxImpact.toFixed(1)}% — ${maxImpact > 15 ? 'large trade, consider splitting' : 'moderate slippage'}</div>`
+        ? `<div class="text-xs mt-2 px-2 py-1 rounded ${maxImpact > 15 ? 'bg-red-50 text-red-600' : 'bg-yellow-50 text-yellow-600'}">⚠ Price impact: ~${maxImpact.toFixed(1)}%</div>`
         : '';
-    return `<div class="flex justify-between mb-1"><span>YES (${amount}t):</span><span class="font-semibold">${estYes.shares.toFixed(1)} shares → ${estYes.shares.toFixed(0)}t if YES</span></div>
-        <div class="flex justify-between"><span>NO (${amount}t):</span><span class="font-semibold">${estNo.shares.toFixed(1)} shares → ${estNo.shares.toFixed(0)}t if NO</span></div>
-        <div class="text-xs text-gray-400 mt-2">Winning shares pay 1 token each</div>${slippageWarning}`;
+
+    const yesProfit = Math.round(estYes.shares) - amount;
+    const noProfit = Math.round(estNo.shares) - amount;
+    return `<div class="font-semibold text-gray-700 mb-2">If you spend ${amount} tokens:</div>
+        <div class="grid grid-cols-2 gap-2">
+            <div class="bg-green-50 rounded-lg p-2 text-center">
+                <div class="text-xs text-green-600 font-medium">Buy YES</div>
+                <div class="text-sm font-bold text-green-700">${estYes.shares.toFixed(1)} shares</div>
+                <div class="text-xs text-green-600">Payout if correct: <strong>${Math.round(estYes.shares)}t</strong></div>
+                <div class="text-xs ${yesProfit >= 0 ? 'text-green-600' : 'text-red-500'}">Profit: ${yesProfit >= 0 ? '+' : ''}${yesProfit}t</div>
+            </div>
+            <div class="bg-red-50 rounded-lg p-2 text-center">
+                <div class="text-xs text-red-600 font-medium">Buy NO</div>
+                <div class="text-sm font-bold text-red-700">${estNo.shares.toFixed(1)} shares</div>
+                <div class="text-xs text-red-600">Payout if correct: <strong>${Math.round(estNo.shares)}t</strong></div>
+                <div class="text-xs ${noProfit >= 0 ? 'text-green-600' : 'text-red-500'}">Profit: ${noProfit >= 0 ? '+' : ''}${noProfit}t</div>
+            </div>
+        </div>
+        <div class="text-xs text-gray-400 mt-2 text-center">Each winning share pays 1 token</div>${slippageWarning}`;
 }
