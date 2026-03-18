@@ -175,7 +175,10 @@ const Pages = {
                                     <span class="px-2 py-0.5 rounded-full text-xs font-bold shrink-0 ${p.direction === 'yes' ? 'bg-green-100 text-green-700' : p.direction === 'no' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}">${esc(p.direction.length > 12 ? p.direction.slice(0, 12) + '…' : p.direction).toUpperCase()}</span>
                                 </div>
                                 <div class="flex items-center justify-between text-xs text-gray-500">
-                                    <span>${p.shares?.toFixed(1) || '?'} shares · Cost: ${p.amount}t</span>
+                                    <div class="flex items-center gap-1.5">
+                                        <span>${p.shares?.toFixed(1) || '?'} shares · Cost: ${p.amount}t</span>
+                                        ${Components.sparklinePnL(market, p)}
+                                    </div>
                                     <span class="font-semibold ${profit >= 0 ? 'text-green-600' : 'text-red-500'}">Value: ${roundedSell}t (${profit >= 0 ? '+' : ''}${profit})</span>
                                 </div>
                                 ${canSellPos ? `<button onclick="event.stopPropagation(); handleSellPosition(${p.id})" class="mt-2 w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-1.5 rounded-lg text-xs font-semibold transition-colors">Sell for ${roundedSell}t</button>` : ''}
@@ -980,13 +983,15 @@ Background: [Provide relevant context for traders]"
                     <div class="space-y-2">
                         ${preds.slice(0, 30).map(pr => {
                             const market = pr.markets || {};
+                            const fullMarket = AppState.markets.find(mk => mk.id === pr.market_id) || market;
                             const statusColors = { active: 'bg-blue-100 text-blue-700', won: 'bg-green-100 text-green-700', lost: 'bg-red-100 text-red-700', sold: 'bg-gray-100 text-gray-600', voided: 'bg-gray-100 text-gray-600' };
                             return `<div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg ${market.title ? 'cursor-pointer hover:bg-gray-100' : ''}" onclick="${market.title ? `AppState.navigate('market', { marketId: ${pr.market_id} })` : ''}">
                                 <div class="flex-1 min-w-0 mr-3">
                                     <div class="text-sm font-medium text-gray-900 truncate">${esc(market.title || 'Unknown')}</div>
                                     <div class="flex items-center gap-2 mt-1">
-                                        <span class="px-1.5 py-0.5 rounded text-xs font-bold ${pr.direction === 'yes' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${pr.direction.toUpperCase()}</span>
+                                        <span class="px-1.5 py-0.5 rounded text-xs font-bold ${pr.direction === 'yes' ? 'bg-green-100 text-green-700' : pr.direction === 'no' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}">${esc(pr.direction.length > 12 ? pr.direction.slice(0, 12) + '…' : pr.direction).toUpperCase()}</span>
                                         <span class="text-xs text-gray-500">${pr.amount}t · ${pr.shares?.toFixed(1) || '?'}sh</span>
+                                        ${pr.status === 'active' && fullMarket.history ? Components.sparklinePnL(fullMarket, pr) : ''}
                                     </div>
                                 </div>
                                 <div class="text-right shrink-0">

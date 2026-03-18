@@ -151,6 +151,43 @@ const Components = {
         </svg>`;
     },
 
+    // P&L sparkline: derives position value from market price history
+    sparklinePnL(market, pred, width = 80, height = 24) {
+        const history = market.history;
+        if (!history || history.length < 2) return '';
+        const isMulti = market.market_type === 'multi';
+        const shares = pred.shares || 0;
+        const cost = pred.amount || 0;
+
+        // Convert each history point to estimated position value
+        const values = history.map(h => {
+            if (isMulti && Array.isArray(h)) {
+                const prob = h[pred.option_index] || 0;
+                return shares * prob;
+            } else if (!isMulti && typeof h === 'number') {
+                return pred.direction === 'yes' ? shares * h : shares * (1 - h);
+            }
+            return cost; // fallback
+        });
+
+        if (values.length < 2) return '';
+        // Only show points from when this position was placed (approximate: skip early history)
+        // Use the entry point: find the first history index where the value is near entry
+        const entryIdx = Math.max(0, values.length - Math.max(2, Math.ceil(values.length * 0.8)));
+        const data = values.slice(entryIdx);
+        if (data.length < 2) return '';
+
+        const min = Math.min(...data), max = Math.max(...data);
+        const range = max - min || 1, step = width / (data.length - 1);
+        const points = data.map((v, i) => `${i * step},${height - ((v - min) / range) * height}`).join(' ');
+        const lastVal = data[data.length - 1];
+        const color = lastVal >= cost ? '#22c55e' : '#ef4444';
+        return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" class="inline-block align-middle">
+            <polyline fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" points="${points}" opacity="0.8"/>
+            <circle cx="${(data.length - 1) * step}" cy="${height - ((lastVal - min) / range) * height}" r="2" fill="${color}"/>
+        </svg>`;
+    },
+
     marketCard(market) {
         const userPreds = (AppState.userPredictions || []).filter(p => p.market_id === market.id && p.status === 'active');
         const days = daysLeft(market.closes_at);
