@@ -12,7 +12,10 @@ DROP TRIGGER IF EXISTS cap_history_trigger ON markets;
 DROP FUNCTION IF EXISTS cap_market_history();
 
 -- Convert column: real[] → JSONB (preserves existing data)
+-- Must drop default first since the old default (real[] literal) can't auto-cast
+ALTER TABLE markets ALTER COLUMN history DROP DEFAULT;
 ALTER TABLE markets ALTER COLUMN history TYPE JSONB USING to_jsonb(history);
+ALTER TABLE markets ALTER COLUMN history SET DEFAULT '[]'::jsonb;
 
 -- Recreate cap_history trigger for JSONB arrays
 CREATE OR REPLACE FUNCTION cap_market_history()
