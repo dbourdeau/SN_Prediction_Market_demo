@@ -11,6 +11,13 @@ function esc(str) {
     return div.innerHTML;
 }
 
+// Escape for use inside JS string literals in onclick attributes
+// Handles both HTML entities and JS-special characters (quotes, backslashes)
+function escAttr(str) {
+    if (str == null) return '';
+    return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 // ============================================================
 // Utilities
 // ============================================================

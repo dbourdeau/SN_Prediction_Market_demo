@@ -172,7 +172,7 @@ const Pages = {
                                     <div class="flex-1 min-w-0 mr-3">
                                         <div class="text-sm font-medium text-gray-900 truncate">${esc(market.title || 'Unknown')}</div>
                                     </div>
-                                    <span class="px-2 py-0.5 rounded-full text-xs font-bold shrink-0 ${p.direction === 'yes' ? 'bg-green-100 text-green-700' : p.direction === 'no' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}">${esc(p.direction.length > 12 ? p.direction.slice(0, 12) + '…' : p.direction).toUpperCase()}</span>
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-bold shrink-0 ${p.direction === 'yes' ? 'bg-green-100 text-green-700' : p.direction === 'no' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}">${esc((p.direction || '?').length > 12 ? (p.direction || '?').slice(0, 12) + '…' : (p.direction || '?')).toUpperCase()}</span>
                                 </div>
                                 <div class="flex items-center justify-between text-xs text-gray-500">
                                     <div class="flex items-center gap-1.5">
@@ -235,7 +235,7 @@ const Pages = {
                             return `<div class="flex items-center gap-3 p-3 sm:p-4 hover:bg-gray-50 cursor-pointer" onclick="AppState.navigate('market', { marketId: ${a.market_id} })">
                                 ${Components.avatar(a.profiles?.avatar || name, 'sm')}
                                 <div class="flex-1 min-w-0">
-                                    <div class="text-sm text-gray-900 truncate"><span class="font-semibold">${esc(name)}</span> ${verb} <span class="font-medium ${a.direction === 'yes' ? 'text-green-600' : 'text-red-500'}">${a.direction.toUpperCase()}</span> on <span class="font-medium">${esc(title)}</span></div>
+                                    <div class="text-sm text-gray-900 truncate"><span class="font-semibold">${esc(name)}</span> ${verb} <span class="font-medium ${a.direction === 'yes' ? 'text-green-600' : 'text-red-500'}">${(a.direction || '?').toUpperCase()}</span> on <span class="font-medium">${esc(title)}</span></div>
                                     <div class="text-xs text-gray-400">${a.amount}t · ${getTimeAgo(a.created_at)}</div>
                                 </div>
                             </div>`;
@@ -384,7 +384,7 @@ const Pages = {
                             <div id="edit-market-form" class="hidden mb-4 p-4 bg-gray-50 rounded-lg space-y-3">
                                 <input type="text" id="edit-title" value="${esc(m.title)}" maxlength="200" class="w-full px-3 py-2 border rounded-lg text-sm"/>
                                 <textarea id="edit-desc" rows="3" maxlength="5000" class="w-full px-3 py-2 border rounded-lg text-sm">${esc(m.description)}</textarea>
-                                <input type="date" id="edit-closes" value="${m.closes_at}" class="px-3 py-2 border rounded-lg text-sm"/>
+                                <input type="date" id="edit-closes" value="${(m.closes_at || '').split('T')[0]}" class="px-3 py-2 border rounded-lg text-sm"/>
                                 <div class="flex gap-2">
                                     <button onclick="handleEditMarket(${m.id})" id="save-edit-btn" class="bg-shark-600 text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
                                     <button onclick="toggleEditMarket()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm">Cancel</button>
@@ -428,7 +428,7 @@ const Pages = {
                                             <span class="font-medium text-gray-900 truncate">${esc(profile.name || 'Unknown')}</span>
                                         </div>
                                         <div class="flex items-center gap-2 shrink-0">
-                                            <span class="px-2 py-0.5 rounded-full text-xs font-bold ${p.direction === 'yes' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${p.direction.toUpperCase()}</span>
+                                            <span class="px-2 py-0.5 rounded-full text-xs font-bold ${p.direction === 'yes' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${(p.direction || '?').toUpperCase()}</span>
                                             <span class="text-gray-500 text-xs">${p.amount}t</span>
                                             <span class="text-gray-400 text-xs hidden sm:inline">${getTimeAgo(p.created_at)}</span>
                                         </div>
@@ -522,7 +522,7 @@ const Pages = {
                                         ${options.map((opt, i) => {
                                             const optPct = Math.round((probs[i] || 0) * 100);
                                             const btnColors = ['bg-blue-500 hover:bg-blue-600', 'bg-green-500 hover:bg-green-600', 'bg-amber-500 hover:bg-amber-600', 'bg-red-500 hover:bg-red-600', 'bg-purple-500 hover:bg-purple-600', 'bg-pink-500 hover:bg-pink-600', 'bg-cyan-500 hover:bg-cyan-600', 'bg-indigo-500 hover:bg-indigo-600'];
-                                            return `<button onclick="handlePrediction(${m.id}, '${esc(opt.label)}', ${i})" id="btn-opt-${i}-${m.id}" class="prediction-btn w-full ${btnColors[i % btnColors.length]} text-white py-2.5 rounded-lg font-bold text-sm flex items-center justify-between px-4">
+                                            return `<button onclick="handlePrediction(${m.id}, '${escAttr(opt.label)}', ${i})" id="btn-opt-${i}-${m.id}" class="prediction-btn w-full ${btnColors[i % btnColors.length]} text-white py-2.5 rounded-lg font-bold text-sm flex items-center justify-between px-4">
                                                 <span>${esc(opt.label)}</span>
                                                 <span class="text-xs font-normal opacity-80">${optPct}%</span>
                                             </button>`;
@@ -554,7 +554,7 @@ const Pages = {
                                     const profit = Math.round(sellValue) - p.amount;
                                     return `<div class="bg-gray-50 rounded-lg p-3">
                                         <div class="flex items-center justify-between mb-2">
-                                            <span class="px-2 py-0.5 rounded-full text-xs font-bold ${p.direction === 'yes' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${p.direction.toUpperCase()}</span>
+                                            <span class="px-2 py-0.5 rounded-full text-xs font-bold ${p.direction === 'yes' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${(p.direction || '?').toUpperCase()}</span>
                                             <span class="text-xs text-gray-500">${getTimeAgo(p.created_at)}</span>
                                         </div>
                                         <div class="grid grid-cols-2 gap-x-4 text-sm">
@@ -616,7 +616,7 @@ const Pages = {
                     </div>
                     ${isMulti ? options.slice(0, 3).map((opt, i) => {
                         const btnColors = ['bg-blue-500', 'bg-green-500', 'bg-amber-500'];
-                        return `<button onclick="handlePrediction(${m.id}, '${esc(opt.label)}', ${i})" class="${btnColors[i % 3]} text-white px-3 py-2 rounded-lg text-xs font-bold truncate max-w-[80px]">${esc(opt.label)}</button>`;
+                        return `<button onclick="handlePrediction(${m.id}, '${escAttr(opt.label)}', ${i})" class="${btnColors[i % 3]} text-white px-3 py-2 rounded-lg text-xs font-bold truncate max-w-[80px]">${esc(opt.label)}</button>`;
                     }).join('') : `
                     <button onclick="handlePrediction(${m.id}, 'yes')" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold">YES</button>
                     <button onclick="handlePrediction(${m.id}, 'no')" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold">NO</button>
@@ -852,7 +852,7 @@ Background: [Provide relevant context for traders]"
         if (!p) return '<div class="text-center py-12">Profile not found.</div>';
 
         const isOwnProfile = p.id === AppState.user?.id;
-        const preds = isOwnProfile ? AppState.userPredictions : AppState.viewingProfilePredictions;
+        const preds = (isOwnProfile ? AppState.userPredictions : AppState.viewingProfilePredictions) || [];
         const rank = AppState.leaderboard.findIndex(l => l.id === p.id) + 1;
         const wonPreds = preds.filter(pr => pr.status === 'won');
         const lostPreds = preds.filter(pr => pr.status === 'lost');
@@ -989,7 +989,7 @@ Background: [Provide relevant context for traders]"
                                 <div class="flex-1 min-w-0 mr-3">
                                     <div class="text-sm font-medium text-gray-900 truncate">${esc(market.title || 'Unknown')}</div>
                                     <div class="flex items-center gap-2 mt-1">
-                                        <span class="px-1.5 py-0.5 rounded text-xs font-bold ${pr.direction === 'yes' ? 'bg-green-100 text-green-700' : pr.direction === 'no' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}">${esc(pr.direction.length > 12 ? pr.direction.slice(0, 12) + '…' : pr.direction).toUpperCase()}</span>
+                                        <span class="px-1.5 py-0.5 rounded text-xs font-bold ${pr.direction === 'yes' ? 'bg-green-100 text-green-700' : pr.direction === 'no' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}">${esc((pr.direction || '?').length > 12 ? (pr.direction || '?').slice(0, 12) + '…' : (pr.direction || '?')).toUpperCase()}</span>
                                         <span class="text-xs text-gray-500">${pr.amount}t · ${pr.shares?.toFixed(1) || '?'}sh</span>
                                         ${pr.status === 'active' && fullMarket.history ? Components.sparklinePnL(fullMarket, pr) : ''}
                                     </div>

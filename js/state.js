@@ -357,10 +357,10 @@ const AppState = {
         if (!this._checkRateLimit()) return { error: 'Please wait a moment between trades' };
 
         const pred = this.userPredictions.find(p => p.id === predictionId);
-        if (!pred || pred.status !== 'active') return false;
+        if (!pred || pred.status !== 'active') return { error: 'Position not found or already closed' };
 
         const market = this.markets.find(m => m.id === pred.market_id);
-        if (!market || market.status !== 'active' || market.resolution) return false;
+        if (!market || market.status !== 'active' || market.resolution) return { error: 'Market is no longer active' };
 
         const isMulti = market.market_type === 'multi';
         let revenue, marketUpdates;
@@ -369,7 +369,7 @@ const AppState = {
             const qValues = [...(market.q_values || [])];
             const optIdx = pred.option_index;
             revenue = AMM.sellRevenueMulti(qValues, pred.shares, optIdx);
-            if (revenue <= 0) return false;
+            if (revenue <= 0) return { error: 'Position has no sell value' };
 
             const newQ = [...qValues];
             newQ[optIdx] -= pred.shares;
@@ -384,7 +384,7 @@ const AppState = {
         } else {
             const qYes = market.q_yes || 0, qNo = market.q_no || 0;
             revenue = AMM.sellRevenue(qYes, qNo, pred.shares, pred.direction);
-            if (revenue <= 0) return false;
+            if (revenue <= 0) return { error: 'Position has no sell value' };
 
             const newQYes = pred.direction === 'yes' ? Math.max(0, qYes - pred.shares) : qYes;
             const newQNo = pred.direction === 'no' ? Math.max(0, qNo - pred.shares) : qNo;

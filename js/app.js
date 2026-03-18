@@ -350,6 +350,7 @@ async function handleAddComment(marketId) {
 
     try {
         await AppState.addComment(marketId, text);
+        if (input) input.value = '';
         showToast('Comment posted!', 'success');
     } catch (e) {
         showToast('Failed to post comment.', 'error');
