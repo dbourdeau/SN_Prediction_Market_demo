@@ -223,6 +223,69 @@ const Pages = {
                     }).join('')}
                 </div>
 
+                <!-- Featured Market Hero -->
+                ${(() => {
+                    // Pick featured: highest volume trending market, or highest volume overall
+                    const candidates = trending.length > 0 ? trending : highVolume;
+                    // Rotate through candidates based on the hour
+                    const rotateIdx = candidates.length > 0 ? Math.floor(Date.now() / 3600000) % candidates.length : -1;
+                    const feat = rotateIdx >= 0 ? candidates[rotateIdx] : null;
+                    if (!feat) return '';
+                    const fPct = Math.round((feat.probability || 0) * 100);
+                    const fDays = daysLeft(feat.closes_at);
+                    const fIsMulti = feat.market_type === 'multi';
+                    const fOptions = feat.options || [];
+                    const fProbs = feat.probabilities || [];
+                    const fCat = CATEGORIES[Object.keys(CATEGORIES).find(k => CATEGORIES[k].id === feat.category)];
+                    const fHistory = feat.history;
+
+                    return `
+                    <div class="bg-white rounded-xl border border-gray-200 p-5 sm:p-6 mb-6 cursor-pointer transition-all hover:shadow-md hover:border-gray-300" onclick="AppState.navigate('market', { marketId: ${feat.id} })">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-xs font-semibold text-shark-600 uppercase tracking-wide">Featured Market</span>
+                            ${fCat ? `<span class="text-xs text-gray-400">· ${fCat.icon} ${esc(fCat.label)}</span>` : ''}
+                            <span class="text-xs text-gray-400">· ${feat.traders} traders · ${feat.volume.toLocaleString()} vol</span>
+                        </div>
+                        <div class="grid sm:grid-cols-2 gap-4 sm:gap-6">
+                            <div>
+                                <h2 class="text-lg sm:text-xl font-bold text-gray-900 leading-snug mb-3">${esc(feat.title)}</h2>
+                                <p class="text-sm text-gray-500 line-clamp-2 mb-4">${esc(feat.description || '')}</p>
+                                ${fIsMulti ? `
+                                    <div class="space-y-2">
+                                        ${fOptions.slice(0, 4).map((opt, i) => {
+                                            const optPct = Math.round((fProbs[i] || 0) * 100);
+                                            return `<div class="flex items-center gap-3">
+                                                <div class="flex-1 bg-gray-100 rounded-full h-7 overflow-hidden relative">
+                                                    <div class="h-full bg-shark-100 rounded-full" style="width:${Math.max(optPct, 5)}%"></div>
+                                                    <span class="absolute inset-0 flex items-center px-3 text-xs font-medium text-gray-700">${esc(opt.label)}</span>
+                                                </div>
+                                                <span class="text-sm font-bold text-gray-900 w-10 text-right">${optPct}%</span>
+                                            </div>`;
+                                        }).join('')}
+                                    </div>
+                                ` : `
+                                    <div class="flex gap-3">
+                                        <button onclick="event.stopPropagation(); handlePrediction(${feat.id}, 'yes')" class="flex-1 bg-green-50 border-2 border-green-200 rounded-xl py-3 text-center transition-all hover:bg-green-100 hover:border-green-300 hover:shadow-sm">
+                                            <div class="text-xs text-green-600 font-semibold mb-0.5">Yes</div>
+                                            <div class="text-2xl font-bold text-green-700">${fPct}%</div>
+                                        </button>
+                                        <button onclick="event.stopPropagation(); handlePrediction(${feat.id}, 'no')" class="flex-1 bg-red-50 border-2 border-red-200 rounded-xl py-3 text-center transition-all hover:bg-red-100 hover:border-red-300 hover:shadow-sm">
+                                            <div class="text-xs text-red-500 font-semibold mb-0.5">No</div>
+                                            <div class="text-2xl font-bold text-red-600">${100 - fPct}%</div>
+                                        </button>
+                                    </div>
+                                `}
+                                <div class="text-xs text-gray-400 mt-3">${fDays > 0 ? fDays + ' days left' : 'Expired'} · Click to trade</div>
+                            </div>
+                            <div class="hidden sm:block">
+                                ${fIsMulti
+                                    ? Components.chartMulti(fHistory, fOptions, 400, 180)
+                                    : Components.chart(fHistory, 400, 180)}
+                            </div>
+                        </div>
+                    </div>`;
+                })()}
+
                 <!-- Main content: 2-column on large screens -->
                 <div class="grid lg:grid-cols-4 gap-5">
                     <!-- Left: market lists -->
