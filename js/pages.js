@@ -397,6 +397,10 @@ const Pages = {
     // ==================== MARKETS LIST ====================
     markets() {
         const filtered = AppState.getFilteredMarkets();
+        const sf = AppState.statusFilter;
+        const totalActive = AppState.markets.filter(m => m.status === 'active' && !m.resolution).length;
+        const totalResolved = AppState.markets.filter(m => !!m.resolution).length;
+        const totalClosed = AppState.markets.filter(m => m.status === 'closed' || m.status === 'voided').length;
         return `
             <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 fade-in">
                 <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
@@ -404,30 +408,44 @@ const Pages = {
                     <button onclick="AppState.navigate('create')" class="bg-shark-600 text-white px-4 py-2 rounded-lg font-semibold text-sm hover:bg-shark-700 transition-colors">+ Create Market</button>
                 </div>
                 <div class="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 mb-6">
-                    <div class="flex flex-col sm:flex-row gap-3">
-                        <input type="text" placeholder="Search markets..." value="${esc(AppState.searchQuery)}" oninput="AppState.setSearch(this.value)" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500 focus:border-transparent"/>
-                        <div class="flex gap-1.5 flex-wrap">
-                            <button onclick="AppState.setFilter('all')" class="px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium ${AppState.categoryFilter === 'all' ? 'bg-shark-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">All</button>
-                            <button onclick="AppState.setFilter('watchlist')" class="px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium ${AppState.categoryFilter === 'watchlist' ? 'bg-shark-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">★ <span class="hidden sm:inline">Watchlist</span></button>
-                            ${Object.values(CATEGORIES).map(cat => `
-                                <button onclick="AppState.setFilter('${cat.id}')" class="px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium ${AppState.categoryFilter === cat.id ? 'bg-shark-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">${cat.icon} <span class="hidden sm:inline">${esc(cat.label)}</span></button>
-                            `).join('')}
-                        </div>
+                    <!-- Search -->
+                    <div class="relative mb-3">
+                        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input type="text" id="market-search" placeholder="Search by title or description..." oninput="AppState.setSearch(this.value)"
+                            class="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500 focus:border-transparent"/>
+                        ${AppState.searchQuery ? '<button onclick="document.getElementById(\'market-search\').value=\'\'; AppState.setSearch(\'\')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>' : ''}
                     </div>
-                    <div class="flex gap-2 mt-3">
-                        <span class="text-xs text-gray-500 self-center">Sort:</span>
+                    <!-- Status tabs -->
+                    <div class="flex gap-1 mb-3 bg-gray-100 rounded-lg p-0.5 max-w-md">
+                        <button onclick="AppState.setStatusFilter('active')" class="flex-1 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors ${sf === 'active' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}">Active <span class="text-gray-400">${totalActive}</span></button>
+                        <button onclick="AppState.setStatusFilter('resolved')" class="flex-1 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors ${sf === 'resolved' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}">Resolved <span class="text-gray-400">${totalResolved}</span></button>
+                        <button onclick="AppState.setStatusFilter('closed')" class="flex-1 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors ${sf === 'closed' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}">Closed <span class="text-gray-400">${totalClosed}</span></button>
+                        <button onclick="AppState.setStatusFilter('all')" class="flex-1 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors ${sf === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}">All <span class="text-gray-400">${AppState.markets.length}</span></button>
+                    </div>
+                    <!-- Category filters -->
+                    <div class="flex gap-1.5 flex-wrap">
+                        <button onclick="AppState.setFilter('all')" class="px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium ${AppState.categoryFilter === 'all' ? 'bg-shark-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">All Categories</button>
+                        <button onclick="AppState.setFilter('watchlist')" class="px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium ${AppState.categoryFilter === 'watchlist' ? 'bg-shark-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">★ <span class="hidden sm:inline">Watchlist</span></button>
+                        ${Object.values(CATEGORIES).map(cat => `
+                            <button onclick="AppState.setFilter('${cat.id}')" class="px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium ${AppState.categoryFilter === cat.id ? 'bg-shark-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">${cat.icon} <span class="hidden sm:inline">${esc(cat.label)}</span></button>
+                        `).join('')}
+                    </div>
+                    <!-- Sort -->
+                    <div class="flex items-center gap-2 mt-3">
+                        <span class="text-xs text-gray-500">Sort:</span>
                         ${['trending', 'newest', 'volume', 'closing'].map(s => `
                             <button onclick="AppState.setSort('${s}')" class="px-2 py-1 rounded text-xs font-medium ${AppState.sortBy === s ? 'bg-shark-100 text-shark-700' : 'text-gray-500 hover:text-gray-700'}">${s.charAt(0).toUpperCase() + s.slice(1)}</button>
                         `).join('')}
+                        <span class="ml-auto text-xs text-gray-400">${filtered.length} market${filtered.length !== 1 ? 's' : ''}</span>
                     </div>
                 </div>
                 <div class="grid gap-3 sm:gap-4">
                     ${filtered.length > 0 ? filtered.map(m => Components.marketCard(m)).join('') : `<div class="text-center py-12 bg-white rounded-xl border border-gray-200 p-8">
                         <div class="text-3xl mb-2">🔍</div>
-                        <div class="text-gray-500 text-sm mb-3">${AppState.searchQuery ? 'No markets match your search.' : AppState.categoryFilter === 'watchlist' ? 'Your watchlist is empty. Star markets to track them here.' : 'No markets in this category yet.'}</div>
+                        <div class="text-gray-500 text-sm mb-3">${AppState.searchQuery ? 'No markets match your search.' : AppState.categoryFilter === 'watchlist' ? 'Your watchlist is empty. Star markets to track them here.' : 'No markets match these filters.'}</div>
                         <div class="flex gap-2 justify-center">
-                            ${AppState.searchQuery || AppState.categoryFilter !== 'all' ? '<button onclick="AppState.setSearch(&quot;&quot;); AppState.setFilter(&quot;all&quot;)" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200">Clear filters</button>' : ''}
-                            <button onclick="AppState.navigate(\'create\')" class="bg-shark-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-shark-700">+ Create Market</button>
+                            ${AppState.searchQuery || AppState.categoryFilter !== 'all' || AppState.statusFilter !== 'active' ? `<button onclick="document.getElementById('market-search').value=''; AppState.searchQuery=''; AppState.statusFilter='active'; AppState.setFilter('all')" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200">Clear filters</button>` : ''}
+                            <button onclick="AppState.navigate('create')" class="bg-shark-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-shark-700">+ Create Market</button>
                         </div>
                     </div>`}
                 </div>

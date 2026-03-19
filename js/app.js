@@ -35,6 +35,12 @@ function render() {
         } else {
             app.innerHTML = Components.header() + '<main>' + pageContent + '</main>';
         }
+
+        // Restore search input value after re-render (debounced search causes re-render)
+        const searchInput = document.getElementById('market-search');
+        if (searchInput && AppState.searchQuery && searchInput.value !== AppState.searchQuery) {
+            searchInput.value = AppState.searchQuery;
+        }
     } catch (err) {
         console.error('Render error:', err);
         app.innerHTML = Components.header() + `<main>

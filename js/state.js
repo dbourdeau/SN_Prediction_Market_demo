@@ -16,6 +16,7 @@ const AppState = {
     viewingProfilePredictions: [],
     allUsers: [],
     categoryFilter: 'all',
+    statusFilter: 'active',
     searchQuery: '',
     sortBy: 'trending',
     loading: false,
@@ -1234,15 +1235,26 @@ const AppState = {
 
     getFilteredMarkets() {
         let filtered = [...this.markets];
+        // Status filter
+        if (this.statusFilter === 'active') {
+            filtered = filtered.filter(m => m.status === 'active' && !m.resolution);
+        } else if (this.statusFilter === 'resolved') {
+            filtered = filtered.filter(m => !!m.resolution);
+        } else if (this.statusFilter === 'closed') {
+            filtered = filtered.filter(m => m.status === 'closed' || m.status === 'voided');
+        }
+        // Category / watchlist filter
         if (this.categoryFilter === 'watchlist') {
             filtered = filtered.filter(m => this.watchlist.includes(m.id));
         } else if (this.categoryFilter !== 'all') {
             filtered = filtered.filter(m => m.category === this.categoryFilter);
         }
+        // Search
         if (this.searchQuery) {
             const q = this.searchQuery.toLowerCase();
-            filtered = filtered.filter(m => m.title.toLowerCase().includes(q) || m.description.toLowerCase().includes(q));
+            filtered = filtered.filter(m => m.title.toLowerCase().includes(q) || (m.description || '').toLowerCase().includes(q));
         }
+        // Sort
         switch (this.sortBy) {
             case 'trending': filtered.sort((a, b) => (b.trending ? 1 : 0) - (a.trending ? 1 : 0) || b.volume - a.volume); break;
             case 'newest': filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); break;
@@ -1253,6 +1265,11 @@ const AppState = {
     },
 
     setFilter(category) { this.categoryFilter = category; this.notify(); },
-    setSearch(query) { this.searchQuery = query; this.notify(); },
+    setSearch(query) {
+        this.searchQuery = query;
+        clearTimeout(this._searchDebounce);
+        this._searchDebounce = setTimeout(() => this.notify(), 300);
+    },
+    setStatusFilter(status) { this.statusFilter = status; this.notify(); },
     setSort(sort) { this.sortBy = sort; this.notify(); },
 };
