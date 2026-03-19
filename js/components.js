@@ -371,6 +371,10 @@ const Components = {
         const fullHistory = this._normalizeHistory(data, createdAt);
         const windows = ['1d', '1w', '1m', 'all'];
 
+        // Store data and schedule initial render after DOM update
+        globalThis['_chartData_' + chartId] = fullHistory.map(h => ({ t: h.t.getTime(), p: h.p }));
+        setTimeout(() => this._renderBinaryChart(chartId, 'all'), 0);
+
         return `
         <div id="${chartId}" class="chart-container">
             <div class="flex items-center justify-between mb-3">
@@ -380,30 +384,23 @@ const Components = {
                 <div id="${chartId}-tooltip" class="text-xs text-gray-500 h-4"></div>
             </div>
             <div id="${chartId}-svg"></div>
-        </div>
-        <script>
-        (function(){
-            const data = ${JSON.stringify(fullHistory.map(h => ({ t: h.t.getTime(), p: h.p })))};
-            window['_chartData_${chartId}'] = data;
-            Components._renderBinaryChart('${chartId}', 'all');
-        })();
-        </script>`;
+        </div>`;
     },
 
-    _renderBinaryChart(chartId, window) {
-        const rawData = window['_chartData_' + chartId];
+    _renderBinaryChart(chartId, timeWindow) {
+        const rawData = globalThis['_chartData_' + chartId];
         if (!rawData) return;
 
         // Update tab styles
         const tabs = document.getElementById(chartId + '-tabs');
         if (tabs) tabs.querySelectorAll('button').forEach(btn => {
-            btn.className = btn.dataset.window === window
+            btn.className = btn.dataset.window === timeWindow
                 ? 'px-2.5 py-1 rounded-md text-xs font-medium transition-colors bg-white text-gray-900 shadow-sm'
                 : 'px-2.5 py-1 rounded-md text-xs font-medium transition-colors text-gray-500 hover:text-gray-700';
         });
 
         const history = rawData.map(h => ({ t: new Date(h.t), p: h.p }));
-        const filtered = this._filterByWindow(history, window);
+        const filtered = this._filterByWindow(history, timeWindow);
         if (filtered.length < 2) return;
 
         const width = 500, height = 180;
@@ -440,7 +437,7 @@ const Components = {
         const ticks = this._xTicks(filtered);
         const xLabels = ticks.map(i => {
             const x = toX(i);
-            return `<text x="${x}" y="${height - 5}" text-anchor="middle" fill="#9ca3af" font-size="9" font-family="Inter, sans-serif">${this._formatDate(filtered[i].t, window)}</text>`;
+            return `<text x="${x}" y="${height - 5}" text-anchor="middle" fill="#9ca3af" font-size="9" font-family="Inter, sans-serif">${this._formatDate(filtered[i].t, timeWindow)}</text>`;
         }).join('');
 
         // Invisible hover zones for tooltip
@@ -464,7 +461,7 @@ const Components = {
         </svg>
         <div class="flex items-center gap-2 mt-1 text-xs">
             <span class="${change >= 0 ? 'text-green-600' : 'text-red-500'} font-medium">${change >= 0 ? '+' : ''}${changePct}pp</span>
-            <span class="text-gray-400">since ${this._formatDate(filtered[0].t, window)}</span>
+            <span class="text-gray-400">since ${this._formatDate(filtered[0].t, timeWindow)}</span>
         </div>`;
 
         const container = document.getElementById(chartId + '-svg');
@@ -503,6 +500,10 @@ const Components = {
             </span>`;
         }).join('');
 
+        // Store data and schedule initial render after DOM update
+        globalThis['_chartData_' + chartId] = { data: fullHistory, opts: options.map(o => o.label) };
+        setTimeout(() => this._renderMultiChart(chartId, 'all'), 0);
+
         return `
         <div id="${chartId}" class="chart-container">
             <div class="flex items-center justify-between mb-3">
@@ -513,19 +514,11 @@ const Components = {
             </div>
             <div id="${chartId}-svg"></div>
             <div class="flex flex-wrap gap-y-1 mt-2">${legend}</div>
-        </div>
-        <script>
-        (function(){
-            const data = ${JSON.stringify(fullHistory)};
-            const opts = ${JSON.stringify(options.map(o => o.label))};
-            window['_chartData_${chartId}'] = { data, opts };
-            Components._renderMultiChart('${chartId}', 'all');
-        })();
-        </script>`;
+        </div>`;
     },
 
-    _renderMultiChart(chartId, window) {
-        const raw = window['_chartData_' + chartId];
+    _renderMultiChart(chartId, timeWindow) {
+        const raw = globalThis['_chartData_' + chartId];
         if (!raw) return;
         const { data: rawData, opts } = raw;
         const colors = this._chartColors;
@@ -534,13 +527,13 @@ const Components = {
         // Update tabs
         const tabs = document.getElementById(chartId + '-tabs');
         if (tabs) tabs.querySelectorAll('button').forEach(btn => {
-            btn.className = btn.dataset.window === window
+            btn.className = btn.dataset.window === timeWindow
                 ? 'px-2.5 py-1 rounded-md text-xs font-medium transition-colors bg-white text-gray-900 shadow-sm'
                 : 'px-2.5 py-1 rounded-md text-xs font-medium transition-colors text-gray-500 hover:text-gray-700';
         });
 
         const history = rawData.map(h => ({ t: new Date(h.t), p: h.p }));
-        const filtered = this._filterByWindow(history, window);
+        const filtered = this._filterByWindow(history, timeWindow);
         if (filtered.length < 2) return;
 
         const width = 500, height = 180;
@@ -561,7 +554,7 @@ const Components = {
         // X-axis
         const ticks = this._xTicks(filtered);
         const xLabels = ticks.map(i => {
-            return `<text x="${toX(i)}" y="${height - 5}" text-anchor="middle" fill="#9ca3af" font-size="9" font-family="Inter, sans-serif">${this._formatDate(filtered[i].t, window)}</text>`;
+            return `<text x="${toX(i)}" y="${height - 5}" text-anchor="middle" fill="#9ca3af" font-size="9" font-family="Inter, sans-serif">${this._formatDate(filtered[i].t, timeWindow)}</text>`;
         }).join('');
 
         // Lines
