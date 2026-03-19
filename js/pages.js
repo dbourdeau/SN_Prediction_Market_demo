@@ -77,57 +77,70 @@ const Pages = {
         const activePreds = (AppState.userPredictions || []).filter(p => p.status === 'active');
         const portfolio = AppState.getPortfolioSummary();
 
-        // Polymarket-style compact market row
-        const marketRow = (m) => {
+        // Polymarket-style market card
+        const marketCard = (m, featured = false) => {
             const pct = Math.round((m.probability || 0) * 100);
             const days = daysLeft(m.closes_at);
             const isMulti = m.market_type === 'multi';
             const userPos = (AppState.userPredictions || []).find(p => p.market_id === m.id && p.status === 'active');
             const probs = m.probabilities || [];
             const options = m.options || [];
-            let leadOption = '', leadPct = pct;
-            if (isMulti && options.length && probs.length) {
-                const maxIdx = probs.indexOf(Math.max(...probs));
-                leadOption = options[maxIdx]?.label || '';
-                leadPct = Math.round((probs[maxIdx] || 0) * 100);
-            }
+            const cat = CATEGORIES[Object.keys(CATEGORIES).find(k => CATEGORIES[k].id === m.category)];
 
-            return `<div class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100 last:border-0" onclick="AppState.navigate('market', { marketId: ${m.id} })">
-                <div class="flex-1 min-w-0">
-                    <div class="text-sm font-medium text-gray-900 truncate">${esc(m.title)}</div>
-                    <div class="flex items-center gap-2 mt-0.5">
-                        ${(() => { const cat = CATEGORIES[Object.keys(CATEGORIES).find(k => CATEGORIES[k].id === m.category)]; return cat ? `<span class="text-xs text-gray-400">${cat.icon}</span>` : ''; })()}
-                        <span class="text-xs text-gray-400">${m.volume.toLocaleString()} vol</span>
-                        <span class="text-xs text-gray-400">${days > 0 ? days + 'd' : 'Exp'}</span>
-                        ${userPos ? `<span class="text-xs font-medium ${userPos.direction === 'yes' ? 'text-green-600' : userPos.direction === 'no' ? 'text-red-500' : 'text-blue-600'}">You: ${(userPos.direction || '?').toUpperCase()}</span>` : ''}
-                    </div>
+            // Multi-outcome: show top 3 options
+            const multiOutcomes = isMulti ? options.map((opt, i) => ({
+                label: opt.label, pct: Math.round((probs[i] || 0) * 100)
+            })).sort((a, b) => b.pct - a.pct).slice(0, 3) : [];
+
+            return `<div class="bg-white rounded-xl border border-gray-200 p-5 cursor-pointer transition-all duration-200 hover:shadow-md hover:border-gray-300 hover:-translate-y-0.5" onclick="AppState.navigate('market', { marketId: ${m.id} })">
+                <div class="flex items-center gap-2 mb-3">
+                    ${cat ? `<span class="text-xs font-medium text-gray-400 uppercase tracking-wide">${cat.icon} ${esc(cat.label)}</span>` : ''}
+                    ${userPos ? `<span class="w-1.5 h-1.5 rounded-full bg-shark-500" title="You have a position"></span>` : ''}
                 </div>
-                <div class="flex items-center gap-2 shrink-0">
-                    ${isMulti ? `
-                        <div class="text-right">
-                            <div class="text-sm font-bold text-gray-900">${leadPct}%</div>
-                            <div class="text-xs text-gray-400 truncate max-w-[80px]">${esc(leadOption)}</div>
+                <h3 class="${featured ? 'text-base' : 'text-sm'} font-semibold text-gray-900 leading-snug mb-4 line-clamp-2">${esc(m.title)}</h3>
+                ${isMulti ? `
+                    <div class="space-y-2 mb-4">
+                        ${multiOutcomes.map(o => `
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600 truncate mr-3">${esc(o.label)}</span>
+                                <span class="text-sm font-bold text-gray-900 shrink-0">${o.pct}%</span>
+                            </div>
+                        `).join('')}
+                        ${options.length > 3 ? `<div class="text-xs text-gray-400">+${options.length - 3} more</div>` : ''}
+                    </div>
+                ` : `
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="flex-1 flex gap-2">
+                            <div class="flex-1 bg-green-50 border border-green-200 rounded-lg py-2 text-center transition-colors hover:bg-green-100">
+                                <div class="text-xs text-green-600 font-medium">Yes</div>
+                                <div class="text-lg font-bold text-green-700">${pct}%</div>
+                            </div>
+                            <div class="flex-1 bg-red-50 border border-red-200 rounded-lg py-2 text-center transition-colors hover:bg-red-100">
+                                <div class="text-xs text-red-500 font-medium">No</div>
+                                <div class="text-lg font-bold text-red-600">${100 - pct}%</div>
+                            </div>
                         </div>
-                    ` : `
-                        <div class="w-20 flex gap-0.5">
-                            <div class="h-6 rounded-l-full ${pct >= 50 ? 'bg-green-500' : 'bg-green-200'} flex items-center justify-center text-xs font-bold ${pct >= 50 ? 'text-white' : 'text-green-700'}" style="width:${Math.max(pct, 15)}%">${pct >= 30 ? pct + '%' : ''}</div>
-                            <div class="h-6 rounded-r-full ${pct < 50 ? 'bg-red-400' : 'bg-red-100'} flex items-center justify-center text-xs font-bold ${pct < 50 ? 'text-white' : 'text-red-600'}" style="width:${Math.max(100 - pct, 15)}%">${pct < 70 ? (100 - pct) + '%' : ''}</div>
-                        </div>
-                    `}
+                    </div>
+                `}
+                <div class="flex items-center justify-between text-xs text-gray-400">
+                    <span>${m.volume.toLocaleString()} vol · ${m.traders} traders</span>
+                    <span>${days > 0 ? days + 'd left' : 'Expired'}</span>
                 </div>
             </div>`;
         };
 
         // Market list section helper
-        const marketSection = (title, markets, emoji = '') => {
+        const marketSection = (title, markets, emoji = '', featured = false) => {
             if (!markets.length) return '';
             return `
-                <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                        <h3 class="text-sm font-semibold text-gray-900">${emoji ? emoji + ' ' : ''}${title}</h3>
-                        <button onclick="AppState.navigate('markets')" class="text-xs text-shark-600 font-medium hover:text-shark-800">View all</button>
+                <div class="mb-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wide">${emoji ? emoji + ' ' : ''}${title}</h3>
+                        <button onclick="AppState.navigate('markets')" class="text-xs text-shark-600 font-medium hover:text-shark-800">View all →</button>
                     </div>
-                    ${markets.map(m => marketRow(m)).join('')}
+                    <div class="grid ${featured ? 'sm:grid-cols-2 lg:grid-cols-3' : 'sm:grid-cols-2 lg:grid-cols-3'} gap-3">
+                        ${markets.map(m => marketCard(m, featured)).join('')}
+                    </div>
                 </div>`;
         };
 
@@ -211,13 +224,19 @@ const Pages = {
                 </div>
 
                 <!-- Main content: 2-column on large screens -->
-                <div class="grid lg:grid-cols-3 gap-4 sm:gap-5">
+                <div class="grid lg:grid-cols-4 gap-5">
                     <!-- Left: market lists -->
-                    <div class="lg:col-span-2 space-y-4 sm:space-y-5">
-                        ${trending.length > 0 ? marketSection('Trending', trending, '🔥') : ''}
+                    <div class="lg:col-span-3">
+                        ${trending.length > 0 ? marketSection('Trending', trending, '🔥', true) : ''}
                         ${closingSoon.length > 0 ? marketSection('Closing Soon', closingSoon, '⏰') : ''}
-                        ${newest.length > 0 ? marketSection('New Markets', newest, '✨') : ''}
+                        ${newest.length > 0 ? marketSection('New', newest, '✨') : ''}
                         ${highVolume.length > 0 ? marketSection('Highest Volume', highVolume, '📊') : ''}
+                        ${!trending.length && !closingSoon.length && !newest.length ? `
+                        <div class="text-center py-12 bg-white rounded-xl border border-gray-200">
+                            <div class="text-3xl mb-3">🦈</div>
+                            <div class="text-gray-500 text-sm mb-4">No active markets yet. Be the first to create one!</div>
+                            <button onclick="AppState.navigate('create')" class="bg-shark-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-shark-700">+ Create Market</button>
+                        </div>` : ''}
                     </div>
 
                     <!-- Right sidebar -->
