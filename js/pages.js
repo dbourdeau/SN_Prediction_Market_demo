@@ -1135,7 +1135,17 @@ const Pages = {
         return `
             <div class="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8 fade-in">
                 <h1 class="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Create a New Market</h1>
-                <p class="text-gray-500 text-sm mb-4">Create a market for the team.${AppState.user?.is_admin ? '' : ' Markets require admin approval before going live.'}</p>
+                <p class="text-gray-500 text-sm mb-3">Ask a question and let the team forecast the outcome.</p>
+
+                ${AppState.user?.is_admin ? '' : `
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex items-start gap-3">
+                    <span class="text-xl">⏳</span>
+                    <div>
+                        <div class="font-semibold text-amber-700 text-sm">Admin approval required</div>
+                        <p class="text-xs text-amber-600 mt-0.5">All new markets are reviewed by an admin before going live. You'll get a notification once your market is approved.</p>
+                    </div>
+                </div>
+                `}
 
                 <!-- Templates -->
                 <div class="mb-6">
@@ -1201,8 +1211,14 @@ Background: [Provide relevant context for traders]"
                             <input type="date" id="create-closes" min="${new Date(Date.now() + 86400000).toISOString().split('T')[0]}" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500"/>
                         </div>
                     </div>
+                    ${AppState.user?.is_admin ? '' : `
+                    <div class="flex items-center gap-2 text-xs text-gray-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Your market will be submitted for admin review and won't be visible until approved.
+                    </div>
+                    `}
                     <div class="flex gap-3">
-                        <button onclick="handleCreateMarket()" id="create-market-btn" class="flex-1 bg-shark-600 text-white py-3 rounded-lg font-semibold text-sm hover:bg-shark-700 transition-colors">Create Market</button>
+                        <button onclick="handleCreateMarket()" id="create-market-btn" class="flex-1 bg-shark-600 text-white py-3 rounded-lg font-semibold text-sm hover:bg-shark-700 transition-colors">${AppState.user?.is_admin ? 'Create Market' : 'Submit for Review'}</button>
                         <button onclick="AppState.navigate('markets')" class="px-6 py-3 rounded-lg text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">Cancel</button>
                     </div>
                 </div>
