@@ -225,8 +225,12 @@ const Pages = {
 
                 <!-- Featured Market Hero -->
                 ${(() => {
-                    // Pick featured: highest volume trending market, or highest volume overall
-                    const candidates = trending.length > 0 ? trending : highVolume;
+                    // Pick featured: trending > high volume active > any active > any market
+                    const allMarkets = AppState.markets || [];
+                    const candidates = trending.length > 0 ? trending
+                        : highVolume.length > 0 ? highVolume
+                        : allActive.length > 0 ? allActive
+                        : allMarkets.filter(m => m.status !== 'pending').slice(0, 6);
                     // Rotate through candidates based on the hour
                     const rotateIdx = candidates.length > 0 ? Math.floor(Date.now() / 3600000) % candidates.length : -1;
                     const feat = rotateIdx >= 0 ? candidates[rotateIdx] : null;
@@ -238,6 +242,7 @@ const Pages = {
                     const fProbs = feat.probabilities || [];
                     const fCat = CATEGORIES[Object.keys(CATEGORIES).find(k => CATEGORIES[k].id === feat.category)];
                     const fHistory = feat.history;
+                    const fCanTrade = feat.status === 'active' && !feat.resolution;
 
                     return `
                     <div class="bg-white rounded-xl border border-gray-200 p-5 sm:p-6 mb-6 cursor-pointer transition-all hover:shadow-md hover:border-gray-300" onclick="AppState.navigate('market', { marketId: ${feat.id} })">
@@ -263,7 +268,7 @@ const Pages = {
                                             </div>`;
                                         }).join('')}
                                     </div>
-                                ` : `
+                                ` : fCanTrade ? `
                                     <div class="flex gap-3">
                                         <button onclick="event.stopPropagation(); handlePrediction(${feat.id}, 'yes')" class="flex-1 bg-green-50 border-2 border-green-200 rounded-xl py-3 text-center transition-all hover:bg-green-100 hover:border-green-300 hover:shadow-sm">
                                             <div class="text-xs text-green-600 font-semibold mb-0.5">Yes</div>
@@ -274,8 +279,19 @@ const Pages = {
                                             <div class="text-2xl font-bold text-red-600">${100 - fPct}%</div>
                                         </button>
                                     </div>
+                                ` : `
+                                    <div class="flex gap-3">
+                                        <div class="flex-1 bg-green-50 border border-green-200 rounded-xl py-3 text-center">
+                                            <div class="text-xs text-green-600 font-semibold mb-0.5">Yes</div>
+                                            <div class="text-2xl font-bold text-green-700">${fPct}%</div>
+                                        </div>
+                                        <div class="flex-1 bg-red-50 border border-red-200 rounded-xl py-3 text-center">
+                                            <div class="text-xs text-red-500 font-semibold mb-0.5">No</div>
+                                            <div class="text-2xl font-bold text-red-600">${100 - fPct}%</div>
+                                        </div>
+                                    </div>
                                 `}
-                                <div class="text-xs text-gray-400 mt-3">${fDays > 0 ? fDays + ' days left' : 'Expired'} · Click to trade</div>
+                                <div class="text-xs text-gray-400 mt-3">${feat.resolution ? 'Resolved: ' + feat.resolution : fDays > 0 ? fDays + ' days left' : 'Expired'} · Click to view</div>
                             </div>
                             <div class="hidden sm:block">
                                 ${fIsMulti
