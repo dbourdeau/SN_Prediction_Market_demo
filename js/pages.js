@@ -67,22 +67,79 @@ const Pages = {
 
     // ==================== DASHBOARD ====================
     dashboard() {
-        const trending = AppState.markets.filter(m => m.trending && !m.resolution).slice(0, 4);
+        const allActive = AppState.markets.filter(m => m.status === 'active' && !m.resolution);
+        const trending = allActive.filter(m => m.trending).slice(0, 6);
+        const newest = [...allActive].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 6);
+        const highVolume = [...allActive].sort((a, b) => b.volume - a.volume).slice(0, 6);
+        const closingSoon = [...allActive].filter(m => daysLeft(m.closes_at) > 0).sort((a, b) => daysLeft(a.closes_at) - daysLeft(b.closes_at)).slice(0, 6);
         const totalVolume = AppState.markets.reduce((s, m) => s + m.volume, 0);
-        const activeMarkets = AppState.markets.filter(m => m.status === 'active' && !m.resolution).length;
         const userRank = AppState.leaderboard.findIndex(p => p.id === AppState.user?.id) + 1;
         const activePreds = (AppState.userPredictions || []).filter(p => p.status === 'active');
         const portfolio = AppState.getPortfolioSummary();
 
+        // Polymarket-style compact market row
+        const marketRow = (m) => {
+            const pct = Math.round((m.probability || 0) * 100);
+            const days = daysLeft(m.closes_at);
+            const isMulti = m.market_type === 'multi';
+            const userPos = (AppState.userPredictions || []).find(p => p.market_id === m.id && p.status === 'active');
+            const probs = m.probabilities || [];
+            const options = m.options || [];
+            let leadOption = '', leadPct = pct;
+            if (isMulti && options.length && probs.length) {
+                const maxIdx = probs.indexOf(Math.max(...probs));
+                leadOption = options[maxIdx]?.label || '';
+                leadPct = Math.round((probs[maxIdx] || 0) * 100);
+            }
+
+            return `<div class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100 last:border-0" onclick="AppState.navigate('market', { marketId: ${m.id} })">
+                <div class="flex-1 min-w-0">
+                    <div class="text-sm font-medium text-gray-900 truncate">${esc(m.title)}</div>
+                    <div class="flex items-center gap-2 mt-0.5">
+                        ${(() => { const cat = CATEGORIES[Object.keys(CATEGORIES).find(k => CATEGORIES[k].id === m.category)]; return cat ? `<span class="text-xs text-gray-400">${cat.icon}</span>` : ''; })()}
+                        <span class="text-xs text-gray-400">${m.volume.toLocaleString()} vol</span>
+                        <span class="text-xs text-gray-400">${days > 0 ? days + 'd' : 'Exp'}</span>
+                        ${userPos ? `<span class="text-xs font-medium ${userPos.direction === 'yes' ? 'text-green-600' : userPos.direction === 'no' ? 'text-red-500' : 'text-blue-600'}">You: ${(userPos.direction || '?').toUpperCase()}</span>` : ''}
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    ${isMulti ? `
+                        <div class="text-right">
+                            <div class="text-sm font-bold text-gray-900">${leadPct}%</div>
+                            <div class="text-xs text-gray-400 truncate max-w-[80px]">${esc(leadOption)}</div>
+                        </div>
+                    ` : `
+                        <div class="w-20 flex gap-0.5">
+                            <div class="h-6 rounded-l-full ${pct >= 50 ? 'bg-green-500' : 'bg-green-200'} flex items-center justify-center text-xs font-bold ${pct >= 50 ? 'text-white' : 'text-green-700'}" style="width:${Math.max(pct, 15)}%">${pct >= 30 ? pct + '%' : ''}</div>
+                            <div class="h-6 rounded-r-full ${pct < 50 ? 'bg-red-400' : 'bg-red-100'} flex items-center justify-center text-xs font-bold ${pct < 50 ? 'text-white' : 'text-red-600'}" style="width:${Math.max(100 - pct, 15)}%">${pct < 70 ? (100 - pct) + '%' : ''}</div>
+                        </div>
+                    `}
+                </div>
+            </div>`;
+        };
+
+        // Market list section helper
+        const marketSection = (title, markets, emoji = '') => {
+            if (!markets.length) return '';
+            return `
+                <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                        <h3 class="text-sm font-semibold text-gray-900">${emoji ? emoji + ' ' : ''}${title}</h3>
+                        <button onclick="AppState.navigate('markets')" class="text-xs text-shark-600 font-medium hover:text-shark-800">View all</button>
+                    </div>
+                    ${markets.map(m => marketRow(m)).join('')}
+                </div>`;
+        };
+
         return `
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 fade-in">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 fade-in">
                 ${!AppState.hasSeenOnboarding ? `
-                <div class="bg-white rounded-2xl border-2 border-shark-200 p-6 sm:p-8 mb-6 sm:mb-8 relative overflow-hidden">
+                <div class="bg-white rounded-2xl border-2 border-shark-200 p-6 sm:p-8 mb-5 relative overflow-hidden">
                     <div class="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-shark-100/50 to-transparent rounded-full -translate-y-1/2 translate-x-1/2"></div>
                     <div class="relative" id="onboarding-content">
                         <div id="onboard-step-1">
                             <div class="flex items-center gap-3 mb-4">
-                                <div class="w-12 h-12 rounded-xl bg-shark-600 text-white flex items-center justify-center text-2xl">📈</div>
+                                <div class="w-12 h-12 rounded-xl bg-shark-600 text-white flex items-center justify-center text-2xl">🦈</div>
                                 <div>
                                     <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Welcome to SharkPool!</h2>
                                     <p class="text-sm text-gray-500">Forecast what matters, earn points, prove your insight.</p>
@@ -113,143 +170,127 @@ const Pages = {
                         </div>
                     </div>
                 </div>
-                ` : `
-                <div class="bg-gradient-to-r from-shark-800 to-shark-600 rounded-2xl p-5 sm:p-8 text-white mb-6 sm:mb-8">
-                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div>
-                            <h1 class="text-xl sm:text-3xl font-bold mb-2">Welcome back, ${esc(AppState.user?.name?.split(' ')[0] || 'Forecaster')}</h1>
-                            <p class="text-shark-200 text-sm">Harness the collective intelligence of SharkNinja to forecast what matters.</p>
+                ` : ''}
+
+                <!-- Top bar: balance + stats -->
+                <div class="flex items-center justify-between mb-5">
+                    <div>
+                        <h1 class="text-lg sm:text-xl font-bold text-gray-900">Markets</h1>
+                        <p class="text-xs text-gray-500">${allActive.length} active · ${totalVolume.toLocaleString()} total volume</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="hidden sm:flex items-center gap-4 text-sm">
+                            <div class="text-gray-500">Balance: <span class="font-bold text-gray-900">${(AppState.user?.balance || 0).toLocaleString()}</span></div>
+                            ${userRank > 0 ? `<div class="text-gray-500">Rank: <span class="font-bold text-gray-900">#${userRank}</span></div>` : ''}
                         </div>
-                        <div class="flex gap-2">
-                            <button onclick="AppState.navigate('transactions')" class="bg-white/10 text-white px-4 py-2.5 rounded-lg font-semibold text-sm hover:bg-white/20 transition-colors shrink-0">Transactions</button>
-                            <button onclick="AppState.navigate('create')" class="bg-white text-shark-800 px-5 py-2.5 rounded-lg font-semibold text-sm hover:bg-shark-50 transition-colors shrink-0">+ Create Market</button>
-                        </div>
+                        <button onclick="AppState.navigate('create')" class="bg-shark-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-shark-700 transition-colors shrink-0">+ Create</button>
                     </div>
                 </div>
-                `}
 
-                <!-- Portfolio P&L Summary -->
+                <!-- Portfolio strip (compact) -->
                 ${activePreds.length > 0 ? `
-                <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 mb-6 sm:mb-8">
-                    <div class="flex items-center justify-between mb-3">
-                        <h2 class="text-sm font-semibold text-gray-500 uppercase">Portfolio Summary</h2>
-                        <span class="text-xs text-gray-400">Unrealized values update in real-time</span>
-                    </div>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                        <div><div class="text-xs text-gray-500">Invested</div><div class="text-lg font-bold text-gray-900">${portfolio.totalInvested.toLocaleString()}t</div></div>
-                        <div><div class="text-xs text-gray-500">Current Value</div><div class="text-lg font-bold text-gray-900">${portfolio.unrealizedValue.toLocaleString()}t</div></div>
-                        <div><div class="text-xs text-gray-500">Unrealized P&L</div><div class="text-lg font-bold ${portfolio.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}">${portfolio.unrealizedPnL >= 0 ? '+' : ''}${portfolio.unrealizedPnL.toLocaleString()}t</div></div>
-                        <div><div class="text-xs text-gray-500">Realized P&L</div><div class="text-lg font-bold ${portfolio.realizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}">${portfolio.realizedPnL >= 0 ? '+' : ''}${portfolio.realizedPnL.toLocaleString()}t</div></div>
-                    </div>
-                </div>` : ''}
-
-                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
-                    ${Components.statCard('Active Markets', activeMarkets, '', '📊')}
-                    ${Components.statCard('Total Volume', totalVolume.toLocaleString(), '', '💰')}
-                    ${Components.statCard('Your Positions', activePreds.length, `${(AppState.user?.balance || 0).toLocaleString()} tokens`, '🎯')}
-                    ${Components.statCard('Your Rank', userRank > 0 ? '#' + userRank : '—', `${(AppState.user?.points || 0).toLocaleString()} pts`, '🏆')}
-                </div>
-
-                ${activePreds.length > 0 ? `
-                <div class="mb-6 sm:mb-8">
-                    <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-4">Your Active Positions</h2>
-                    <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
-                        ${activePreds.slice(0, 5).map(p => {
-                            const market = AppState.markets.find(mk => mk.id === p.market_id) || p.markets || {};
-                            const isMultiPos = market.market_type === 'multi';
-                            const sellValue = isMultiPos
-                                ? AMM.sellRevenueMulti(market.q_values || [], p.shares, p.option_index)
-                                : AMM.sellRevenue(market.q_yes || 0, market.q_no || 0, p.shares, p.direction);
-                            const roundedSell = Math.round(sellValue);
-                            const profit = roundedSell - p.amount;
-                            const canSellPos = market.status === 'active' && !market.resolution;
-                            return `<div class="p-3 sm:p-4">
-                                <div class="flex items-center justify-between mb-1 cursor-pointer" onclick="AppState.navigate('market', { marketId: ${p.market_id} })">
-                                    <div class="flex-1 min-w-0 mr-3">
-                                        <div class="text-sm font-medium text-gray-900 truncate">${esc(market.title || 'Unknown')}</div>
-                                    </div>
-                                    <span class="px-2 py-0.5 rounded-full text-xs font-bold shrink-0 ${p.direction === 'yes' ? 'bg-green-100 text-green-700' : p.direction === 'no' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}">${esc((p.direction || '?').length > 12 ? (p.direction || '?').slice(0, 12) + '…' : (p.direction || '?')).toUpperCase()}</span>
-                                </div>
-                                <div class="flex items-center justify-between text-xs text-gray-500">
-                                    <div class="flex items-center gap-1.5">
-                                        <span>${p.shares?.toFixed(1) || '?'} shares · Cost: ${p.amount}t</span>
-                                        ${Components.sparklinePnL(market, p)}
-                                    </div>
-                                    <span class="font-semibold ${profit >= 0 ? 'text-green-600' : 'text-red-500'}">Value: ${roundedSell}t (${profit >= 0 ? '+' : ''}${profit})</span>
-                                </div>
-                                ${canSellPos ? `<button onclick="event.stopPropagation(); handleSellPosition(${p.id})" class="mt-2 w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-1.5 rounded-lg text-xs font-semibold transition-colors">Sell for ${roundedSell}t</button>` : ''}
-                            </div>`;
-                        }).join('')}
-                        ${activePreds.length > 5 ? `<div class="p-3 text-center"><button onclick="AppState.navigate('profile', { profileId: '${AppState.session?.user?.id}' })" class="text-sm text-shark-600 font-medium">View all ${activePreds.length} positions →</button></div>` : ''}
-                    </div>
-                </div>` : ''}
-
-                ${(() => {
-                    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
-                    const weekPreds = (AppState.userPredictions || []).filter(p => p.created_at >= weekAgo);
-                    const weekWins = weekPreds.filter(p => p.status === 'won').length;
-                    const weekLosses = weekPreds.filter(p => p.status === 'lost').length;
-                    const weekTrades = weekPreds.length;
-                    const weekResolved = AppState.markets.filter(m => m.resolution && m.resolved_at >= weekAgo).length;
-                    const weekEarnings = weekPreds.filter(p => p.status === 'won').reduce((s, p) => s + (p.payout || 0) - p.amount, 0);
-                    if (weekTrades === 0 && weekResolved === 0) return '';
-                    return `
-                    <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 mb-6 sm:mb-8">
-                        <h2 class="text-sm font-semibold text-gray-500 uppercase mb-3">This Week</h2>
-                        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                            <div><div class="text-xs text-gray-500">Your Trades</div><div class="text-lg font-bold text-gray-900">${weekTrades}</div></div>
-                            <div><div class="text-xs text-gray-500">Wins</div><div class="text-lg font-bold text-green-600">${weekWins}</div></div>
-                            <div><div class="text-xs text-gray-500">Losses</div><div class="text-lg font-bold text-red-500">${weekLosses}</div></div>
-                            <div><div class="text-xs text-gray-500">Earnings</div><div class="text-lg font-bold ${weekEarnings >= 0 ? 'text-green-600' : 'text-red-500'}">${weekEarnings >= 0 ? '+' : ''}${weekEarnings}t</div></div>
-                            <div><div class="text-xs text-gray-500">Markets Resolved</div><div class="text-lg font-bold text-gray-900">${weekResolved}</div></div>
+                <div class="bg-white rounded-xl border border-gray-200 px-4 py-3 mb-5">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-5 sm:gap-8 text-sm overflow-x-auto">
+                            <div><span class="text-gray-500">Positions</span> <span class="font-bold text-gray-900">${activePreds.length}</span></div>
+                            <div><span class="text-gray-500">Invested</span> <span class="font-bold text-gray-900">${portfolio.totalInvested.toLocaleString()}</span></div>
+                            <div><span class="text-gray-500">Value</span> <span class="font-bold text-gray-900">${portfolio.unrealizedValue.toLocaleString()}</span></div>
+                            <div><span class="text-gray-500">P&L</span> <span class="font-bold ${portfolio.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-500'}">${portfolio.unrealizedPnL >= 0 ? '+' : ''}${portfolio.unrealizedPnL.toLocaleString()}</span></div>
                         </div>
-                    </div>`;
-                })()}
-
-                <div class="mb-6 sm:mb-8">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-lg sm:text-xl font-bold text-gray-900">🔥 Trending Markets</h2>
-                        <button onclick="AppState.navigate('markets')" class="text-sm text-shark-600 font-medium hover:text-shark-800">View all →</button>
-                    </div>
-                    <div class="grid gap-3 sm:gap-4 md:grid-cols-2">
-                        ${trending.length > 0 ? trending.map(m => Components.marketCard(m)).join('') : `<div class="col-span-2 text-center py-8 bg-white rounded-xl border border-gray-200 p-6">
-                            <div class="text-3xl mb-2">📊</div>
-                            <div class="text-gray-500 text-sm mb-3">No trending markets yet. Be the first to create one!</div>
-                            <button onclick="AppState.navigate('create')" class="bg-shark-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-shark-700">+ Create Market</button>
-                        </div>`}
-                    </div>
-                </div>
-
-                ${AppState.activityFeed.length > 0 ? `
-                <div class="mb-6 sm:mb-8">
-                    <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-4">Recent Activity</h2>
-                    <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-50">
-                        ${AppState.activityFeed.slice(0, 8).map(a => {
-                            const name = a.profiles?.name || 'Someone';
-                            const title = a.markets?.title || 'a market';
-                            const verb = a.status === 'sold' ? 'sold' : 'bought';
-                            return `<div class="flex items-center gap-3 p-3 sm:p-4 hover:bg-gray-50 cursor-pointer" onclick="AppState.navigate('market', { marketId: ${a.market_id} })">
-                                ${Components.avatar(a.profiles?.avatar || name, 'sm')}
-                                <div class="flex-1 min-w-0">
-                                    <div class="text-sm text-gray-900 truncate"><span class="font-semibold">${esc(name)}</span> ${verb} <span class="font-medium ${a.direction === 'yes' ? 'text-green-600' : 'text-red-500'}">${(a.direction || '?').toUpperCase()}</span> on <span class="font-medium">${esc(title)}</span></div>
-                                    <div class="text-xs text-gray-400">${a.amount}t · ${getTimeAgo(a.created_at)}</div>
-                                </div>
-                            </div>`;
-                        }).join('')}
+                        <button onclick="AppState.navigate('profile', { profileId: '${AppState.session?.user?.id}' })" class="text-xs text-shark-600 font-medium shrink-0 ml-3">Portfolio →</button>
                     </div>
                 </div>` : ''}
 
-                <div class="mb-6 sm:mb-8">
-                    <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-4">Browse by Category</h2>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                        ${Object.values(CATEGORIES).map(cat => {
-                            const count = AppState.markets.filter(m => m.category === cat.id && !m.resolution).length;
-                            return `<button onclick="AppState.setFilter('${cat.id}'); AppState.navigate('markets');" class="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 text-left card-hover">
-                                <div class="text-xl sm:text-2xl mb-1">${cat.icon}</div>
-                                <div class="font-semibold text-xs sm:text-sm text-gray-900">${esc(cat.label)}</div>
-                                <div class="text-xs text-gray-500">${count} active</div>
-                            </button>`;
-                        }).join('')}
+                <!-- Category pills -->
+                <div class="flex items-center gap-2 mb-5 overflow-x-auto pb-1">
+                    <button onclick="AppState.navigate('markets')" class="px-3 py-1.5 rounded-full text-xs font-medium bg-shark-600 text-white shrink-0">All Markets</button>
+                    ${Object.values(CATEGORIES).slice(0, 6).map(cat => {
+                        const count = allActive.filter(m => m.category === cat.id).length;
+                        return count > 0 ? `<button onclick="AppState.setFilter('${cat.id}'); AppState.navigate('markets');" class="px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 shrink-0 transition-colors">${cat.icon} ${esc(cat.label)} <span class="text-gray-400">${count}</span></button>` : '';
+                    }).join('')}
+                </div>
+
+                <!-- Main content: 2-column on large screens -->
+                <div class="grid lg:grid-cols-3 gap-4 sm:gap-5">
+                    <!-- Left: market lists -->
+                    <div class="lg:col-span-2 space-y-4 sm:space-y-5">
+                        ${trending.length > 0 ? marketSection('Trending', trending, '🔥') : ''}
+                        ${closingSoon.length > 0 ? marketSection('Closing Soon', closingSoon, '⏰') : ''}
+                        ${newest.length > 0 ? marketSection('New Markets', newest, '✨') : ''}
+                        ${highVolume.length > 0 ? marketSection('Highest Volume', highVolume, '📊') : ''}
+                    </div>
+
+                    <!-- Right sidebar -->
+                    <div class="space-y-4 sm:space-y-5">
+                        <!-- Active positions -->
+                        ${activePreds.length > 0 ? `
+                        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                            <div class="px-4 py-3 border-b border-gray-100">
+                                <h3 class="text-sm font-semibold text-gray-900">Your Positions</h3>
+                            </div>
+                            ${activePreds.slice(0, 5).map(p => {
+                                const market = AppState.markets.find(mk => mk.id === p.market_id) || {};
+                                const isMultiPos = market.market_type === 'multi';
+                                const sellValue = isMultiPos
+                                    ? AMM.sellRevenueMulti(market.q_values || [], p.shares, p.option_index)
+                                    : AMM.sellRevenue(market.q_yes || 0, market.q_no || 0, p.shares, p.direction);
+                                const roundedSell = Math.round(sellValue);
+                                const profit = roundedSell - p.amount;
+                                return `<div class="px-4 py-2.5 border-b border-gray-50 last:border-0 hover:bg-gray-50 cursor-pointer" onclick="AppState.navigate('market', { marketId: ${p.market_id} })">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex-1 min-w-0 mr-2">
+                                            <div class="text-xs font-medium text-gray-900 truncate">${esc(market.title || 'Unknown')}</div>
+                                            <div class="text-xs text-gray-400 mt-0.5">${(p.direction || '?').toUpperCase()} · ${p.amount}t cost</div>
+                                        </div>
+                                        <div class="text-right shrink-0">
+                                            <div class="text-xs font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-500'}">${profit >= 0 ? '+' : ''}${profit}t</div>
+                                            <div class="text-xs text-gray-400">${roundedSell}t</div>
+                                        </div>
+                                    </div>
+                                </div>`;
+                            }).join('')}
+                            ${activePreds.length > 5 ? `<div class="px-4 py-2 text-center"><button onclick="AppState.navigate('profile', { profileId: '${AppState.session?.user?.id}' })" class="text-xs text-shark-600 font-medium">All ${activePreds.length} positions →</button></div>` : ''}
+                        </div>` : ''}
+
+                        <!-- Activity feed -->
+                        ${AppState.activityFeed.length > 0 ? `
+                        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                            <div class="px-4 py-3 border-b border-gray-100">
+                                <h3 class="text-sm font-semibold text-gray-900">Recent Activity</h3>
+                            </div>
+                            ${AppState.activityFeed.slice(0, 6).map(a => {
+                                const name = a.profiles?.name?.split(' ')[0] || 'Someone';
+                                const title = a.markets?.title || 'a market';
+                                const verb = a.status === 'sold' ? 'sold' : 'bought';
+                                return `<div class="flex items-center gap-2 px-4 py-2 border-b border-gray-50 last:border-0 hover:bg-gray-50 cursor-pointer" onclick="AppState.navigate('market', { marketId: ${a.market_id} })">
+                                    ${Components.avatar(a.profiles?.avatar || name, 'sm')}
+                                    <div class="flex-1 min-w-0">
+                                        <div class="text-xs text-gray-700 truncate"><span class="font-medium">${esc(name)}</span> ${verb} <span class="${a.direction === 'yes' ? 'text-green-600' : 'text-red-500'} font-medium">${(a.direction || '?').toUpperCase()}</span></div>
+                                        <div class="text-xs text-gray-400">${esc(title.length > 35 ? title.slice(0, 35) + '…' : title)}</div>
+                                    </div>
+                                    <span class="text-xs text-gray-300 shrink-0">${getTimeAgo(a.created_at)}</span>
+                                </div>`;
+                            }).join('')}
+                        </div>` : ''}
+
+                        <!-- Leaderboard preview -->
+                        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                            <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                                <h3 class="text-sm font-semibold text-gray-900">Top Forecasters</h3>
+                                <button onclick="AppState.navigate('leaderboard')" class="text-xs text-shark-600 font-medium">View all</button>
+                            </div>
+                            ${AppState.leaderboard.slice(0, 5).map((p, i) => `
+                                <div class="flex items-center gap-2 px-4 py-2 border-b border-gray-50 last:border-0 hover:bg-gray-50 cursor-pointer" onclick="AppState.navigate('profile', { profileId: '${p.id}' })">
+                                    <span class="text-xs font-bold text-gray-400 w-4">${i + 1}</span>
+                                    ${Components.avatar(p.avatar || p.name, 'sm')}
+                                    <div class="flex-1 min-w-0">
+                                        <div class="text-xs font-medium text-gray-900 truncate">${esc(p.name)}</div>
+                                        <div class="text-xs text-gray-400">${esc(p.department || '')}</div>
+                                    </div>
+                                    <span class="text-xs font-bold text-shark-600">${(p.points || 0).toLocaleString()} pts</span>
+                                </div>
+                            `).join('')}
+                        </div>
                     </div>
                 </div>
             </div>`;
