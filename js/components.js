@@ -145,8 +145,10 @@ const Components = {
         return '';
     },
 
-    sparkline(data, width = 120, height = 32) {
-        if (!data || data.length < 2) return '';
+    sparkline(rawData, width = 120, height = 32) {
+        if (!rawData || rawData.length < 2) return '';
+        // Handle both legacy (number) and new ({t, p}) formats
+        const data = rawData.map(v => (v && typeof v === 'object' && v.p !== undefined) ? v.p : v);
         const min = Math.min(...data) - 0.05, max = Math.max(...data) + 0.05;
         const range = max - min || 1, step = width / (data.length - 1);
         const points = data.map((v, i) => `${i * step},${height - ((v - min) / range) * height}`).join(' ');
@@ -167,12 +169,14 @@ const Components = {
         const cost = pred.amount || 0;
 
         // Convert each history point to estimated position value
+        // Handle both legacy (raw value) and new ({t, p}) formats
         const values = history.map(h => {
-            if (isMulti && Array.isArray(h)) {
-                const prob = h[pred.option_index] || 0;
+            const val = (h && typeof h === 'object' && h.p !== undefined) ? h.p : h;
+            if (isMulti && Array.isArray(val)) {
+                const prob = val[pred.option_index] || 0;
                 return shares * prob;
-            } else if (!isMulti && typeof h === 'number') {
-                return pred.direction === 'yes' ? shares * h : shares * (1 - h);
+            } else if (!isMulti && typeof val === 'number') {
+                return pred.direction === 'yes' ? shares * val : shares * (1 - val);
             }
             return cost; // fallback
         });
@@ -306,101 +310,294 @@ const Components = {
         </div>`;
     },
 
-    chart(data, width = 500, height = 160) {
-        if (!data || data.length < 2) return '<div class="text-gray-400 text-sm">Not enough data</div>';
-        const padding = { top: 20, right: 15, bottom: 25, left: 40 };
-        const chartW = width - padding.left - padding.right;
-        const chartH = height - padding.top - padding.bottom;
-        const min = Math.max(0, Math.min(...data) - 0.1), max = Math.min(1, Math.max(...data) + 0.1);
-        const range = max - min || 1, step = chartW / (data.length - 1);
+    // --- Chart helpers ---
+    _chartColors: ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#ec4899', '#06b6d4', '#6366f1'],
 
-        const points = data.map((v, i) => {
-            const x = padding.left + i * step;
-            const y = padding.top + chartH - ((v - min) / range) * chartH;
-            return `${x},${y}`;
-        }).join(' ');
-
-        const areaPoints = `${padding.left},${padding.top + chartH} ${points} ${padding.left + (data.length - 1) * step},${padding.top + chartH}`;
-        const lastVal = data[data.length - 1], firstVal = data[0];
-        const color = lastVal >= firstVal ? '#22c55e' : '#ef4444';
-
-        // Y-axis labels
-        const yLabels = [min, (min + max) / 2, max].map(v => {
-            const y = padding.top + chartH - ((v - min) / range) * chartH;
-            return `<text x="${padding.left - 5}" y="${y + 4}" text-anchor="end" fill="#9ca3af" font-size="10">${Math.round(v * 100)}%</text>
-                    <line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="#f3f4f6" stroke-width="1"/>`;
-        }).join('');
-
-        // X-axis labels (first, middle, last)
-        const xPositions = [0, Math.floor(data.length / 2), data.length - 1];
-        const xLabels = xPositions.map(i => {
-            const x = padding.left + i * step;
-            return `<text x="${x}" y="${height - 3}" text-anchor="middle" fill="#9ca3af" font-size="9">${i === 0 ? 'Start' : i === data.length - 1 ? 'Now' : 'Mid'}</text>`;
-        }).join('');
-
-        return `<svg width="100%" viewBox="0 0 ${width} ${height}" class="block">
-            ${yLabels}${xLabels}
-            <polygon fill="${color}" fill-opacity="0.1" points="${areaPoints}"/>
-            <polyline fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="${points}"/>
-            <circle cx="${padding.left + (data.length - 1) * step}" cy="${padding.top + chartH - ((lastVal - min) / range) * chartH}" r="4" fill="${color}" stroke="white" stroke-width="2"/>
-        </svg>`;
+    // Normalize history: handle both legacy (raw values) and new ({t, p}) formats
+    _normalizeHistory(rawHistory, createdAt) {
+        if (!rawHistory || rawHistory.length === 0) return [];
+        return rawHistory.map((entry, i) => {
+            if (entry && typeof entry === 'object' && entry.t !== undefined && entry.p !== undefined) {
+                return { t: new Date(entry.t), p: entry.p };
+            }
+            // Legacy: no timestamp, estimate evenly between created_at and now
+            const start = createdAt ? new Date(createdAt).getTime() : Date.now() - 86400000 * 7;
+            const span = Date.now() - start;
+            const step = rawHistory.length > 1 ? span / (rawHistory.length - 1) : 0;
+            return { t: new Date(start + i * step), p: entry };
+        });
     },
 
-    // Multi-outcome chart: one line per option
-    chartMulti(history, options, width = 500, height = 180) {
-        if (!history || history.length < 2 || !options) return '<div class="text-gray-400 text-sm">Not enough data</div>';
-        const padding = { top: 20, right: 15, bottom: 40, left: 40 };
+    // Filter history by time window
+    _filterByWindow(history, window) {
+        if (window === 'all' || !history.length) return history;
+        const now = Date.now();
+        const cutoffs = { '1d': 86400000, '1w': 7 * 86400000, '1m': 30 * 86400000 };
+        const cutoff = now - (cutoffs[window] || cutoffs['1m']);
+        const filtered = history.filter(h => h.t.getTime() >= cutoff);
+        // Always keep at least 2 points — prepend the last point before cutoff
+        if (filtered.length < 2 && history.length >= 2) {
+            const beforeCutoff = history.filter(h => h.t.getTime() < cutoff);
+            if (beforeCutoff.length) filtered.unshift(beforeCutoff[beforeCutoff.length - 1]);
+        }
+        return filtered.length >= 2 ? filtered : history;
+    },
+
+    // Format date for x-axis
+    _formatDate(date, window) {
+        const d = new Date(date);
+        if (window === '1d') return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        if (window === '1w') return d.toLocaleDateString([], { weekday: 'short' });
+        return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    },
+
+    // Generate smart x-axis tick positions
+    _xTicks(history, maxTicks = 5) {
+        if (history.length <= maxTicks) return history.map((_, i) => i);
+        const ticks = [0];
+        const step = (history.length - 1) / (maxTicks - 1);
+        for (let i = 1; i < maxTicks - 1; i++) ticks.push(Math.round(i * step));
+        ticks.push(history.length - 1);
+        return [...new Set(ticks)];
+    },
+
+    // Generate unique chart ID
+    _chartId: 0,
+    _nextChartId() { return `chart-${++this._chartId}-${Math.random().toString(36).slice(2, 6)}`; },
+
+    chart(data, width = 500, height = 200, marketId = null, createdAt = null) {
+        if (!data || data.length < 2) return '<div class="text-gray-400 text-sm text-center py-4">Not enough data for chart</div>';
+        const chartId = this._nextChartId();
+        const fullHistory = this._normalizeHistory(data, createdAt);
+        const windows = ['1d', '1w', '1m', 'all'];
+
+        return `
+        <div id="${chartId}" class="chart-container">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex gap-1 bg-gray-100 rounded-lg p-0.5" id="${chartId}-tabs">
+                    ${windows.map(w => `<button onclick="Components._renderBinaryChart('${chartId}', '${w}')" data-window="${w}" class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${w === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}">${w === 'all' ? 'All' : w.toUpperCase()}</button>`).join('')}
+                </div>
+                <div id="${chartId}-tooltip" class="text-xs text-gray-500 h-4"></div>
+            </div>
+            <div id="${chartId}-svg"></div>
+        </div>
+        <script>
+        (function(){
+            const data = ${JSON.stringify(fullHistory.map(h => ({ t: h.t.getTime(), p: h.p })))};
+            window['_chartData_${chartId}'] = data;
+            Components._renderBinaryChart('${chartId}', 'all');
+        })();
+        </script>`;
+    },
+
+    _renderBinaryChart(chartId, window) {
+        const rawData = window['_chartData_' + chartId];
+        if (!rawData) return;
+
+        // Update tab styles
+        const tabs = document.getElementById(chartId + '-tabs');
+        if (tabs) tabs.querySelectorAll('button').forEach(btn => {
+            btn.className = btn.dataset.window === window
+                ? 'px-2.5 py-1 rounded-md text-xs font-medium transition-colors bg-white text-gray-900 shadow-sm'
+                : 'px-2.5 py-1 rounded-md text-xs font-medium transition-colors text-gray-500 hover:text-gray-700';
+        });
+
+        const history = rawData.map(h => ({ t: new Date(h.t), p: h.p }));
+        const filtered = this._filterByWindow(history, window);
+        if (filtered.length < 2) return;
+
+        const width = 500, height = 180;
+        const padding = { top: 15, right: 15, bottom: 30, left: 42 };
         const chartW = width - padding.left - padding.right;
         const chartH = height - padding.top - padding.bottom;
-        const n = options.length;
-        const step = chartW / (history.length - 1);
-        const colors = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#ec4899', '#06b6d4', '#6366f1'];
 
-        // Y-axis: always 0–100%
-        const yLabels = [0, 0.25, 0.5, 0.75, 1].map(v => {
-            const y = padding.top + chartH - v * chartH;
-            return `<text x="${padding.left - 5}" y="${y + 4}" text-anchor="end" fill="#9ca3af" font-size="10">${Math.round(v * 100)}%</text>
-                    <line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="#f3f4f6" stroke-width="1"/>`;
+        const values = filtered.map(h => h.p);
+        const min = Math.max(0, Math.min(...values) - 0.05);
+        const max = Math.min(1, Math.max(...values) + 0.05);
+        const range = max - min || 0.1;
+
+        const toX = (i) => padding.left + (i / (filtered.length - 1)) * chartW;
+        const toY = (v) => padding.top + chartH - ((v - min) / range) * chartH;
+
+        const points = filtered.map((h, i) => `${toX(i)},${toY(h.p)}`).join(' ');
+        const areaPoints = `${toX(0)},${toY(min)} ${points} ${toX(filtered.length - 1)},${toY(min)}`;
+
+        const lastVal = filtered[filtered.length - 1].p;
+        const firstVal = filtered[0].p;
+        const color = lastVal >= firstVal ? '#22c55e' : '#ef4444';
+        const change = lastVal - firstVal;
+        const changePct = Math.round(change * 100);
+
+        // Y-axis
+        const ySteps = [min, min + range * 0.25, min + range * 0.5, min + range * 0.75, max];
+        const yLabels = ySteps.map(v => {
+            const y = toY(v);
+            return `<text x="${padding.left - 5}" y="${y + 3.5}" text-anchor="end" fill="#9ca3af" font-size="10" font-family="Inter, sans-serif">${Math.round(v * 100)}%</text>
+                    <line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="#f0f0f0" stroke-width="1"/>`;
         }).join('');
 
-        // X-axis labels
-        const xPositions = [0, Math.floor(history.length / 2), history.length - 1];
-        const xLabels = xPositions.map(i => {
-            const x = padding.left + i * step;
-            return `<text x="${x}" y="${height - padding.bottom + 15}" text-anchor="middle" fill="#9ca3af" font-size="9">${i === 0 ? 'Start' : i === history.length - 1 ? 'Now' : 'Mid'}</text>`;
+        // X-axis with real dates
+        const ticks = this._xTicks(filtered);
+        const xLabels = ticks.map(i => {
+            const x = toX(i);
+            return `<text x="${x}" y="${height - 5}" text-anchor="middle" fill="#9ca3af" font-size="9" font-family="Inter, sans-serif">${this._formatDate(filtered[i].t, window)}</text>`;
         }).join('');
 
-        // One polyline per option
-        const lines = Array.from({ length: n }, (_, optIdx) => {
-            const points = history.map((h, i) => {
-                const prob = Array.isArray(h) ? (h[optIdx] || 0) : 0;
-                const x = padding.left + i * step;
-                const y = padding.top + chartH - prob * chartH;
-                return `${x},${y}`;
-            }).join(' ');
-            const color = colors[optIdx % colors.length];
-            const lastProb = Array.isArray(history[history.length - 1]) ? (history[history.length - 1][optIdx] || 0) : 0;
-            const lastX = padding.left + (history.length - 1) * step;
-            const lastY = padding.top + chartH - lastProb * chartH;
-            return `<polyline fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="${points}" opacity="0.85"/>
-                    <circle cx="${lastX}" cy="${lastY}" r="3.5" fill="${color}" stroke="white" stroke-width="1.5"/>`;
+        // Invisible hover zones for tooltip
+        const hoverZones = filtered.map((h, i) => {
+            const x = toX(i);
+            const zoneW = chartW / filtered.length;
+            const dateStr = h.t.toLocaleDateString([], { month: 'short', day: 'numeric', year: '2-digit' }) + ' ' + h.t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            return `<rect x="${x - zoneW / 2}" y="${padding.top}" width="${zoneW}" height="${chartH}" fill="transparent"
+                onmouseenter="document.getElementById('${chartId}-tooltip').textContent='${Math.round(h.p * 100)}% — ${dateStr}'; document.getElementById('${chartId}-crosshair').setAttribute('x1','${x}'); document.getElementById('${chartId}-crosshair').setAttribute('x2','${x}'); document.getElementById('${chartId}-crosshair').style.opacity=1; document.getElementById('${chartId}-dot').setAttribute('cx','${x}'); document.getElementById('${chartId}-dot').setAttribute('cy','${toY(h.p)}'); document.getElementById('${chartId}-dot').style.opacity=1;"
+                onmouseleave="document.getElementById('${chartId}-tooltip').textContent=''; document.getElementById('${chartId}-crosshair').style.opacity=0; document.getElementById('${chartId}-dot').style.opacity=0;"/>`;
         }).join('');
 
-        // Legend below chart
+        const svg = `<svg width="100%" viewBox="0 0 ${width} ${height}" class="block" style="overflow:visible">
+            ${yLabels}${xLabels}
+            <polygon fill="${color}" fill-opacity="0.08" points="${areaPoints}"/>
+            <polyline fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="${points}"/>
+            <circle cx="${toX(filtered.length - 1)}" cy="${toY(lastVal)}" r="4" fill="${color}" stroke="white" stroke-width="2"/>
+            <line id="${chartId}-crosshair" x1="0" y1="${padding.top}" x2="0" y2="${padding.top + chartH}" stroke="#9ca3af" stroke-width="1" stroke-dasharray="3,3" style="opacity:0;transition:opacity 0.1s"/>
+            <circle id="${chartId}-dot" cx="0" cy="0" r="4" fill="${color}" stroke="white" stroke-width="2" style="opacity:0;transition:opacity 0.1s"/>
+            ${hoverZones}
+        </svg>
+        <div class="flex items-center gap-2 mt-1 text-xs">
+            <span class="${change >= 0 ? 'text-green-600' : 'text-red-500'} font-medium">${change >= 0 ? '+' : ''}${changePct}pp</span>
+            <span class="text-gray-400">since ${this._formatDate(filtered[0].t, window)}</span>
+        </div>`;
+
+        const container = document.getElementById(chartId + '-svg');
+        if (container) container.innerHTML = svg;
+    },
+
+    // Multi-outcome chart with time windows
+    chartMulti(history, options, width = 500, height = 220, marketId = null, createdAt = null) {
+        if (!history || history.length < 2 || !options) return '<div class="text-gray-400 text-sm text-center py-4">Not enough data for chart</div>';
+        const chartId = this._nextChartId();
+        const colors = this._chartColors;
+
+        // Normalize: each entry is {t, p} where p is an array
+        const fullHistory = history.map((entry, i) => {
+            if (entry && typeof entry === 'object' && entry.t !== undefined && entry.p !== undefined) {
+                return { t: new Date(entry.t).getTime(), p: entry.p };
+            }
+            // Legacy: p is the entry itself (an array of probs)
+            const probArr = Array.isArray(entry) ? entry : [];
+            const start = createdAt ? new Date(createdAt).getTime() : Date.now() - 86400000 * 7;
+            const span = Date.now() - start;
+            const step = history.length > 1 ? span / (history.length - 1) : 0;
+            return { t: start + i * step, p: probArr };
+        });
+
+        const windows = ['1d', '1w', '1m', 'all'];
+
+        // Legend HTML
+        const lastEntry = fullHistory[fullHistory.length - 1].p;
         const legend = options.map((opt, i) => {
-            const color = colors[i % colors.length];
-            const lastProb = Array.isArray(history[history.length - 1]) ? (history[history.length - 1][i] || 0) : 0;
+            const lastProb = Array.isArray(lastEntry) ? (lastEntry[i] || 0) : 0;
             return `<span class="inline-flex items-center gap-1 mr-3 text-xs">
-                <span class="inline-block w-3 h-1.5 rounded" style="background:${color}"></span>
+                <span class="inline-block w-3 h-1.5 rounded" style="background:${colors[i % colors.length]}"></span>
                 <span class="text-gray-600">${esc(opt.label)}</span>
                 <span class="font-medium text-gray-800">${Math.round(lastProb * 100)}%</span>
             </span>`;
         }).join('');
 
-        return `<svg width="100%" viewBox="0 0 ${width} ${height}" class="block">
+        return `
+        <div id="${chartId}" class="chart-container">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex gap-1 bg-gray-100 rounded-lg p-0.5" id="${chartId}-tabs">
+                    ${windows.map(w => `<button onclick="Components._renderMultiChart('${chartId}', '${w}')" data-window="${w}" class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${w === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}">${w === 'all' ? 'All' : w.toUpperCase()}</button>`).join('')}
+                </div>
+                <div id="${chartId}-tooltip" class="text-xs text-gray-500 h-4"></div>
+            </div>
+            <div id="${chartId}-svg"></div>
+            <div class="flex flex-wrap gap-y-1 mt-2">${legend}</div>
+        </div>
+        <script>
+        (function(){
+            const data = ${JSON.stringify(fullHistory)};
+            const opts = ${JSON.stringify(options.map(o => o.label))};
+            window['_chartData_${chartId}'] = { data, opts };
+            Components._renderMultiChart('${chartId}', 'all');
+        })();
+        </script>`;
+    },
+
+    _renderMultiChart(chartId, window) {
+        const raw = window['_chartData_' + chartId];
+        if (!raw) return;
+        const { data: rawData, opts } = raw;
+        const colors = this._chartColors;
+        const n = opts.length;
+
+        // Update tabs
+        const tabs = document.getElementById(chartId + '-tabs');
+        if (tabs) tabs.querySelectorAll('button').forEach(btn => {
+            btn.className = btn.dataset.window === window
+                ? 'px-2.5 py-1 rounded-md text-xs font-medium transition-colors bg-white text-gray-900 shadow-sm'
+                : 'px-2.5 py-1 rounded-md text-xs font-medium transition-colors text-gray-500 hover:text-gray-700';
+        });
+
+        const history = rawData.map(h => ({ t: new Date(h.t), p: h.p }));
+        const filtered = this._filterByWindow(history, window);
+        if (filtered.length < 2) return;
+
+        const width = 500, height = 180;
+        const padding = { top: 15, right: 15, bottom: 30, left: 42 };
+        const chartW = width - padding.left - padding.right;
+        const chartH = height - padding.top - padding.bottom;
+
+        const toX = (i) => padding.left + (i / (filtered.length - 1)) * chartW;
+        const toY = (v) => padding.top + chartH - v * chartH;
+
+        // Y-axis: 0-100%
+        const yLabels = [0, 0.25, 0.5, 0.75, 1].map(v => {
+            const y = toY(v);
+            return `<text x="${padding.left - 5}" y="${y + 3.5}" text-anchor="end" fill="#9ca3af" font-size="10" font-family="Inter, sans-serif">${Math.round(v * 100)}%</text>
+                    <line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="#f0f0f0" stroke-width="1"/>`;
+        }).join('');
+
+        // X-axis
+        const ticks = this._xTicks(filtered);
+        const xLabels = ticks.map(i => {
+            return `<text x="${toX(i)}" y="${height - 5}" text-anchor="middle" fill="#9ca3af" font-size="9" font-family="Inter, sans-serif">${this._formatDate(filtered[i].t, window)}</text>`;
+        }).join('');
+
+        // Lines
+        const lines = Array.from({ length: n }, (_, optIdx) => {
+            const points = filtered.map((h, i) => {
+                const prob = Array.isArray(h.p) ? (h.p[optIdx] || 0) : 0;
+                return `${toX(i)},${toY(prob)}`;
+            }).join(' ');
+            const color = colors[optIdx % colors.length];
+            const lastProb = Array.isArray(filtered[filtered.length - 1].p) ? (filtered[filtered.length - 1].p[optIdx] || 0) : 0;
+            return `<polyline fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="${points}" opacity="0.85"/>
+                    <circle cx="${toX(filtered.length - 1)}" cy="${toY(lastProb)}" r="3.5" fill="${color}" stroke="white" stroke-width="1.5"/>`;
+        }).join('');
+
+        // Hover zones
+        const hoverZones = filtered.map((h, i) => {
+            const x = toX(i);
+            const zoneW = chartW / filtered.length;
+            const dateStr = h.t.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + h.t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const probTexts = opts.map((label, oi) => {
+                const prob = Array.isArray(h.p) ? (h.p[oi] || 0) : 0;
+                return label + ': ' + Math.round(prob * 100) + '%';
+            }).join(' · ');
+            return `<rect x="${x - zoneW / 2}" y="${padding.top}" width="${zoneW}" height="${chartH}" fill="transparent"
+                onmouseenter="document.getElementById('${chartId}-tooltip').textContent='${dateStr} — ${probTexts.replace(/'/g, "\\'")}'; document.getElementById('${chartId}-crosshair').setAttribute('x1','${x}'); document.getElementById('${chartId}-crosshair').setAttribute('x2','${x}'); document.getElementById('${chartId}-crosshair').style.opacity=1;"
+                onmouseleave="document.getElementById('${chartId}-tooltip').textContent=''; document.getElementById('${chartId}-crosshair').style.opacity=0;"/>`;
+        }).join('');
+
+        const svg = `<svg width="100%" viewBox="0 0 ${width} ${height}" class="block" style="overflow:visible">
             ${yLabels}${xLabels}${lines}
-        </svg>
-        <div class="flex flex-wrap gap-y-1 mt-2">${legend}</div>`;
+            <line id="${chartId}-crosshair" x1="0" y1="${padding.top}" x2="0" y2="${padding.top + chartH}" stroke="#9ca3af" stroke-width="1" stroke-dasharray="3,3" style="opacity:0;transition:opacity 0.1s"/>
+            ${hoverZones}
+        </svg>`;
+
+        const container = document.getElementById(chartId + '-svg');
+        if (container) container.innerHTML = svg;
     },
 
     // Multi-outcome sparkline: one line per option (compact)
@@ -412,7 +609,8 @@ const Components = {
 
         const lines = Array.from({ length: n }, (_, optIdx) => {
             const points = history.map((h, i) => {
-                const prob = Array.isArray(h) ? (h[optIdx] || 0) : 0;
+                const val = (h && typeof h === 'object' && h.p !== undefined) ? h.p : h;
+                const prob = Array.isArray(val) ? (val[optIdx] || 0) : 0;
                 return `${i * step},${height - prob * height}`;
             }).join(' ');
             return `<polyline fill="none" stroke="${colors[optIdx % colors.length]}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" points="${points}" opacity="0.8"/>`;

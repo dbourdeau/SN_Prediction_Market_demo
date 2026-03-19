@@ -295,8 +295,8 @@ const Pages = {
                             </div>
                             <div class="hidden sm:block">
                                 ${fIsMulti
-                                    ? Components.chartMulti(fHistory, fOptions, 400, 180)
-                                    : Components.chart(fHistory, 400, 180)}
+                                    ? Components.chartMulti(fHistory, fOptions, 400, 220, feat.id, feat.created_at)
+                                    : Components.chart(fHistory, 500, 200, feat.id, feat.created_at)}
                             </div>
                         </div>
                     </div>`;
@@ -548,7 +548,7 @@ const Pages = {
                             </div>
                             <div class="mt-6">
                                 <h3 class="text-sm font-semibold text-gray-700 mb-2">Price History</h3>
-                                <div class="bg-gray-50 rounded-lg p-3 sm:p-4">${isMulti ? Components.chartMulti(m.history, m.options) : Components.chart(m.history)}</div>
+                                <div class="bg-gray-50 rounded-lg p-3 sm:p-4">${isMulti ? Components.chartMulti(m.history, m.options, 500, 220, m.id, m.created_at) : Components.chart(m.history, 500, 200, m.id, m.created_at)}</div>
                             </div>
                         </div>
 

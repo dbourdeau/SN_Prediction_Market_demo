@@ -288,7 +288,7 @@ const AppState = {
             const newQ = [...qValues];
             newQ[optionIndex] += shares;
             const newProbs = AMM.multiProbabilities(newQ);
-            const newHistory = [...(market.history || []), newProbs];
+            const newHistory = [...(market.history || []), { t: new Date().toISOString(), p: newProbs }];
             priceImpact = Math.abs(newProbs[optionIndex] - (market.probabilities?.[optionIndex] || 0));
             predDirection = market.options[optionIndex].label;
             entryProb = newProbs[optionIndex];
@@ -307,7 +307,7 @@ const AppState = {
             const newQNo = direction === 'no' ? qNo + shares : qNo;
             const newProb = AMM.yesPrice(newQYes, newQNo);
             const newLogit = AMM.logitFromProb(newProb);
-            const newHistory = [...(market.history || []), newProb];
+            const newHistory = [...(market.history || []), { t: new Date().toISOString(), p: newProb }];
             priceImpact = Math.abs(newProb - market.probability);
             predDirection = direction;
             entryProb = direction === 'yes' ? newProb : 1 - newProb;
@@ -388,7 +388,7 @@ const AppState = {
             const newQ = [...qValues];
             newQ[optIdx] -= pred.shares;
             const newProbs = AMM.multiProbabilities(newQ);
-            const newHistory = [...(market.history || []), newProbs];
+            const newHistory = [...(market.history || []), { t: new Date().toISOString(), p: newProbs }];
 
             marketUpdates = {
                 q_values: newQ, probabilities: newProbs,
@@ -403,7 +403,7 @@ const AppState = {
             const newQYes = pred.direction === 'yes' ? Math.max(0, qYes - pred.shares) : qYes;
             const newQNo = pred.direction === 'no' ? Math.max(0, qNo - pred.shares) : qNo;
             const newProb = AMM.yesPrice(newQYes, newQNo);
-            const newHistory = [...(market.history || []), newProb];
+            const newHistory = [...(market.history || []), { t: new Date().toISOString(), p: newProb }];
 
             marketUpdates = {
                 probability: newProb, logit: AMM.logitFromProb(newProb),
@@ -503,12 +503,12 @@ const AppState = {
             const probs = new Array(n).fill(1 / n);
             Object.assign(baseFields, {
                 market_type: 'multi', options, q_values: qValues, probabilities: probs,
-                probability: 1 / n, logit: 0, q_yes: 0, q_no: 0, history: [probs],
+                probability: 1 / n, logit: 0, q_yes: 0, q_no: 0, history: [{ t: new Date().toISOString(), p: probs }],
             });
         } else {
             Object.assign(baseFields, {
                 market_type: 'binary', probability: 0.50, logit: 0,
-                q_yes: 0, q_no: 0, history: [0.50],
+                q_yes: 0, q_no: 0, history: [{ t: new Date().toISOString(), p: 0.50 }],
             });
         }
 
@@ -727,7 +727,8 @@ const AppState = {
         ];
         resolvedWithProb.forEach(m => {
             // Use last probability before resolution from history, or stored probability
-            const finalProb = m.history?.length > 1 ? m.history[m.history.length - 2] : m.probability;
+            const rawEntry = m.history?.length > 1 ? m.history[m.history.length - 2] : null;
+            const finalProb = rawEntry ? (rawEntry && typeof rawEntry === 'object' && rawEntry.p !== undefined ? rawEntry.p : rawEntry) : m.probability;
             const bucket = calBuckets.find(b => finalProb >= b.min && finalProb < b.max);
             if (bucket) {
                 bucket.count++;
