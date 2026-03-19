@@ -86,10 +86,10 @@ function showModal({ title, message, confirmText = 'Confirm', cancelText = 'Canc
         backdrop.innerHTML = `
             <div class="modal-content">
                 <h3 class="text-lg font-bold text-gray-900 mb-2">${esc(title)}</h3>
-                <p class="text-sm text-gray-600 mb-6">${esc(message)}</p>
+                <p class="text-sm text-gray-600 mb-6 leading-relaxed">${esc(message)}</p>
                 <div class="flex gap-3 justify-end">
-                    <button id="${id}-cancel" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">${esc(cancelText)}</button>
-                    <button id="${id}-confirm" class="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors ${danger ? 'bg-red-600 hover:bg-red-700' : 'bg-shark-600 hover:bg-shark-700'}">${esc(confirmText)}</button>
+                    <button id="${id}-cancel" class="px-4 py-2.5 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-800">${esc(cancelText)}</button>
+                    <button id="${id}-confirm" class="px-4 py-2.5 rounded-lg text-sm font-semibold text-white shadow-sm ${danger ? 'bg-red-600 hover:bg-red-700' : 'bg-shark-600 hover:bg-shark-700'}">${esc(confirmText)}</button>
                 </div>
             </div>`;
         document.body.appendChild(backdrop);
@@ -108,16 +108,15 @@ function showModal({ title, message, confirmText = 'Confirm', cancelText = 'Canc
 const Components = {
     probBadge(prob, size = 'md', traders = -1) {
         const pct = Math.round(prob * 100);
-        // Show "No trades" if market has 0 traders and is at default 50%
         if (traders === 0) {
-            const sizeClass = size === 'lg' ? 'text-xl px-4 py-2' : 'text-sm px-2.5 py-1';
-            return `<span class="inline-flex items-center rounded-full font-medium bg-gray-100 text-gray-500 ${sizeClass}">No trades</span>`;
+            const sizeClass = size === 'lg' ? 'text-xl px-4 py-2' : 'text-sm px-3 py-1';
+            return `<span class="inline-flex items-center rounded-full font-medium bg-gray-50 text-gray-400 border border-gray-200 ${sizeClass}">—</span>`;
         }
         let colorClass;
-        if (pct >= 70) colorClass = 'bg-green-100 text-green-800';
-        else if (pct >= 40) colorClass = 'bg-yellow-100 text-yellow-800';
-        else colorClass = 'bg-red-100 text-red-800';
-        const sizeClass = size === 'lg' ? 'text-2xl px-4 py-2' : 'text-sm px-2.5 py-1';
+        if (pct >= 70) colorClass = 'bg-green-50 text-green-700 border border-green-200';
+        else if (pct >= 40) colorClass = 'bg-amber-50 text-amber-700 border border-amber-200';
+        else colorClass = 'bg-red-50 text-red-700 border border-red-200';
+        const sizeClass = size === 'lg' ? 'text-2xl px-4 py-2' : 'text-sm px-3 py-1';
         return `<span class="inline-flex items-center rounded-full font-bold ${colorClass} ${sizeClass}">${pct}%</span>`;
     },
 
@@ -125,9 +124,9 @@ const Components = {
         const cat = CATEGORIES[Object.keys(CATEGORIES).find(k => CATEGORIES[k].id === categoryId)];
         if (!cat) return '';
         const colors = {
-            blue: 'bg-blue-100 text-blue-700', red: 'bg-red-100 text-red-700',
-            green: 'bg-green-100 text-green-700', purple: 'bg-purple-100 text-purple-700',
-            amber: 'bg-amber-100 text-amber-700', pink: 'bg-pink-100 text-pink-700',
+            blue: 'bg-blue-50 text-blue-600', red: 'bg-red-50 text-red-600',
+            green: 'bg-green-50 text-green-600', purple: 'bg-purple-50 text-purple-600',
+            amber: 'bg-amber-50 text-amber-600', pink: 'bg-pink-50 text-pink-600',
         };
         return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${colors[cat.color]}">${cat.icon} ${esc(cat.label)}</span>`;
     },
@@ -229,47 +228,53 @@ const Components = {
         // Sparkline data
         const sparkData = isMulti ? null : market.history;
 
+        // Category color accent
+        const catObj = CATEGORIES[Object.keys(CATEGORIES).find(k => CATEGORIES[k].id === market.category)];
+        const accentClass = catObj ? `card-accent-${catObj.color}` : '';
+
         return `
-            <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 card-hover cursor-pointer fade-in ${isResolved ? 'opacity-75' : ''}"
+            <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 card-hover cursor-pointer fade-in ${accentClass} ${isResolved ? 'opacity-70' : ''}"
                  onclick="AppState.navigate('market', { marketId: ${market.id} })">
-                <div class="flex items-start justify-between gap-3 mb-3">
+                <div class="flex items-start justify-between gap-3 mb-2.5">
                     <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-1.5 mb-2 flex-wrap">
+                        <div class="flex items-center gap-1.5 mb-1.5 flex-wrap">
                             ${this.categoryTag(market.category)}
-                            ${isMulti ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">Multi</span>' : ''}
-                            ${market.trending && !isResolved ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">🔥</span>' : ''}
+                            ${isMulti ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-600">Multi</span>' : ''}
+                            ${market.trending && !isResolved ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-600">🔥 Trending</span>' : ''}
                             ${this.statusBadge(market)}
-                            ${isExpired ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Expired</span>' : ''}
-                            ${userPreds.length > 0 ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium ${positionPnL >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">✓ ${userPreds.length} ${positionPnL !== 0 ? (positionPnL > 0 ? '+' : '') + positionPnL + 't' : ''}</span>` : ''}
+                            ${isExpired && !isResolved ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-600">Expired</span>' : ''}
                         </div>
-                        <h3 class="font-semibold text-gray-900 text-sm sm:text-base leading-snug line-clamp-2">${esc(market.title)}</h3>
-                        ${isMulti && multiLeader ? `<div class="text-xs text-gray-500 mt-1">Leading: <span class="font-medium text-gray-700">${esc(multiLeader)}</span> at ${Math.round(Math.max(...(market.probabilities || [0])) * 100)}%</div>` : ''}
+                        <h3 class="font-semibold text-gray-900 text-base sm:text-lg leading-snug line-clamp-2">${esc(market.title)}</h3>
+                        ${isMulti && multiLeader ? `<div class="text-xs text-gray-500 mt-1.5">Leading: <span class="font-semibold text-gray-700">${esc(multiLeader)}</span> at ${Math.round(Math.max(...(market.probabilities || [0])) * 100)}%</div>` : ''}
                     </div>
-                    <div class="flex flex-col items-end gap-1 shrink-0">
-                        ${isMulti ? `<span class="inline-flex items-center rounded-full font-bold bg-indigo-100 text-indigo-800 text-sm px-2.5 py-1">${market.options?.length || '?'} options</span>` : this.probBadge(market.probability, 'md', market.traders)}
+                    <div class="flex flex-col items-end gap-1.5 shrink-0">
+                        ${isMulti ? `<span class="inline-flex items-center rounded-full font-bold bg-indigo-50 text-indigo-700 text-sm px-3 py-1">${market.options?.length || '?'} options</span>` : this.probBadge(market.probability, 'md', market.traders)}
                         <div class="hidden sm:block">${isMulti ? this.sparklineMulti(market.history, market.options) : this.sparkline(sparkData)}</div>
                     </div>
                 </div>
-                <div class="flex items-center justify-between text-xs sm:text-sm text-gray-500">
+                <div class="flex items-center justify-between text-xs text-gray-400 pt-2.5 border-t border-gray-100">
                     <div class="flex items-center gap-3">
-                        <span>${market.traders} traders</span>
+                        ${userPreds.length > 0 ? `<span class="font-medium ${positionPnL >= 0 ? 'text-green-600' : 'text-red-500'}">Your position: ${positionPnL > 0 ? '+' : ''}${positionPnL}t</span>` : ''}
+                        <span>${market.traders} trader${market.traders !== 1 ? 's' : ''}</span>
                         <span>${market.volume.toLocaleString()} vol</span>
-                        <button onclick="event.stopPropagation(); handleToggleWatchlist(${market.id})" class="hover:text-shark-600 transition-colors ${isWatching ? 'text-shark-600' : ''}" title="${isWatching ? 'Remove from watchlist' : 'Add to watchlist'}">${isWatching ? '★' : '☆'}</button>
                     </div>
-                    <span>${isResolved ? 'Resolved' : isExpired ? 'Expired' : days + 'd left'}</span>
+                    <div class="flex items-center gap-2">
+                        <span>${isResolved ? 'Resolved' : isExpired ? 'Expired' : days + 'd left'}</span>
+                        <button onclick="event.stopPropagation(); handleToggleWatchlist(${market.id})" class="hover:text-shark-600 ${isWatching ? 'text-shark-600' : 'text-gray-300 hover:text-gray-500'}" title="${isWatching ? 'Remove from watchlist' : 'Add to watchlist'}">${isWatching ? '★' : '☆'}</button>
+                    </div>
                 </div>
             </div>
         `;
     },
 
     statCard(label, value, subtext, icon) {
-        return `<div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
-            <div class="flex items-center justify-between mb-2">
-                <span class="text-xs sm:text-sm font-medium text-gray-500">${esc(label)}</span>
-                <span class="text-xl sm:text-2xl">${icon}</span>
+        return `<div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 hover:shadow-sm transition-shadow">
+            <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">${esc(label)}</span>
+                <span class="text-lg opacity-60">${icon}</span>
             </div>
-            <div class="text-xl sm:text-2xl font-bold text-gray-900">${esc(String(value))}</div>
-            ${subtext ? `<div class="text-xs sm:text-sm text-gray-500 mt-1">${esc(subtext)}</div>` : ''}
+            <div class="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">${esc(String(value))}</div>
+            ${subtext ? `<div class="text-xs text-gray-500 mt-1">${esc(subtext)}</div>` : ''}
         </div>`;
     },
 
@@ -677,11 +682,11 @@ const Components = {
                             </svg>
                             <span class="hidden sm:block font-bold text-lg tracking-tight">SharkPool</span>
                         </div>
-                        <nav class="hidden md:flex items-center gap-1">
+                        <nav class="hidden md:flex items-center gap-0.5">
                             ${navItems.map(item => `
                                 <button onclick="AppState.navigate('${item.id}')"
-                                    class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-                                    ${AppState.currentPage === item.id ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}">
+                                    class="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium
+                                    ${AppState.currentPage === item.id ? 'bg-white/20 text-white shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/10'}">
                                     ${item.icon} ${item.label}
                                 </button>
                             `).join('')}

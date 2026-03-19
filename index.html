@@ -47,10 +47,19 @@
         body { font-family: 'Inter', sans-serif; }
         .gradient-bg { background: linear-gradient(135deg, #07284a 0%, #0059a3 50%, #0c8eeb 100%); }
         .card-hover { transition: all 0.2s ease; }
-        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
+        .card-hover:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-color: #d1d5db !important; }
         .prob-bar { transition: width 0.5s ease; }
-        .fade-in { animation: fadeIn 0.3s ease-in; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.25s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        /* Smooth transitions on interactive elements */
+        button, a, input, select, textarea { transition: all 0.15s ease; }
+        /* Category color accents on cards */
+        .card-accent-blue { border-left: 3px solid #3b82f6; }
+        .card-accent-red { border-left: 3px solid #ef4444; }
+        .card-accent-green { border-left: 3px solid #22c55e; }
+        .card-accent-purple { border-left: 3px solid #a855f7; }
+        .card-accent-amber { border-left: 3px solid #f59e0b; }
+        .card-accent-pink { border-left: 3px solid #ec4899; }
         .tab-active { border-bottom: 3px solid #0c8eeb; color: #0c8eeb; font-weight: 600; }
         .prediction-btn { transition: all 0.15s ease; }
         .prediction-btn:hover { transform: scale(1.02); }
@@ -61,8 +70,8 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         .animate-spin { animation: spin 1s linear infinite; }
         /* Modal */
-        .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1rem; animation: fadeIn 0.15s ease; }
-        .modal-content { background: white; border-radius: 1rem; padding: 1.5rem; max-width: 28rem; width: 100%; box-shadow: 0 25px 50px rgba(0,0,0,0.25); animation: modalSlide 0.2s ease; }
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1rem; animation: fadeIn 0.15s ease; }
+        .modal-content { background: white; border-radius: 1rem; padding: 1.5rem; max-width: 28rem; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.2); animation: modalSlide 0.2s ease; }
         @keyframes modalSlide { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
         /* Hide scrollbar on mobile nav */
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
@@ -95,9 +104,10 @@
         html.dark .text-gray-900 { color: #f9fafb !important; }
         html.dark .text-gray-800 { color: #f3f4f6 !important; }
         html.dark .text-gray-700 { color: #d1d5db !important; }
-        html.dark .text-gray-600 { color: #9ca3af !important; }
-        html.dark .text-gray-500 { color: #9ca3af !important; }
+        html.dark .text-gray-600 { color: #b0b8c4 !important; }
+        html.dark .text-gray-500 { color: #8b95a5 !important; }
         html.dark .text-gray-400 { color: #6b7280 !important; }
+        html.dark .text-gray-300 { color: #4b5563 !important; }
         html.dark .border-gray-200 { border-color: #374151 !important; }
         html.dark .border-gray-100 { border-color: #1f2937 !important; }
         html.dark .border-gray-300 { border-color: #4b5563 !important; }
@@ -140,6 +150,30 @@
         html.dark .text-shark-700 { color: #7dd3fc !important; }
         html.dark .text-shark-600 { color: #38bdf8 !important; }
         html.dark .text-shark-200 { color: #94a3b8 !important; }
+        /* Soft colored backgrounds in dark */
+        html.dark .bg-indigo-50 { background-color: #1e1b4b !important; }
+        html.dark .text-indigo-600 { color: #a5b4fc !important; }
+        html.dark .text-indigo-700 { color: #a5b4fc !important; }
+        html.dark .bg-orange-50 { background-color: #431407 !important; }
+        html.dark .text-orange-600 { color: #fdba74 !important; }
+        html.dark .bg-pink-50 { background-color: #500724 !important; }
+        html.dark .text-pink-600 { color: #f9a8d4 !important; }
+        html.dark .text-blue-600 { color: #93c5fd !important; }
+        html.dark .text-red-600 { color: #fca5a5 !important; }
+        html.dark .text-green-600 { color: #6ee7b7 !important; }
+        html.dark .text-purple-600 { color: #c4b5fd !important; }
+        html.dark .text-amber-600 { color: #fbbf24 !important; }
+        /* Card accents in dark */
+        html.dark .card-accent-blue { border-left-color: #60a5fa !important; }
+        html.dark .card-accent-red { border-left-color: #f87171 !important; }
+        html.dark .card-accent-green { border-left-color: #34d399 !important; }
+        html.dark .card-accent-purple { border-left-color: #a78bfa !important; }
+        html.dark .card-accent-amber { border-left-color: #fbbf24 !important; }
+        html.dark .card-accent-pink { border-left-color: #f472b6 !important; }
+        /* Card hover in dark */
+        html.dark .card-hover:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important; border-color: #4b5563 !important; }
+        /* Table header in dark */
+        html.dark .bg-gray-50\/50 { background-color: rgba(31, 41, 55, 0.5) !important; }
         /* Gradient header — keep as-is, it's already dark */
     </style>
 </body>

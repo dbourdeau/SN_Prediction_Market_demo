@@ -864,18 +864,18 @@ const Pages = {
                 <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
                     <div class="overflow-x-auto">
                         <table class="w-full">
-                            <thead><tr class="border-b border-gray-100">
-                                <th class="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase w-12">#</th>
-                                <th class="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Forecaster</th>
-                                <th class="px-3 sm:px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase hidden sm:table-cell">Accuracy</th>
-                                <th class="px-3 sm:px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase hidden sm:table-cell">Trades</th>
-                                <th class="px-3 sm:px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Points</th>
+                            <thead><tr class="border-b border-gray-200 bg-gray-50">
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-12">#</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Forecaster</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Accuracy</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Trades</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Points</th>
                             </tr></thead>
                             <tbody>
                                 ${lb.map((p, idx) => {
                                     const isUser = p.id === AppState.user?.id;
                                     const rank = idx + 1;
-                                    return `<tr class="border-b border-gray-50 ${isUser ? 'bg-shark-50' : 'hover:bg-gray-50'} cursor-pointer" onclick="AppState.navigate('profile', { profileId: '${p.id}' })">
+                                    return `<tr class="border-b border-gray-100 ${isUser ? 'bg-shark-50' : idx % 2 === 1 ? 'bg-gray-50/50' : ''} hover:bg-gray-50 cursor-pointer" onclick="AppState.navigate('profile', { profileId: '${p.id}' })">
                                         <td class="px-3 sm:px-4 py-3"><span class="text-sm font-bold ${rank <= 3 ? 'text-shark-600' : 'text-gray-400'}">${rank}</span></td>
                                         <td class="px-3 sm:px-4 py-3">
                                             <div class="flex items-center gap-2 sm:gap-3">
