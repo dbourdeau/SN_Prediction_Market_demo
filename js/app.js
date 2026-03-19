@@ -565,16 +565,39 @@ function toggleMarketType(type) {
     const binaryBtn = document.getElementById('type-binary');
     const multiBtn = document.getElementById('type-multi');
     const multiSection = document.getElementById('multi-options-section');
+    const titleInput = document.getElementById('create-title');
+    const descInput = document.getElementById('create-desc');
+    const tipsBox = document.getElementById('create-tips');
     if (!binaryBtn || !multiBtn || !multiSection) return;
 
     if (type === 'multi') {
         multiBtn.className = 'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border-2 border-shark-600 bg-shark-50 text-shark-700';
         binaryBtn.className = 'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-500 hover:border-gray-300';
         multiSection.classList.remove('hidden');
+        if (titleInput && !titleInput.value) titleInput.placeholder = 'Which [option] will [outcome]? e.g. "Which product line will have the highest Q3 revenue?"';
+        if (descInput && !descInput.value) descInput.placeholder = 'Resolution criteria: This market resolves to the option that [specific condition] as confirmed by [source of truth] by [date]. If none of the options apply, the market will be voided.\n\nBackground: [Provide relevant context for traders]';
+        if (tipsBox) tipsBox.innerHTML = `
+            <div class="font-semibold mb-1">Tips for multiple choice markets:</div>
+            <ul class="list-disc ml-4 space-y-0.5">
+                <li><strong>Mutually exclusive:</strong> Options should not overlap — only one can win</li>
+                <li><strong>Exhaustive:</strong> Consider adding "Other" if the list may not cover all outcomes</li>
+                <li><strong>Clear criteria:</strong> Define exactly how the winning option will be determined</li>
+                <li><strong>Name your source:</strong> e.g. "Per the Q3 earnings report" or "As announced by leadership"</li>
+            </ul>`;
     } else {
         binaryBtn.className = 'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border-2 border-shark-600 bg-shark-50 text-shark-700';
         multiBtn.className = 'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-500 hover:border-gray-300';
         multiSection.classList.add('hidden');
+        if (titleInput && !titleInput.value) titleInput.placeholder = 'Will [specific outcome] happen by [date]? e.g. "Will NinjaCreami exceed 1M units sold by Q3?"';
+        if (descInput && !descInput.value) descInput.placeholder = 'Resolution criteria: This market resolves YES if [specific condition] as confirmed by [source of truth] by [date]. It resolves NO if [condition is not met]. If [edge case], the market will be voided.\n\nBackground: [Provide relevant context for traders]';
+        if (tipsBox) tipsBox.innerHTML = `
+            <div class="font-semibold mb-1">Tips for clear resolution criteria:</div>
+            <ul class="list-disc ml-4 space-y-0.5">
+                <li><strong>Be specific:</strong> Define exactly what outcome counts as YES vs NO</li>
+                <li><strong>Name your source:</strong> e.g. "Per the Q3 earnings report" or "As announced in #general Slack"</li>
+                <li><strong>Set a deadline:</strong> "By end of day March 31, 2026"</li>
+                <li><strong>Edge cases:</strong> What happens if the event is delayed, cancelled, or ambiguous?</li>
+            </ul>`;
     }
 }
 

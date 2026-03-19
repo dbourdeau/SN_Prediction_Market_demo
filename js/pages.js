@@ -1168,14 +1168,14 @@ const Pages = {
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Question * <span class="font-normal text-gray-400" id="title-count">0/200</span></label>
-                        <input type="text" id="create-title" placeholder="Will [specific outcome] happen by [date]?" maxlength="200"
+                        <input type="text" id="create-title" placeholder="Will [specific outcome] happen by [date]? e.g. &quot;Will NinjaCreami exceed 1M units sold by Q3?&quot;" maxlength="200"
                             oninput="document.getElementById('title-count').textContent=this.value.length+'/200'"
                             onkeydown="if(event.key==='Enter') event.preventDefault()"
                             class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500 focus:border-transparent"/>
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Resolution Criteria & Description * <span class="font-normal text-gray-400" id="desc-count">0/5000</span></label>
-                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2 text-xs text-blue-700">
+                        <div id="create-tips" class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2 text-xs text-blue-700">
                             <div class="font-semibold mb-1">Tips for clear resolution criteria:</div>
                             <ul class="list-disc ml-4 space-y-0.5">
                                 <li><strong>Be specific:</strong> Define exactly what outcome counts as YES vs NO</li>
