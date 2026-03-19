@@ -772,13 +772,61 @@ const Pages = {
                 <h1 class="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Leaderboard</h1>
                 <p class="text-gray-500 text-sm mb-4">Top forecasters ranked by points earned from correct predictions.</p>
 
-                <!-- Tabs -->
-                <div class="flex gap-1 mb-6 sm:mb-8 bg-gray-100 rounded-lg p-1 max-w-xs">
-                    <button onclick="AppState.setLeaderboardTab('individual')" class="flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${tab === 'individual' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}">Individual</button>
-                    <button onclick="AppState.setLeaderboardTab('departments')" class="flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${tab === 'departments' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}">Departments</button>
+                <!-- Incentives Banner -->
+                <div class="bg-gradient-to-r from-shark-700 via-shark-600 to-shark-500 rounded-xl p-4 sm:p-5 mb-6 text-white">
+                    <div class="flex items-start justify-between flex-wrap gap-3">
+                        <div>
+                            <h2 class="font-bold text-lg sm:text-xl mb-1">Quarterly Prize Pool</h2>
+                            <p class="text-shark-200 text-sm">Win real prizes for accurate forecasting. Awards reset each quarter.</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl sm:text-3xl font-bold">~$500+</div>
+                            <div class="text-shark-200 text-xs">in prizes per quarter</div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-4">
+                        <div class="bg-white/10 rounded-lg px-3 py-2">
+                            <div class="text-sm font-semibold">🏆 Top Forecaster</div>
+                            <div class="text-xs text-shark-200">$150-200 gift card</div>
+                        </div>
+                        <div class="bg-white/10 rounded-lg px-3 py-2">
+                            <div class="text-sm font-semibold">🎯 Sharpest Mind</div>
+                            <div class="text-xs text-shark-200">$100-150 gift card</div>
+                        </div>
+                        <div class="bg-white/10 rounded-lg px-3 py-2">
+                            <div class="text-sm font-semibold">📈 Best ROI</div>
+                            <div class="text-xs text-shark-200">$75-100 gift card</div>
+                        </div>
+                        <div class="bg-white/10 rounded-lg px-3 py-2">
+                            <div class="text-sm font-semibold">⚡ Volume King</div>
+                            <div class="text-xs text-shark-200">$50 gift card</div>
+                        </div>
+                        <div class="bg-white/10 rounded-lg px-3 py-2">
+                            <div class="text-sm font-semibold">💡 Best Question</div>
+                            <div class="text-xs text-shark-200">$50 gift card</div>
+                        </div>
+                        <div class="bg-white/10 rounded-lg px-3 py-2">
+                            <div class="text-sm font-semibold">🏅 Dept Champion</div>
+                            <div class="text-xs text-shark-200">Team lunch $100-150</div>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-4 mt-3 text-xs text-shark-200">
+                        <span>🥉 10 predictions = $10 coffee card</span>
+                        <span>🥈 25 predictions = $15 coffee card</span>
+                        <span>💎 50 predictions = $15 coffee card</span>
+                        <span>🔥 Weekly streak = $25 bonus</span>
+                        <span>🎟️ 5+ predictions = raffle entry ($50)</span>
+                    </div>
                 </div>
 
-                ${tab === 'departments' ? this._departmentLeaderboard() : `
+                <!-- Tabs -->
+                <div class="flex gap-1 mb-6 sm:mb-8 bg-gray-100 rounded-lg p-1 max-w-md">
+                    <button onclick="AppState.setLeaderboardTab('individual')" class="flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${tab === 'individual' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}">Individual</button>
+                    <button onclick="AppState.setLeaderboardTab('departments')" class="flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${tab === 'departments' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}">Departments</button>
+                    <button onclick="AppState.setLeaderboardTab('awards')" class="flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${tab === 'awards' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}">Awards</button>
+                </div>
+
+                ${tab === 'awards' ? this._awardsTab() : tab === 'departments' ? this._departmentLeaderboard() : `
                 ${top3.length >= 3 ? `
                 <div class="grid grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
                     ${[1, 0, 2].map(idx => {
@@ -870,6 +918,216 @@ const Pages = {
                     </div>`;
                 }).join('')}
             </div>`;
+    },
+
+    _awardsTab() {
+        // Load awards data (async, will re-render when ready)
+        if (!AppState._awardsData) {
+            AppState._awardsLoading = true;
+            AppState.computeQuarterlyAwards(0).then(data => {
+                AppState._awardsData = data;
+                AppState._awardsLoading = false;
+                AppState.notify();
+            }).catch(err => {
+                console.warn('Awards load error:', err);
+                AppState._awardsLoading = false;
+                AppState._awardsData = null;
+                AppState.notify();
+            });
+            return '<div class="text-center py-12"><div class="inline-block w-6 h-6 border-2 border-shark-600 border-t-transparent rounded-full animate-spin mb-3"></div><p class="text-gray-500 text-sm">Loading award standings...</p></div>';
+        }
+
+        const data = AppState._awardsData;
+        if (!data || data.stats.totalPredictions === 0) {
+            return '<div class="text-center py-12 text-gray-400">No predictions this quarter yet. Start trading to compete for awards!</div>';
+        }
+
+        const { quarter, awards, milestones, streaks, raffleEligible, stats, leaderboard: qLb } = data;
+
+        return `
+            <div class="space-y-6">
+                <!-- Quarter Header -->
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-900">${quarter} Award Standings</h2>
+                        <p class="text-sm text-gray-500">Live standings — updated in real time as markets resolve</p>
+                    </div>
+                    <button onclick="AppState._awardsData = null; AppState.notify()" class="text-xs text-shark-600 hover:text-shark-700 font-medium px-3 py-1.5 rounded-lg bg-shark-50 hover:bg-shark-100 transition-colors">↻ Refresh</button>
+                </div>
+
+                <!-- Quarter Stats -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div class="bg-white rounded-xl border border-gray-200 p-3 text-center">
+                        <div class="text-xl sm:text-2xl font-bold text-gray-900">${stats.participants}</div>
+                        <div class="text-xs text-gray-500">Participants</div>
+                    </div>
+                    <div class="bg-white rounded-xl border border-gray-200 p-3 text-center">
+                        <div class="text-xl sm:text-2xl font-bold text-gray-900">${stats.totalPredictions}</div>
+                        <div class="text-xs text-gray-500">Predictions</div>
+                    </div>
+                    <div class="bg-white rounded-xl border border-gray-200 p-3 text-center">
+                        <div class="text-xl sm:text-2xl font-bold text-gray-900">${stats.marketsCreated}</div>
+                        <div class="text-xs text-gray-500">Markets</div>
+                    </div>
+                    <div class="bg-white rounded-xl border border-gray-200 p-3 text-center">
+                        <div class="text-xl sm:text-2xl font-bold text-gray-900">${stats.avgAccuracy}%</div>
+                        <div class="text-xs text-gray-500">Avg Accuracy</div>
+                    </div>
+                </div>
+
+                <!-- Main Awards -->
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Award Leaders</h3>
+                    <div class="grid sm:grid-cols-2 gap-3">
+                        ${awards.map(a => `
+                            <div class="bg-white rounded-xl border border-gray-200 p-4 card-hover">
+                                <div class="flex items-start justify-between mb-3">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-2xl">${a.emoji}</span>
+                                        <div>
+                                            <div class="font-bold text-gray-900 text-sm">${a.title}</div>
+                                            <div class="text-xs text-gray-400">${a.description}</div>
+                                        </div>
+                                    </div>
+                                    <span class="text-xs font-medium text-shark-600 bg-shark-50 px-2 py-1 rounded-full">${esc(a.prize)}</span>
+                                </div>
+                                <div class="flex items-center gap-3 bg-gray-50 rounded-lg p-3">
+                                    ${typeof a.winner.avatar === 'string' && a.winner.avatar.length <= 4
+                                        ? Components.avatar(a.winner.avatar, 'md')
+                                        : `<span class="text-2xl">${a.winner.avatar}</span>`}
+                                    <div class="flex-1 min-w-0">
+                                        <div class="font-semibold text-gray-900 text-sm truncate">${esc(a.winner.name)}</div>
+                                        <div class="text-xs text-gray-500 truncate">${esc(a.winner.department)}</div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-sm font-bold text-shark-600">${a.metric}</div>
+                                        <div class="text-[10px] text-gray-400 uppercase">Current leader</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                        ${awards.length === 0 ? '<div class="col-span-2 text-center py-8 text-gray-400">No resolved predictions yet this quarter. Awards will appear as markets resolve.</div>' : ''}
+                    </div>
+                </div>
+
+                <!-- Quarterly Points Leaderboard -->
+                ${qLb.length > 0 ? `
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">${quarter} Points Ranking</h3>
+                    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <table class="w-full">
+                            <thead><tr class="border-b border-gray-100">
+                                <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 w-10">#</th>
+                                <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500">Forecaster</th>
+                                <th class="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 hidden sm:table-cell">Record</th>
+                                <th class="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 hidden sm:table-cell">Accuracy</th>
+                                <th class="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 hidden sm:table-cell">ROI</th>
+                                <th class="px-3 py-2.5 text-right text-xs font-semibold text-gray-500">Points</th>
+                            </tr></thead>
+                            <tbody>
+                                ${qLb.map((u, i) => {
+                                    const isUser = u.userId === AppState.user?.id;
+                                    return `<tr class="border-b border-gray-50 ${isUser ? 'bg-shark-50' : 'hover:bg-gray-50'}">
+                                        <td class="px-3 py-2.5"><span class="text-sm font-bold ${i < 3 ? 'text-shark-600' : 'text-gray-400'}">${i + 1}</span></td>
+                                        <td class="px-3 py-2.5">
+                                            <div class="flex items-center gap-2">
+                                                ${Components.avatar(u.avatar, 'sm')}
+                                                <div class="min-w-0">
+                                                    <div class="text-sm font-semibold text-gray-900 truncate">${esc(u.name)} ${isUser ? '<span class="text-xs text-shark-600">(You)</span>' : ''}</div>
+                                                    <div class="text-xs text-gray-500 truncate">${esc(u.department)}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-3 py-2.5 text-right hidden sm:table-cell"><span class="text-sm text-gray-600">${u.wins}W-${u.losses}L</span></td>
+                                        <td class="px-3 py-2.5 text-right hidden sm:table-cell"><span class="text-sm ${u.accuracy >= 0.6 ? 'text-green-600 font-medium' : 'text-gray-600'}">${Math.round(u.accuracy * 100)}%</span></td>
+                                        <td class="px-3 py-2.5 text-right hidden sm:table-cell"><span class="text-sm ${u.roi >= 0 ? 'text-green-600' : 'text-red-500'}">${u.roi >= 0 ? '+' : ''}${Math.round(u.roi * 100)}%</span></td>
+                                        <td class="px-3 py-2.5 text-right"><span class="text-sm font-bold">${u.points}</span></td>
+                                    </tr>`;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Participation Rewards -->
+                <div class="grid sm:grid-cols-3 gap-4">
+                    <!-- Milestones -->
+                    <div class="bg-white rounded-xl border border-gray-200 p-4">
+                        <h3 class="font-bold text-gray-900 text-sm mb-3">🎖️ Milestones</h3>
+                        <p class="text-xs text-gray-400 mb-3">Reach prediction counts for coffee cards</p>
+                        ${milestones.length > 0 ? `
+                            <div class="space-y-2">
+                                ${milestones.slice(0, 8).map(m => `
+                                    <div class="flex items-center gap-2">
+                                        ${Components.avatar(m.avatar, 'sm')}
+                                        <div class="flex-1 min-w-0">
+                                            <div class="text-xs font-semibold text-gray-900 truncate">${esc(m.name)}</div>
+                                            <div class="text-[10px] text-gray-500">${m.count} predictions · ${m.emoji} ${m.label}</div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : '<div class="text-xs text-gray-400 text-center py-4">No one has hit 10 predictions yet</div>'}
+                    </div>
+
+                    <!-- Streaks -->
+                    <div class="bg-white rounded-xl border border-gray-200 p-4">
+                        <h3 class="font-bold text-gray-900 text-sm mb-3">🔥 Weekly Streaks</h3>
+                        <p class="text-xs text-gray-400 mb-3">Trade every week for a $25 bonus</p>
+                        ${streaks.length > 0 ? `
+                            <div class="space-y-2">
+                                ${streaks.slice(0, 8).map(s => `
+                                    <div class="flex items-center gap-2">
+                                        ${Components.avatar(s.avatar, 'sm')}
+                                        <div class="flex-1 min-w-0">
+                                            <div class="text-xs font-semibold text-gray-900 truncate">${esc(s.name)}</div>
+                                            <div class="text-[10px] text-gray-500">${s.weeksActive}/${s.weeksTotal} weeks active</div>
+                                        </div>
+                                        <span class="text-xs font-bold text-orange-500">🔥</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : '<div class="text-xs text-gray-400 text-center py-4">Trade 4+ weeks in a row to qualify</div>'}
+                    </div>
+
+                    <!-- Raffle -->
+                    <div class="bg-white rounded-xl border border-gray-200 p-4">
+                        <h3 class="font-bold text-gray-900 text-sm mb-3">🎟️ Raffle Pool</h3>
+                        <p class="text-xs text-gray-400 mb-3">5+ predictions = entry for $50 draw</p>
+                        ${raffleEligible.length > 0 ? `
+                            <div class="text-center mb-3">
+                                <span class="text-2xl font-bold text-purple-600">${raffleEligible.length}</span>
+                                <span class="text-xs text-gray-500 block">eligible entries</span>
+                            </div>
+                            <div class="space-y-1.5 max-h-40 overflow-y-auto">
+                                ${raffleEligible.slice(0, 10).map(r => `
+                                    <div class="flex items-center gap-2">
+                                        ${Components.avatar(r.avatar, 'sm')}
+                                        <span class="text-xs text-gray-700 truncate flex-1">${esc(r.name)}</span>
+                                        <span class="text-[10px] text-gray-400">${r.count} preds</span>
+                                    </div>
+                                `).join('')}
+                                ${raffleEligible.length > 10 ? `<div class="text-xs text-gray-400 text-center">+${raffleEligible.length - 10} more</div>` : ''}
+                            </div>
+                        ` : '<div class="text-xs text-gray-400 text-center py-4">Make 5+ predictions to enter</div>'}
+                    </div>
+                </div>
+
+                <!-- How It Works -->
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                    <h3 class="font-bold text-blue-700 text-sm mb-2">How Quarterly Awards Work</h3>
+                    <div class="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-xs text-blue-700">
+                        <div>• Awards are calculated from resolved predictions only</div>
+                        <div>• Sharpest Mind requires min 10 resolved predictions</div>
+                        <div>• Best ROI requires min 5 resolved predictions</div>
+                        <div>• Department Champion requires 3+ members</div>
+                        <div>• Weekly Streak requires 4+ consecutive weeks</div>
+                        <div>• Same person can win multiple awards</div>
+                    </div>
+                </div>
+            </div>
+        `;
     },
 
     // ==================== CREATE MARKET ====================
