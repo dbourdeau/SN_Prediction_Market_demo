@@ -485,7 +485,7 @@ const Pages = {
         const comments = AppState.selectedMarketComments || [];
         const isResolved = !!m.resolution;
         const isExpired = !isResolved && days <= 0;
-        const canResolve = AppState.user?.is_admin || (m.created_by === AppState.session?.user?.id);
+        const canResolve = AppState.user?.is_admin;
         const canEdit = !isResolved && (AppState.user?.is_admin || m.created_by === AppState.session?.user?.id);
         const qYes = m.q_yes || 0, qNo = m.q_no || 0;
         const canTrade = !isResolved && !isExpired && m.status === 'active';
@@ -601,7 +601,7 @@ const Pages = {
                                 <button onclick="handleAddComment(${m.id})" id="comment-btn" class="bg-shark-600 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-medium hover:bg-shark-700 transition-colors shrink-0">Post</button>
                             </div>` : ''}
                             <div class="space-y-4" id="comments-list">
-                                ${comments.length > 0 ? comments.slice(0, AppState._commentsShown || 10).map(c => {
+                                ${AppState.navigating && comments.length === 0 ? '<div class="text-center py-4"><div class="inline-block w-5 h-5 border-2 border-shark-200 border-t-shark-600 rounded-full animate-spin"></div></div>' : comments.length > 0 ? comments.slice(0, AppState._commentsShown || 10).map(c => {
                                     const profile = c.profiles || {};
                                     const userName = profile.name || 'Unknown';
                                     const dept = profile.department || '';
