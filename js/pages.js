@@ -485,7 +485,7 @@ const Pages = {
         const comments = AppState.selectedMarketComments || [];
         const isResolved = !!m.resolution;
         const isExpired = !isResolved && days <= 0;
-        const canResolve = AppState.user?.is_admin;
+        const canResolve = AppState.user?.is_admin || (m.created_by === AppState.session?.user?.id);
         const canEdit = !isResolved && (AppState.user?.is_admin || m.created_by === AppState.session?.user?.id);
         const qYes = m.q_yes || 0, qNo = m.q_no || 0;
         const canTrade = !isResolved && !isExpired && m.status === 'active';
