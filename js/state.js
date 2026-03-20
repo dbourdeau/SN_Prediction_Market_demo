@@ -53,10 +53,6 @@ const AppState = {
         this._checkReferral(); // stash referral code from URL before auth
         this.loading = true;
         this.notify();
-        // Safety: force-clear loading after 10s if something hangs
-        const loadingTimeout = setTimeout(() => {
-            if (this.loading) { console.warn('Init timeout — forcing load'); this.loading = false; if (!this.session) this.currentPage = 'login'; this.notify(); }
-        }, 10000);
         try {
             const session = await Auth.getSession();
             if (session) {
@@ -85,7 +81,6 @@ const AppState = {
         } catch (e) {
             console.error('Init error:', e);
         }
-        clearTimeout(loadingTimeout);
         this.loading = false;
         this.notify();
 
@@ -182,41 +177,36 @@ const AppState = {
 
         const needsAsync = !!(data?.marketId || data?.profileId || page === 'leaderboard' || page === 'admin' || page === 'transactions');
         this.currentPage = page;
+        this.selectedMarket = null;
+        this.selectedMarketComments = [];
+        this.selectedMarketPredictions = [];
         this._commentsShown = 10;
+        if (needsAsync) this.navigating = true;
+        this.notify(); // show page immediately (with loading state)
 
-        // Use cached data for instant render, then refresh in background
         if (data?.marketId) {
             const mid = data.marketId;
-            const cached = this.markets.find(m => m.id === mid);
-            this.selectedMarket = cached || null;
-            this.selectedMarketComments = [];
-            this.selectedMarketPredictions = [];
-            if (!cached) this.navigating = true;
-            this.notify(); // show cached market instantly (or skeleton if no cache)
+            const withTimeout = (promise, ms = 8000) =>
+                Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
 
-            // Fetch fresh market data + comments + predictions in background
-            Promise.all([
-                DB.getMarket(mid).catch(e => { console.error('Failed to load market:', e); return cached; }),
-                DB.getComments(mid).catch(() => []),
-                DB.getMarketPredictions(mid).catch(() => []),
-            ]).then(([market, comments, predictions]) => {
-                this.selectedMarket = market || cached;
+            // Load market, comments, and predictions in parallel
+            try {
+                const [market, comments, predictions] = await withTimeout(Promise.all([
+                    DB.getMarket(mid).catch(e => { console.error('Failed to load market:', e); return null; }),
+                    DB.getComments(mid).catch(() => []),
+                    DB.getMarketPredictions(mid).catch(() => []),
+                ]));
+                this.selectedMarket = market;
                 this.selectedMarketComments = comments || [];
                 this.selectedMarketPredictions = predictions || [];
-                // Update cache in markets list too
-                if (market) {
-                    const idx = this.markets.findIndex(m => m.id === mid);
-                    if (idx >= 0) this.markets[idx] = market;
-                }
-                this.navigating = false;
-                this.notify();
-            }).catch(e => {
-                console.error('Market load failed:', e);
-                this.navigating = false;
-                this.notify();
-            });
+            } catch (e) {
+                // Timeout — use whatever we have from the local markets cache
+                console.error('Market load timed out:', e);
+                this.selectedMarket = this.selectedMarket || this.markets.find(m => m.id === mid) || null;
+            }
+            this.notify();
 
-            // Subscribe to realtime (non-blocking)
+            // Subscribe to realtime (non-blocking, don't await)
             try {
                 this._commentsChannel = DB.subscribeToComments(mid, async () => {
                     try { this.selectedMarketComments = await DB.getComments(mid); this.notify(); } catch (e) {}
@@ -234,22 +224,9 @@ const AppState = {
                     } catch (e) {}
                 });
             } catch (e) { console.error('Realtime subscription failed:', e); }
-        } else {
-            this.selectedMarket = null;
-            this.selectedMarketComments = [];
-            this.selectedMarketPredictions = [];
-            if (needsAsync) this.navigating = true;
-            this.notify(); // show page immediately (with loading state)
         }
 
         if (data?.profileId) {
-            // Use cached profile for instant render if available
-            const cachedProfile = this.allUsers.find(u => u.id === data.profileId)
-                || (this.user?.id === data.profileId ? this.user : null);
-            if (cachedProfile) {
-                this.viewingProfile = cachedProfile;
-                this.notify();
-            }
             try {
                 const [profile, predictions] = await Promise.all([
                     DB.getProfileByID(data.profileId), DB.getPredictions(data.profileId)
@@ -278,11 +255,8 @@ const AppState = {
             try { this.transactions = await DB.getTransactions(this.session.user.id); } catch (e) { this.transactions = []; }
         }
 
-        // For market detail, navigating is managed by the background fetch above
-        if (!data?.marketId) {
-            this.navigating = false;
-            this.notify();
-        }
+        this.navigating = false;
+        this.notify();
         window.scrollTo(0, 0);
     },
 
