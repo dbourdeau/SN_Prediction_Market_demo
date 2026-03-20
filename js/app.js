@@ -30,10 +30,11 @@ function render() {
             default: pageContent = Pages.dashboard();
         }
 
+        const progressBar = AppState.navigating ? '<div class="nav-progress"></div>' : '';
         if (AppState.currentPage === 'login') {
             app.innerHTML = pageContent;
         } else {
-            app.innerHTML = Components.header() + '<main>' + pageContent + '</main>';
+            app.innerHTML = progressBar + Components.header() + '<main>' + pageContent + '</main>';
         }
 
         // Restore search input value after re-render (debounced search causes re-render)

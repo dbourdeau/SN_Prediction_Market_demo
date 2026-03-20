@@ -785,6 +785,15 @@ const Pages = {
         const top3 = lb.slice(0, 3);
         const tab = AppState.leaderboardTab || 'individual';
 
+        if (AppState.navigating && lb.length === 0) return `
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 fade-in">
+                <div class="skeleton-line mb-3" style="width:180px;height:28px"></div>
+                <div class="skeleton-line mb-6" style="width:320px;height:14px"></div>
+                <div class="skeleton-line mb-6" style="width:100%;height:120px;border-radius:12px"></div>
+                <div class="flex gap-4 justify-center mb-6">${Array.from({length:3}, () => '<div class="skeleton-line" style="width:120px;height:140px;border-radius:12px"></div>').join('')}</div>
+                <div class="space-y-2">${Array.from({length:6}, () => '<div class="skeleton-line" style="width:100%;height:48px;border-radius:8px"></div>').join('')}</div>
+            </div>`;
+
         return `
             <div class="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 fade-in">
                 <h1 class="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Leaderboard</h1>
@@ -1277,6 +1286,20 @@ Background: [Provide relevant context for traders]"
     // ==================== USER PROFILE ====================
     profile() {
         const p = AppState.viewingProfile;
+        if (!p && AppState.navigating) return `
+            <div class="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 fade-in">
+                <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 mb-6">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="skeleton-line" style="width:64px;height:64px;border-radius:9999px"></div>
+                        <div class="flex-1 space-y-2">
+                            <div class="skeleton-line" style="width:40%;height:20px"></div>
+                            <div class="skeleton-line" style="width:25%;height:14px"></div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-4 gap-3">${Array.from({length:4}, () => '<div class="skeleton-line" style="height:60px;border-radius:8px"></div>').join('')}</div>
+                </div>
+                <div class="space-y-3">${Array.from({length:3}, () => '<div class="skeleton-line" style="width:100%;height:72px;border-radius:8px"></div>').join('')}</div>
+            </div>`;
         if (!p) return '<div class="text-center py-12">Profile not found.</div>';
 
         const isOwnProfile = p.id === AppState.user?.id;
@@ -1437,6 +1460,13 @@ Background: [Provide relevant context for traders]"
     // ==================== ADMIN PANEL ====================
     admin() {
         if (!AppState.user?.is_admin) return '<div class="text-center py-12 text-gray-400">Access denied.</div>';
+
+        if (AppState.navigating && (AppState.allUsers || []).length === 0) return `
+            <div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 fade-in">
+                <div class="skeleton-line mb-6" style="width:160px;height:28px"></div>
+                <div class="grid sm:grid-cols-3 gap-4 mb-6">${Array.from({length:3}, () => '<div class="skeleton-line" style="height:80px;border-radius:12px"></div>').join('')}</div>
+                <div class="space-y-3">${Array.from({length:5}, () => '<div class="skeleton-line" style="width:100%;height:56px;border-radius:8px"></div>').join('')}</div>
+            </div>`;
 
         const activeMarkets = AppState.markets.filter(m => m.status === 'active' && !m.resolution);
         const expiredMarkets = AppState.markets.filter(m => !m.resolution && daysLeft(m.closes_at) <= 0);
@@ -1894,6 +1924,15 @@ Background: [Provide relevant context for traders]"
     // ==================== TRANSACTIONS ====================
     transactions() {
         const txns = AppState.transactions || [];
+
+        if (AppState.navigating && txns.length === 0) return `
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 fade-in">
+                <div class="skeleton-line mb-6" style="width:220px;height:28px"></div>
+                <div class="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+                    ${Array.from({length:8}, () => '<div class="skeleton-line" style="width:100%;height:44px;border-radius:6px"></div>').join('')}
+                </div>
+            </div>`;
+
         const typeColors = {
             buy: 'bg-blue-100 text-blue-700',
             sell: 'bg-green-100 text-green-700',

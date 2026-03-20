@@ -20,6 +20,7 @@ const AppState = {
     searchQuery: '',
     sortBy: 'trending',
     loading: false,
+    navigating: false,
     darkMode: localStorage.getItem('sn_darkMode') === 'true',
 
     // New state for Tier 1/2 features
@@ -174,11 +175,13 @@ const AppState = {
         DB.unsubscribe(this._predictionsChannel);
         this._commentsChannel = this._predictionsChannel = null;
 
+        const needsAsync = !!(data?.marketId || data?.profileId || page === 'leaderboard' || page === 'admin' || page === 'transactions');
         this.currentPage = page;
         this.selectedMarket = null;
         this.selectedMarketComments = [];
         this.selectedMarketPredictions = [];
         this._commentsShown = 10;
+        if (needsAsync) this.navigating = true;
         this.notify(); // show page immediately (with loading state)
 
         if (data?.marketId) {
@@ -252,6 +255,7 @@ const AppState = {
             try { this.transactions = await DB.getTransactions(this.session.user.id); } catch (e) { this.transactions = []; }
         }
 
+        this.navigating = false;
         this.notify();
         window.scrollTo(0, 0);
     },
@@ -347,12 +351,16 @@ const AppState = {
             market.version = (market.version || 0) + 1;
             Object.assign(market, marketUpdates);
             this.selectedMarket = market;
+            this.notify(); // show updated price immediately
 
-            this.userPredictions = await DB.getPredictions(this.session.user.id);
-            if (this.selectedMarket?.id === marketId) {
-                this.selectedMarketPredictions = await DB.getMarketPredictions(marketId);
-            }
-            this.notify();
+            // Refresh predictions in background — don't block the return
+            Promise.all([
+                DB.getPredictions(this.session.user.id).then(p => { this.userPredictions = p; }),
+                this.selectedMarket?.id === marketId
+                    ? DB.getMarketPredictions(marketId).then(p => { this.selectedMarketPredictions = p; })
+                    : Promise.resolve(),
+            ]).then(() => this.notify()).catch(e => console.error('Failed to refresh predictions:', e));
+
             return { shares, priceImpact };
         } catch (e) {
             console.error('Prediction error:', e);
@@ -436,13 +444,17 @@ const AppState = {
             this.user.balance = this.user.balance + roundedRevenue;
             market.version = (market.version || 0) + 1;
             Object.assign(market, marketUpdates);
+            if (this.selectedMarket?.id === market.id) this.selectedMarket = market;
+            this.notify(); // show updated price/balance immediately
 
-            this.userPredictions = await DB.getPredictions(this.session.user.id);
-            if (this.selectedMarket?.id === market.id) {
-                this.selectedMarket = market;
-                this.selectedMarketPredictions = await DB.getMarketPredictions(market.id);
-            }
-            this.notify();
+            // Refresh predictions in background — don't block the return
+            Promise.all([
+                DB.getPredictions(this.session.user.id).then(p => { this.userPredictions = p; }),
+                this.selectedMarket?.id === market.id
+                    ? DB.getMarketPredictions(market.id).then(p => { this.selectedMarketPredictions = p; })
+                    : Promise.resolve(),
+            ]).then(() => this.notify()).catch(e => console.error('Failed to refresh predictions:', e));
+
             return { revenue: roundedRevenue, profit: roundedRevenue - pred.amount };
         } catch (e) {
             console.error('Sell error:', e.message || e);
