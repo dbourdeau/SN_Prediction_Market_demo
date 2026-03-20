@@ -53,6 +53,10 @@ const AppState = {
         this._checkReferral(); // stash referral code from URL before auth
         this.loading = true;
         this.notify();
+        // Safety: force-clear loading after 10s if something hangs
+        const loadingTimeout = setTimeout(() => {
+            if (this.loading) { console.warn('Init timeout — forcing load'); this.loading = false; if (!this.session) this.currentPage = 'login'; this.notify(); }
+        }, 10000);
         try {
             const session = await Auth.getSession();
             if (session) {
@@ -81,6 +85,7 @@ const AppState = {
         } catch (e) {
             console.error('Init error:', e);
         }
+        clearTimeout(loadingTimeout);
         this.loading = false;
         this.notify();
 
