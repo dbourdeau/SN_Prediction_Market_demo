@@ -684,7 +684,7 @@ const Components = {
                         </div>
                         <nav class="hidden md:flex items-center gap-0.5">
                             ${navItems.map(item => `
-                                <button onclick="AppState.navigate('${item.id}')"
+                                <button id="nav-${item.id}" onclick="AppState.navigate('${item.id}')"
                                     class="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium
                                     ${AppState.currentPage === item.id ? 'bg-white/20 text-white shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/10'}">
                                     ${item.icon} ${item.label}
@@ -698,11 +698,11 @@ const Components = {
                                     : '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>'
                                 }
                             </button>
-                            <button onclick="AppState.navigate('notifications')" class="relative text-white/70 hover:text-white transition-colors p-1">
+                            <button id="nav-notifications" onclick="AppState.navigate('notifications')" class="relative text-white/70 hover:text-white transition-colors p-1">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
                                 ${unread > 0 ? `<span class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold">${unread > 9 ? '9+' : unread}</span>` : ''}
                             </button>
-                            <div class="flex items-center gap-1 sm:gap-2 bg-white/10 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5">
+                            <div id="tour-balance" class="flex items-center gap-1 sm:gap-2 bg-white/10 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5">
                                 <span class="text-xs sm:text-sm font-semibold">${(AppState.user?.balance || 0).toLocaleString()}</span>
                                 <span class="text-xs text-white/60 hidden sm:inline">tokens</span>
                                 <span class="text-xs text-white/60 sm:hidden">t</span>
@@ -728,5 +728,228 @@ const Components = {
                 </div>
             </header>
         `;
+    },
+};
+
+// ==================== GUIDED TOUR ====================
+
+const Tour = {
+    _step: 0,
+    _active: false,
+
+    steps: [
+        {
+            target: () => document.getElementById('tour-balance'),
+            title: 'Your Token Balance',
+            text: 'You start with 1,000 tokens. Use them to buy shares on predictions you believe in. Winning predictions pay out!',
+            icon: '💰',
+        },
+        {
+            target: () => document.getElementById('nav-markets'),
+            title: 'Browse Markets',
+            text: 'Markets are questions about the future. Browse open markets, filter by category, and find questions you have insight on.',
+            icon: '📊',
+        },
+        {
+            target: () => document.querySelector('.cursor-pointer.rounded-xl'),
+            title: 'Market Cards',
+            text: 'Each card shows the current probability and trading activity. Click any market to see details, charts, and place a trade.',
+            icon: '🎯',
+        },
+        {
+            target: () => document.getElementById('nav-create'),
+            title: 'Create a Market',
+            text: 'Got a question worth predicting? Create your own market! Markets need admin approval before going live.',
+            icon: '✨',
+        },
+        {
+            target: () => document.getElementById('nav-leaderboard'),
+            title: 'Leaderboard & Prizes',
+            text: 'Compete with your colleagues! Top forecasters earn points and can win quarterly prizes. Check the leaderboard to see where you stand.',
+            icon: '🏆',
+        },
+        {
+            target: () => document.getElementById('nav-notifications'),
+            title: 'Stay Updated',
+            text: "You'll get notified when markets you're watching move, when your predictions pay out, and when new markets launch. That's it — you're ready to start!",
+            icon: '🔔',
+        },
+    ],
+
+    start() {
+        this._step = 0;
+        this._active = true;
+        this._onKeyDown = (e) => { if (e.key === 'Escape') Tour.end(); else if (e.key === 'ArrowRight') Tour.next(); else if (e.key === 'ArrowLeft') Tour.prev(); };
+        this._onResize = () => { if (this._active) this._render(); };
+        document.addEventListener('keydown', this._onKeyDown);
+        window.addEventListener('resize', this._onResize);
+        this._render();
+    },
+
+    next() {
+        if (this._step < this.steps.length - 1) {
+            this._step++;
+            this._render();
+        } else {
+            this.end();
+        }
+    },
+
+    prev() {
+        if (this._step > 0) {
+            this._step--;
+            this._render();
+        }
+    },
+
+    end() {
+        this._active = false;
+        const overlay = document.getElementById('tour-overlay');
+        if (overlay) overlay.remove();
+        if (this._onKeyDown) document.removeEventListener('keydown', this._onKeyDown);
+        if (this._onResize) window.removeEventListener('resize', this._onResize);
+        AppState.completeOnboarding();
+    },
+
+    _render() {
+        const step = this.steps[this._step];
+        const el = step.target();
+
+        // Remove existing overlay
+        let overlay = document.getElementById('tour-overlay');
+        if (overlay) overlay.remove();
+
+        // Create overlay container
+        overlay = document.createElement('div');
+        overlay.id = 'tour-overlay';
+        overlay.className = 'tour-overlay';
+        document.body.appendChild(overlay);
+
+        // Calculate target rect (or center of screen if target not found)
+        const pad = 8;
+        let rect;
+        if (el) {
+            const r = el.getBoundingClientRect();
+            rect = { x: r.left - pad, y: r.top - pad, w: r.width + pad * 2, h: r.height + pad * 2 };
+            // Scroll into view if needed
+            if (r.top < 0 || r.bottom > window.innerHeight) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const r2 = el.getBoundingClientRect();
+                rect = { x: r2.left - pad, y: r2.top - pad, w: r2.width + pad * 2, h: r2.height + pad * 2 };
+            }
+        } else {
+            rect = { x: window.innerWidth / 2 - 100, y: window.innerHeight / 2 - 30, w: 200, h: 60 };
+        }
+
+        // SVG overlay with cutout
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(svgNS, 'svg');
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', '100%');
+        svg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%';
+
+        const defs = document.createElementNS(svgNS, 'defs');
+        const mask = document.createElementNS(svgNS, 'mask');
+        mask.id = 'tour-mask';
+
+        const maskBg = document.createElementNS(svgNS, 'rect');
+        maskBg.setAttribute('width', '100%');
+        maskBg.setAttribute('height', '100%');
+        maskBg.setAttribute('fill', 'white');
+
+        const cutout = document.createElementNS(svgNS, 'rect');
+        cutout.setAttribute('x', rect.x);
+        cutout.setAttribute('y', rect.y);
+        cutout.setAttribute('width', rect.w);
+        cutout.setAttribute('height', rect.h);
+        cutout.setAttribute('rx', '8');
+        cutout.setAttribute('fill', 'black');
+
+        mask.appendChild(maskBg);
+        mask.appendChild(cutout);
+        defs.appendChild(mask);
+        svg.appendChild(defs);
+
+        const bg = document.createElementNS(svgNS, 'rect');
+        bg.setAttribute('width', '100%');
+        bg.setAttribute('height', '100%');
+        bg.setAttribute('fill', 'rgba(0,0,0,0.55)');
+        bg.setAttribute('mask', 'url(#tour-mask)');
+        svg.appendChild(bg);
+
+        // Highlight border around target
+        const highlight = document.createElementNS(svgNS, 'rect');
+        highlight.setAttribute('x', rect.x);
+        highlight.setAttribute('y', rect.y);
+        highlight.setAttribute('width', rect.w);
+        highlight.setAttribute('height', rect.h);
+        highlight.setAttribute('rx', '8');
+        highlight.setAttribute('fill', 'none');
+        highlight.setAttribute('stroke', '#0c8eeb');
+        highlight.setAttribute('stroke-width', '2');
+        svg.appendChild(highlight);
+
+        overlay.appendChild(svg);
+
+        // Position tooltip
+        const isLast = this._step === this.steps.length - 1;
+        const isFirst = this._step === 0;
+        const tooltip = document.createElement('div');
+        tooltip.className = 'tour-tooltip';
+
+        // Determine if tooltip should go above or below target
+        const spaceBelow = window.innerHeight - (rect.y + rect.h);
+        const showBelow = spaceBelow > 220 || rect.y < 200;
+
+        if (showBelow) {
+            tooltip.classList.add('arrow-top');
+            tooltip.style.top = (rect.y + rect.h + 12) + 'px';
+        } else {
+            tooltip.classList.add('arrow-bottom');
+            tooltip.style.bottom = (window.innerHeight - rect.y + 12) + 'px';
+        }
+
+        // Horizontal position — try to align with target, clamp to viewport
+        let left = rect.x;
+        const maxLeft = window.innerWidth - 356; // 340 max-width + 16 padding
+        if (left > maxLeft) left = maxLeft;
+        if (left < 16) left = 16;
+        tooltip.style.left = left + 'px';
+
+        // Adjust arrow position to point at target center
+        const arrowLeft = Math.max(16, Math.min(rect.x + rect.w / 2 - left, 300));
+
+        // Step dots
+        const dots = this.steps.map((_, i) =>
+            `<span class="${i === this._step ? 'active' : ''}"></span>`
+        ).join('');
+
+        tooltip.innerHTML = `
+            <div class="flex items-start gap-3 mb-3">
+                <span class="text-2xl">${step.icon}</span>
+                <div>
+                    <div class="font-bold text-gray-900 text-sm">${step.title}</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Step ${this._step + 1} of ${this.steps.length}</div>
+                </div>
+            </div>
+            <p class="text-sm text-gray-600 mb-4 leading-relaxed">${step.text}</p>
+            <div class="flex items-center justify-between">
+                <div class="tour-step-dots">${dots}</div>
+                <div class="flex gap-2">
+                    ${!isFirst ? '<button onclick="Tour.prev()" class="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 font-medium">Back</button>' : '<button onclick="Tour.end()" class="px-3 py-1.5 text-sm text-gray-400 hover:text-gray-600 font-medium">Skip</button>'}
+                    <button onclick="Tour.next()" class="px-4 py-1.5 bg-shark-600 text-white text-sm font-semibold rounded-lg hover:bg-shark-700 transition-colors">${isLast ? 'Get Started!' : 'Next'}</button>
+                </div>
+            </div>
+        `;
+
+        // Fix arrow position via inline style on the pseudo-element
+        const arrowStyle = document.createElement('style');
+        arrowStyle.textContent = `#tour-overlay .tour-tooltip::before { left: ${arrowLeft}px !important; }`;
+        overlay.appendChild(arrowStyle);
+
+        overlay.appendChild(tooltip);
+
+        // Click on overlay background dismisses tour
+        svg.addEventListener('click', () => Tour.end());
     },
 };

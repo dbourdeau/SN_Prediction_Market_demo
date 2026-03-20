@@ -176,8 +176,8 @@ const Pages = {
                                 </div>
                             </div>
                             <div class="flex gap-3">
-                                <button onclick="AppState.navigate('markets')" class="bg-shark-600 text-white px-6 py-2.5 rounded-lg font-semibold text-sm hover:bg-shark-700 transition-colors">Browse Markets</button>
-                                <button onclick="AppState.navigate('create')" class="bg-gray-100 text-gray-700 px-5 py-2.5 rounded-lg font-semibold text-sm hover:bg-gray-200 transition-colors">Create a Market</button>
+                                <button onclick="Tour.start()" class="bg-shark-600 text-white px-6 py-2.5 rounded-lg font-semibold text-sm hover:bg-shark-700 transition-colors">Take the Tour</button>
+                                <button onclick="AppState.navigate('markets')" class="bg-gray-100 text-gray-700 px-5 py-2.5 rounded-lg font-semibold text-sm hover:bg-gray-200 transition-colors">Browse Markets</button>
                                 <button onclick="AppState.completeOnboarding()" class="text-gray-400 text-sm hover:text-gray-600 ml-auto">Skip</button>
                             </div>
                         </div>
@@ -1366,7 +1366,8 @@ Background: [Provide relevant context for traders]"
                             <button onclick="navigator.clipboard.writeText(document.getElementById('referral-link-input').value).then(() => showToast('Referral link copied!', 'success'))" class="px-3 py-1.5 bg-shark-600 text-white rounded-lg text-xs font-medium hover:bg-shark-700 shrink-0">Copy</button>
                         </div>
                         <p class="text-xs text-gray-400 mt-1">Share this link — you both earn 100 tokens when someone signs up!</p>
-                    </div>` : ''}
+                    </div>
+                    <button onclick="AppState.navigate('dashboard'); setTimeout(() => Tour.start(), 300)" class="mt-3 text-sm text-shark-600 hover:text-shark-800 font-medium">Replay guided tour</button>` : ''}
                 </div>
 
                 <!-- Achievements -->
