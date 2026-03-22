@@ -747,6 +747,24 @@ const Pages = {
                             `}
                         </div>` : ''}
 
+                        <!-- AI Summary -->
+                        ${m.traders > 0 ? `
+                        <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="font-semibold text-gray-900 flex items-center gap-1.5">
+                                    <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                                    AI Analysis
+                                </h3>
+                                <button onclick="handleAISummarize(${m.id})" id="ai-summary-btn" class="text-xs font-medium text-purple-600 hover:text-purple-800 transition-colors">
+                                    Generate
+                                </button>
+                            </div>
+                            <div id="ai-summary-content" class="text-sm text-gray-600">
+                                <p class="text-xs text-gray-400">Click Generate for an AI-powered analysis of this market's activity and sentiment.</p>
+                            </div>
+                        </div>
+                        ` : ''}
+
                         <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
                             <h3 class="font-semibold text-gray-900 mb-4">Market Info</h3>
                             <div class="space-y-2.5 text-sm">
@@ -1182,6 +1200,21 @@ const Pages = {
                             <button onclick="applyMarketTemplate(${i})" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-600 hover:bg-shark-100 hover:text-shark-700 transition-colors">${esc(t.label)}</button>
                         `).join('')}
                     </div>
+                </div>
+
+                <!-- AI Market Suggestions -->
+                <div class="mb-6">
+                    <div class="text-xs font-semibold text-gray-500 uppercase mb-2">Or generate with AI</div>
+                    <div class="flex gap-2">
+                        <input type="text" id="ai-topic-input" placeholder="e.g. NinjaCreami sales, Dyson competition, Q3 targets..." maxlength="200"
+                            onkeydown="if(event.key==='Enter'){event.preventDefault();handleAISuggest()}"
+                            class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"/>
+                        <button onclick="handleAISuggest()" id="ai-suggest-btn" class="px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 text-white hover:bg-purple-700 transition-colors flex items-center gap-1.5 shrink-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                            Generate Ideas
+                        </button>
+                    </div>
+                    <div id="ai-suggestions" class="mt-3 hidden"></div>
                 </div>
 
                 <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 space-y-5">

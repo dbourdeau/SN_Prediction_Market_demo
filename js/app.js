@@ -764,6 +764,112 @@ async function handleRunQuarterlyAwards(offset = 0) {
     }
 }
 
+// ==================== AI FEATURES ====================
+
+async function handleAISuggest() {
+    const input = document.getElementById('ai-topic-input');
+    const btn = document.getElementById('ai-suggest-btn');
+    const container = document.getElementById('ai-suggestions');
+    const topic = input?.value?.trim();
+
+    if (!topic) { showToast('Enter a topic to generate market ideas', 'info'); return; }
+
+    if (btn) { btn.disabled = true; btn.innerHTML = '<div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Thinking...'; }
+    if (container) { container.classList.remove('hidden'); container.innerHTML = '<div class="text-sm text-gray-400 flex items-center gap-2"><div class="w-4 h-4 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin"></div> Generating market ideas...</div>'; }
+
+    try {
+        const category = document.getElementById('create-category')?.value;
+        const suggestions = await AI.suggestMarkets(topic, category);
+        if (!suggestions || suggestions.length === 0) {
+            container.innerHTML = '<div class="text-sm text-gray-500">No suggestions generated. Try a different topic.</div>';
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="space-y-3">
+                ${suggestions.map((s, i) => {
+                    const cat = Object.values(CATEGORIES).find(c => c.id === s.category);
+                    return `
+                    <div class="bg-white border border-purple-200 rounded-xl p-4 card-hover cursor-pointer group" onclick="applyAISuggestion(${i})">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 mb-1">
+                                    ${cat ? `<span class="text-xs">${cat.icon}</span>` : ''}
+                                    <span class="text-xs font-medium text-purple-600">${esc(cat?.label || s.category)}</span>
+                                </div>
+                                <h4 class="text-sm font-semibold text-gray-900 mb-1">${esc(s.title)}</h4>
+                                <p class="text-xs text-gray-500 line-clamp-2">${esc(s.description)}</p>
+                                ${s.closes_at ? `<span class="text-xs text-gray-400 mt-1 inline-block">Closes: ${s.closes_at}</span>` : ''}
+                            </div>
+                            <span class="text-xs text-purple-500 font-medium opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-1">Use this →</span>
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>`;
+
+        // Stash suggestions for click handler
+        window._aiSuggestions = suggestions;
+    } catch (e) {
+        console.error('AI suggest error:', e);
+        container.innerHTML = `<div class="text-sm text-red-500">Failed to generate ideas: ${esc(e.message)}</div>`;
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg> Generate Ideas';
+        }
+    }
+}
+
+function applyAISuggestion(index) {
+    const s = window._aiSuggestions?.[index];
+    if (!s) return;
+
+    const titleEl = document.getElementById('create-title');
+    const descEl = document.getElementById('create-desc');
+    const catEl = document.getElementById('create-category');
+    const closesEl = document.getElementById('create-closes');
+
+    if (titleEl) { titleEl.value = s.title; document.getElementById('title-count').textContent = s.title.length + '/200'; }
+    if (descEl) { descEl.value = s.description; document.getElementById('desc-count').textContent = s.description.length + '/5000'; }
+    if (catEl && s.category) catEl.value = s.category;
+    if (closesEl && s.closes_at) closesEl.value = s.closes_at;
+
+    // Scroll to the form
+    titleEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    titleEl?.focus();
+
+    showToast('AI suggestion applied — review and edit before creating!', 'success');
+}
+
+async function handleAISummarize(marketId) {
+    const btn = document.getElementById('ai-summary-btn');
+    const container = document.getElementById('ai-summary-content');
+
+    if (btn) { btn.disabled = true; btn.textContent = 'Analyzing...'; }
+    if (container) { container.innerHTML = '<div class="flex items-center gap-2 text-xs text-gray-400"><div class="w-3 h-3 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin"></div> Analyzing market activity...</div>'; }
+
+    try {
+        const market = AppState.selectedMarket;
+        const predictions = AppState.selectedMarketPredictions || [];
+        const comments = AppState.selectedMarketComments || [];
+
+        const summary = await AI.summarizeMarket(market, predictions, comments);
+        if (container) {
+            container.innerHTML = `
+                <p class="text-sm text-gray-700 leading-relaxed">${esc(summary)}</p>
+                <p class="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    AI-generated summary — may not reflect all nuances
+                </p>`;
+        }
+    } catch (e) {
+        console.error('AI summarize error:', e);
+        if (container) container.innerHTML = `<div class="text-sm text-red-500">${esc(e.message)}</div>`;
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Refresh'; }
+    }
+}
+
 // ==================== INIT ====================
 
 AppState.subscribe(render);
