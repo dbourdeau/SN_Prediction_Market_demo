@@ -1,40 +1,22 @@
-// AI integration — calls the Claude proxy Edge Function
-// The API key never touches the browser; it lives in Supabase secrets.
+// AI integration — calls Claude API via Postgres RPC functions
+// The API key is stored in app_config table (server-side only, no RLS read access).
+// Browser calls supabase.rpc() → Postgres function → Claude API → response.
 
 const AI = {
     _loading: false,
-
-    // Call the Edge Function proxy
-    async _call(action, payload) {
-        const session = await Auth.getSession();
-        if (!session) throw new Error('Not authenticated');
-
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/claude-proxy`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({ action, payload }),
-        });
-
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || `AI request failed (${res.status})`);
-        }
-
-        const data = await res.json();
-        return data.result;
-    },
 
     // Feature A: Generate market suggestions from a topic
     async suggestMarkets(topic, category) {
         if (this._loading) return null;
         this._loading = true;
         try {
-            const raw = await this._call('suggest_markets', { topic, category });
+            const { data, error } = await supabaseClient.rpc('ai_suggest_markets', {
+                p_topic: topic,
+                p_category: category || null,
+            });
+            if (error) throw new Error(error.message);
             // Parse JSON from response (Claude may wrap it in markdown code fences)
-            const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+            const cleaned = (data || '').replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
             const suggestions = JSON.parse(cleaned);
             if (!Array.isArray(suggestions)) throw new Error('Invalid response format');
             return suggestions;
@@ -44,11 +26,15 @@ const AI = {
     },
 
     // Feature B: Summarize a market's activity
-    async summarizeMarket(market, predictions, comments) {
+    async summarizeMarket(marketId) {
         if (this._loading) return null;
         this._loading = true;
         try {
-            return await this._call('summarize_market', { market, predictions, comments });
+            const { data, error } = await supabaseClient.rpc('ai_summarize_market', {
+                p_market_id: marketId,
+            });
+            if (error) throw new Error(error.message);
+            return data;
         } finally {
             this._loading = false;
         }

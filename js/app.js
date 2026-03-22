@@ -849,11 +849,7 @@ async function handleAISummarize(marketId) {
     if (container) { container.innerHTML = '<div class="flex items-center gap-2 text-xs text-gray-400"><div class="w-3 h-3 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin"></div> Analyzing market activity...</div>'; }
 
     try {
-        const market = AppState.selectedMarket;
-        const predictions = AppState.selectedMarketPredictions || [];
-        const comments = AppState.selectedMarketComments || [];
-
-        const summary = await AI.summarizeMarket(market, predictions, comments);
+        const summary = await AI.summarizeMarket(marketId);
         if (container) {
             container.innerHTML = `
                 <p class="text-sm text-gray-700 leading-relaxed">${esc(summary)}</p>
