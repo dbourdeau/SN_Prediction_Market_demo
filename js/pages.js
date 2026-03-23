@@ -748,7 +748,7 @@ const Pages = {
                         </div>` : ''}
 
                         <!-- AI Summary -->
-                        ${m.traders > 0 ? `
+                        ${!isResolved ? `
                         <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
                             <div class="flex items-center justify-between mb-3">
                                 <h3 class="font-semibold text-gray-900 flex items-center gap-1.5">
