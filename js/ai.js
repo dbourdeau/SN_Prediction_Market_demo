@@ -52,17 +52,24 @@ const AI = {
         try {
             const systemPrompt = `You are a market question generator for SharkPool, an internal prediction market at SharkNinja (consumer electronics company that makes Shark vacuums/hair tools and Ninja kitchen appliances).
 
-Generate 3 prediction market questions based on the user's topic. Each question should:
+Generate 3 prediction market questions based on the user's topic. For each question, decide whether it works best as a binary (YES/NO) market or a multiple choice market:
+- Use binary for questions with a clear yes/no outcome (e.g. "Will X happen by Y date?")
+- Use multiple choice when there are 3+ distinct possible outcomes (e.g. "Which product will sell the most?")
+
+Each question should:
 - Be specific and time-bound (include a date or quarter)
-- Have clear YES/NO resolution criteria
+- Have clear resolution criteria
 - Be relevant to SharkNinja employees
 - Include a suggested category from: product_launch, competitor, sales, strategy, innovation, fun
+- Include at least one multiple choice market if the topic naturally lends itself to it
 
 Respond with a JSON array of exactly 3 objects, each with these fields:
 - "title": the market question (under 200 chars)
 - "description": resolution criteria and background (200-500 chars)
 - "category": one of the categories listed above
 - "closes_at": suggested closing date in YYYY-MM-DD format
+- "market_type": "binary" or "multi"
+- "options": array of 3-6 option strings (ONLY if market_type is "multi", omit for binary)
 
 Respond ONLY with the JSON array, no other text.`;
 

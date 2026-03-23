@@ -796,6 +796,7 @@ async function handleAISuggest() {
                                 <div class="flex items-center gap-2 mb-1">
                                     ${cat ? `<span class="text-xs">${cat.icon}</span>` : ''}
                                     <span class="text-xs font-medium text-purple-600">${esc(cat?.label || s.category)}</span>
+                                    ${s.market_type === 'multi' ? '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">Multi</span>' : '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">Yes/No</span>'}
                                 </div>
                                 <h4 class="text-sm font-semibold text-gray-900 mb-1">${esc(s.title)}</h4>
                                 <p class="text-xs text-gray-500 line-clamp-2">${esc(s.description)}</p>
@@ -823,6 +824,23 @@ async function handleAISuggest() {
 function applyAISuggestion(index) {
     const s = window._aiSuggestions?.[index];
     if (!s) return;
+
+    // Switch market type if needed
+    if (s.market_type === 'multi' && s.options?.length >= 2) {
+        toggleMarketType('multi');
+        // Fill in multi-outcome options
+        const list = document.getElementById('multi-options-list');
+        if (list) {
+            list.innerHTML = s.options.map((opt, i) => `
+                <div class="flex gap-2">
+                    <input type="text" class="multi-option-input flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500" placeholder="Option ${i + 1}" maxlength="100" value="${esc(opt)}"/>
+                    <button onclick="this.parentElement.remove()" class="px-2 text-gray-400 hover:text-red-500 text-sm font-bold">✕</button>
+                </div>
+            `).join('');
+        }
+    } else {
+        toggleMarketType('binary');
+    }
 
     const titleEl = document.getElementById('create-title');
     const descEl = document.getElementById('create-desc');
