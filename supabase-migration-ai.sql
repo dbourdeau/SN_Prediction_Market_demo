@@ -21,13 +21,17 @@ VALUES ('anthropic_api_key', 'YOUR_CLAUDE_API_KEY_HERE')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 -- 3. RPC to fetch the key (authenticated users only)
-CREATE OR REPLACE FUNCTION get_ai_key()
+-- SET search_path = public is required for SECURITY DEFINER to resolve the table
+CREATE OR REPLACE FUNCTION public.get_ai_key()
 RETURNS TEXT AS $$
+DECLARE
+    result TEXT;
 BEGIN
     IF auth.uid() IS NULL THEN
         RAISE EXCEPTION 'Not authenticated';
     END IF;
 
-    RETURN (SELECT value FROM app_config WHERE key = 'anthropic_api_key');
+    SELECT value INTO result FROM public.app_config WHERE key = 'anthropic_api_key';
+    RETURN result;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
