@@ -534,6 +534,19 @@ const Pages = {
                                 </div>
                             </div>
 
+                            ${!isResolved ? `
+                            <div class="bg-purple-50 border border-purple-200 rounded-lg p-3 sm:p-4 mb-4">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                                        <span class="text-sm font-semibold text-purple-700">AI Analysis</span>
+                                    </div>
+                                    <button onclick="handleAISummarize(${m.id})" id="ai-summary-btn" class="px-3 py-1 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-700 transition-colors">Generate</button>
+                                </div>
+                                <div id="ai-summary-content" class="mt-2 text-sm text-gray-700 hidden"></div>
+                            </div>
+                            ` : ''}
+
                             ${canEdit ? `<button onclick="toggleEditMarket()" id="edit-market-btn" class="text-xs text-shark-600 font-medium hover:text-shark-800 mb-4">Edit market</button>
                             <div id="edit-market-form" class="hidden mb-4 p-4 bg-gray-50 rounded-lg space-y-3">
                                 <input type="text" id="edit-title" value="${esc(m.title)}" maxlength="200" class="w-full px-3 py-2 border rounded-lg text-sm"/>
@@ -746,24 +759,6 @@ const Pages = {
                             </div>
                             `}
                         </div>` : ''}
-
-                        <!-- AI Summary -->
-                        ${!isResolved ? `
-                        <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
-                            <div class="flex items-center justify-between mb-3">
-                                <h3 class="font-semibold text-gray-900 flex items-center gap-1.5">
-                                    <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-                                    AI Analysis
-                                </h3>
-                                <button onclick="handleAISummarize(${m.id})" id="ai-summary-btn" class="text-xs font-medium text-purple-600 hover:text-purple-800 transition-colors">
-                                    Generate
-                                </button>
-                            </div>
-                            <div id="ai-summary-content" class="text-sm text-gray-600">
-                                <p class="text-xs text-gray-400">Click Generate for an AI-powered analysis of this market's activity and sentiment.</p>
-                            </div>
-                        </div>
-                        ` : ''}
 
                         <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
                             <h3 class="font-semibold text-gray-900 mb-4">Market Info</h3>
