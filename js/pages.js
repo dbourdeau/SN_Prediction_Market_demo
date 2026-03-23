@@ -82,10 +82,26 @@ const Pages = {
             const pct = Math.round((m.probability || 0) * 100);
             const days = daysLeft(m.closes_at);
             const isMulti = m.market_type === 'multi';
+            const isResolved = !!m.resolution;
+            const isExpired = !isResolved && days <= 0;
             const userPos = (AppState.userPredictions || []).find(p => p.market_id === m.id && p.status === 'active');
             const probs = m.probabilities || [];
             const options = m.options || [];
             const cat = CATEGORIES[Object.keys(CATEGORIES).find(k => CATEGORIES[k].id === m.category)];
+            const isLive = !isResolved && !isExpired && m.traders > 0;
+
+            // Probability change badge
+            let probChange = '';
+            if (!isMulti && !isResolved && m.history && m.history.length >= 2) {
+                const hist = m.history;
+                const current = typeof hist[hist.length - 1] === 'object' ? hist[hist.length - 1].p : hist[hist.length - 1];
+                const compareIdx = Math.max(0, hist.length - Math.min(hist.length, 5));
+                const prev = typeof hist[compareIdx] === 'object' ? hist[compareIdx].p : hist[compareIdx];
+                const diff = Math.round((current - prev) * 100);
+                if (diff !== 0) {
+                    probChange = `<span class="px-1.5 py-0.5 rounded text-xs font-bold ${diff > 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}">${diff > 0 ? '↑' : '↓'}${Math.abs(diff)}%</span>`;
+                }
+            }
 
             // Multi-outcome: show top 3 options
             const multiOutcomes = isMulti ? options.map((opt, i) => ({
@@ -95,6 +111,8 @@ const Pages = {
             return `<div class="bg-white rounded-xl border border-gray-200 p-5 cursor-pointer transition-all duration-200 hover:shadow-md hover:border-gray-300 hover:-translate-y-0.5" onclick="AppState.navigate('market', { marketId: ${m.id} })">
                 <div class="flex items-center gap-2 mb-3">
                     ${cat ? `<span class="text-xs font-medium text-gray-400 uppercase tracking-wide">${cat.icon} ${esc(cat.label)}</span>` : ''}
+                    ${probChange}
+                    ${isLive ? '<span class="pulse-live" title="Active market"></span>' : ''}
                     ${userPos ? `<span class="w-1.5 h-1.5 rounded-full bg-shark-500" title="You have a position"></span>` : ''}
                 </div>
                 <h3 class="${featured ? 'text-base' : 'text-sm'} font-semibold text-gray-900 leading-snug mb-4 line-clamp-2">${esc(m.title)}</h3>
@@ -570,7 +588,7 @@ const Pages = {
                                         <span class="text-xl sm:text-2xl font-bold text-gray-400">50%</span>
                                         <span class="text-sm text-gray-400">No trades yet — starting price</span>
                                     ` : `
-                                        <span class="text-2xl sm:text-3xl font-bold ${pct >= 50 ? 'text-green-600' : 'text-red-500'}">${pct}%</span>
+                                        <span class="text-2xl sm:text-3xl font-bold prob-animate ${pct >= 50 ? 'text-green-600' : 'text-red-500'}" data-target="${pct}" id="prob-counter">${pct}%</span>
                                         <span class="text-sm text-gray-500">${isResolved ? 'Final' : 'chance of YES'}</span>
                                     `}
                                 </div>

@@ -232,6 +232,23 @@ const Components = {
         const catObj = CATEGORIES[Object.keys(CATEGORIES).find(k => CATEGORIES[k].id === market.category)];
         const accentClass = catObj ? `card-accent-${catObj.color}` : '';
 
+        // 7. Live pulse — market had activity recently (volume > 0 as proxy)
+        const isLive = !isResolved && !isExpired && market.traders > 0;
+
+        // 8. Probability change badge
+        let probChange = '';
+        if (!isMulti && !isResolved && market.history && market.history.length >= 2) {
+            const hist = market.history;
+            const current = typeof hist[hist.length - 1] === 'object' ? hist[hist.length - 1].p : hist[hist.length - 1];
+            // Compare to ~24h ago or earliest available
+            const compareIdx = Math.max(0, hist.length - Math.min(hist.length, 5));
+            const prev = typeof hist[compareIdx] === 'object' ? hist[compareIdx].p : hist[compareIdx];
+            const diff = Math.round((current - prev) * 100);
+            if (diff !== 0) {
+                probChange = `<span class="px-1.5 py-0.5 rounded text-xs font-bold ${diff > 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}">${diff > 0 ? '↑' : '↓'}${Math.abs(diff)}%</span>`;
+            }
+        }
+
         return `
             <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 card-hover cursor-pointer fade-in ${accentClass} ${isResolved ? 'opacity-70' : ''}"
                  onclick="AppState.navigate('market', { marketId: ${market.id} })">
@@ -243,6 +260,8 @@ const Components = {
                             ${market.trending && !isResolved ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-600">🔥 Trending</span>' : ''}
                             ${this.statusBadge(market)}
                             ${isExpired && !isResolved ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-600">Expired</span>' : ''}
+                            ${probChange}
+                            ${isLive ? '<span class="pulse-live ml-1" title="Active market"></span>' : ''}
                         </div>
                         <h3 class="font-semibold text-gray-900 text-base sm:text-lg leading-snug line-clamp-2">${esc(market.title)}</h3>
                         ${isMulti && multiLeader ? `<div class="text-xs text-gray-500 mt-1.5">Leading: <span class="font-semibold text-gray-700">${esc(multiLeader)}</span> at ${Math.round(Math.max(...(market.probabilities || [0])) * 100)}%</div>` : ''}

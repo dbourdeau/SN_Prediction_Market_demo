@@ -42,6 +42,25 @@ function render() {
         if (searchInput && AppState.searchQuery && searchInput.value !== AppState.searchQuery) {
             searchInput.value = AppState.searchQuery;
         }
+
+        // Animate probability counter on market detail page
+        const counter = document.getElementById('prob-counter');
+        if (counter && counter.dataset.target) {
+            const target = parseInt(counter.dataset.target);
+            let current = 0;
+            const duration = 600;
+            const start = performance.now();
+            const animate = (now) => {
+                const elapsed = now - start;
+                const progress = Math.min(elapsed / duration, 1);
+                // Ease out cubic
+                const eased = 1 - Math.pow(1 - progress, 3);
+                current = Math.round(eased * target);
+                counter.textContent = current + '%';
+                if (progress < 1) requestAnimationFrame(animate);
+            };
+            requestAnimationFrame(animate);
+        }
     } catch (err) {
         console.error('Render error:', err);
         app.innerHTML = Components.header() + `<main>
