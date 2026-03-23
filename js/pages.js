@@ -725,13 +725,13 @@ const Pages = {
                                             <span class="text-xs text-gray-500">${getTimeAgo(p.created_at)}</span>
                                         </div>
                                         <div class="grid grid-cols-2 gap-x-4 text-sm">
-                                            <div class="flex justify-between"><span class="text-gray-500">Cost</span><span class="font-semibold">${p.amount}t</span></div>
-                                            <div class="flex justify-between"><span class="text-gray-500">Shares</span><span class="font-semibold">${p.shares?.toFixed(1) || '—'}</span></div>
+                                            <div class="flex justify-between"><span class="text-gray-500">Cost</span><span class="font-semibold text-gray-800">${p.amount}t</span></div>
+                                            <div class="flex justify-between"><span class="text-gray-500">Shares</span><span class="font-semibold text-gray-800">${p.shares?.toFixed(1) || '—'}</span></div>
                                         </div>
                                         ${canTrade ? `
                                         <div class="flex justify-between text-sm mt-1">
                                             <span class="text-gray-500">Sell value</span>
-                                            <span class="font-semibold">${Math.round(sellValue)}t <span class="${profit >= 0 ? 'text-green-600' : 'text-red-500'}">(${profit >= 0 ? '+' : ''}${profit})</span></span>
+                                            <span class="font-semibold text-gray-800">${Math.round(sellValue)}t <span class="${profit >= 0 ? 'text-green-600' : 'text-red-500'}">(${profit >= 0 ? '+' : ''}${profit})</span></span>
                                         </div>
                                         <button onclick="handleSellPosition(${p.id})" id="sell-btn-${p.id}" class="w-full mt-2 bg-gray-200 hover:bg-gray-300 text-gray-700 py-1.5 rounded-lg text-xs font-semibold transition-colors">Sell Position</button>
                                         ` : ''}
