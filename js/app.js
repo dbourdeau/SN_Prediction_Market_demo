@@ -48,7 +48,7 @@ function render() {
         if (counter && counter.dataset.target) {
             const target = parseInt(counter.dataset.target);
             let current = 0;
-            const duration = 600;
+            const duration = 1500;
             const start = performance.now();
             const animate = (now) => {
                 const elapsed = now - start;
