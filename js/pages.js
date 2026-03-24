@@ -1926,29 +1926,73 @@ Background: [Provide relevant context for traders]"
                 </div>
 
                 <!-- Platform Calibration Chart -->
-                <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 mb-6">
-                    <h2 class="text-lg font-bold text-gray-900 mb-2">Platform Calibration</h2>
-                    <p class="text-xs text-gray-500 mb-4">How well do market prices predict outcomes? Perfect calibration means the diagonal line.</p>
-                    ${cal.some(b => b.count > 0) ? `
-                    <div class="flex items-end gap-2 sm:gap-4 h-48 px-4">
-                        ${cal.map(b => {
-                            const predH = Math.round(b.predicted * 100);
-                            const actH = b.count > 0 ? Math.round(b.actual * 100) : 0;
-                            return `<div class="flex-1 flex flex-col items-center gap-1">
-                                <div class="w-full flex items-end justify-center gap-1" style="height:160px">
-                                    <div class="w-5 sm:w-8 bg-shark-200 rounded-t" style="height:${predH * 1.6}px" title="Predicted: ${predH}%"></div>
-                                    <div class="w-5 sm:w-8 ${Math.abs(actH - predH) < 15 ? 'bg-green-500' : 'bg-red-400'} rounded-t" style="height:${actH * 1.6}px" title="Actual: ${actH}%"></div>
-                                </div>
-                                <div class="text-xs text-gray-500 text-center">${b.label}</div>
-                                <div class="text-xs text-gray-400">(${b.count})</div>
-                            </div>`;
-                        }).join('')}
-                    </div>
-                    <div class="flex items-center gap-4 mt-3 text-xs text-gray-500 justify-center">
-                        <span class="flex items-center gap-1"><span class="w-3 h-3 bg-shark-200 rounded"></span> Predicted</span>
-                        <span class="flex items-center gap-1"><span class="w-3 h-3 bg-green-500 rounded"></span> Actual (calibrated)</span>
-                        <span class="flex items-center gap-1"><span class="w-3 h-3 bg-red-400 rounded"></span> Actual (miscalibrated)</span>
-                    </div>` : '<div class="text-center py-8 text-gray-400 text-sm">Not enough resolved markets for calibration data.</div>'}
+                <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6 mb-6">
+                    <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Platform Calibration</h2>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">How well do market prices predict outcomes? Points on the diagonal line = perfect calibration.</p>
+                    ${cal.some(b => b.count > 0) ? (() => {
+                        const W = 320, H = 280, pad = { top: 20, right: 20, bottom: 40, left: 48 };
+                        const plotW = W - pad.left - pad.right, plotH = H - pad.top - pad.bottom;
+                        const sx = v => pad.left + v * plotW;
+                        const sy = v => pad.top + (1 - v) * plotH;
+                        const ticks = [0, 0.25, 0.5, 0.75, 1.0];
+                        const maxCount = Math.max(...cal.map(b => b.count), 1);
+                        const brierScore = cal.reduce((sum, b) => b.count > 0 ? sum + Math.pow(b.predicted - b.actual, 2) : sum, 0) / Math.max(cal.filter(b => b.count > 0).length, 1);
+
+                        return `<div class="flex flex-col items-center">
+                        <svg viewBox="0 0 ${W} ${H}" class="w-full max-w-sm" style="font-family: ui-sans-serif, system-ui, sans-serif">
+                            <!-- Gridlines -->
+                            ${ticks.map(t => `
+                                <line x1="${sx(0)}" y1="${sy(t)}" x2="${sx(1)}" y2="${sy(t)}" stroke="#e5e7eb" stroke-width="0.5" stroke-dasharray="${t === 0 || t === 1 ? '0' : '3,3'}"/>
+                                <line x1="${sx(t)}" y1="${sy(0)}" x2="${sx(t)}" y2="${sy(1)}" stroke="#e5e7eb" stroke-width="0.5" stroke-dasharray="${t === 0 || t === 1 ? '0' : '3,3'}"/>
+                            `).join('')}
+
+                            <!-- Perfect calibration diagonal -->
+                            <line x1="${sx(0)}" y1="${sy(0)}" x2="${sx(1)}" y2="${sy(1)}" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.7"/>
+
+                            <!-- Confidence band (±15% around diagonal) -->
+                            <polygon points="${sx(0)},${sy(0.15)} ${sx(0.85)},${sy(1)} ${sx(1)},${sy(1)} ${sx(1)},${sy(0.85)} ${sx(0.15)},${sy(0)} ${sx(0)},${sy(0)}" fill="#10b981" opacity="0.06"/>
+
+                            <!-- Axes -->
+                            <line x1="${sx(0)}" y1="${sy(0)}" x2="${sx(1)}" y2="${sy(0)}" stroke="#6b7280" stroke-width="1"/>
+                            <line x1="${sx(0)}" y1="${sy(0)}" x2="${sx(0)}" y2="${sy(1)}" stroke="#6b7280" stroke-width="1"/>
+
+                            <!-- Y-axis labels -->
+                            ${ticks.map(t => `<text x="${sx(0) - 6}" y="${sy(t) + 4}" text-anchor="end" fill="#6b7280" font-size="10">${Math.round(t * 100)}%</text>`).join('')}
+
+                            <!-- X-axis labels -->
+                            ${ticks.map(t => `<text x="${sx(t)}" y="${sy(0) + 16}" text-anchor="middle" fill="#6b7280" font-size="10">${Math.round(t * 100)}%</text>`).join('')}
+
+                            <!-- Axis titles -->
+                            <text x="${sx(0.5)}" y="${H - 2}" text-anchor="middle" fill="#6b7280" font-size="11" font-weight="500">Predicted Probability</text>
+                            <text x="12" y="${sy(0.5)}" text-anchor="middle" fill="#6b7280" font-size="11" font-weight="500" transform="rotate(-90, 12, ${sy(0.5)})">Actual Outcome Rate</text>
+
+                            <!-- Connecting line between points -->
+                            ${cal.filter(b => b.count > 0).length > 1 ? `<polyline points="${cal.filter(b => b.count > 0).map(b => `${sx(b.predicted)},${sy(b.actual)}`).join(' ')}" fill="none" stroke="#0891b2" stroke-width="1.5" opacity="0.5"/>` : ''}
+
+                            <!-- Data points -->
+                            ${cal.map(b => {
+                                if (b.count === 0) return '';
+                                const x = sx(b.predicted);
+                                const y = sy(b.actual);
+                                const r = 6 + (b.count / maxCount) * 10;
+                                const calibrated = Math.abs(b.actual - b.predicted) < 0.15;
+                                const color = calibrated ? '#10b981' : '#f97316';
+                                return `<circle cx="${x}" cy="${y}" r="${r}" fill="${color}" opacity="0.25" stroke="${color}" stroke-width="2"/>
+                                    <circle cx="${x}" cy="${y}" r="3" fill="${color}"/>
+                                    <text x="${x}" y="${y - r - 4}" text-anchor="middle" fill="#374151" font-size="9" font-weight="600">${Math.round(b.actual * 100)}%</text>
+                                    <text x="${x}" y="${y - r - 14}" text-anchor="middle" fill="#9ca3af" font-size="8">n=${b.count}</text>`;
+                            }).join('')}
+                        </svg>
+
+                        <!-- Legend & score -->
+                        <div class="flex flex-wrap items-center gap-4 mt-3 text-xs text-gray-500 dark:text-gray-400 justify-center">
+                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-500 opacity-70"></span> Calibrated (&lt;15% off)</span>
+                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-orange-500 opacity-70"></span> Miscalibrated</span>
+                            <span class="flex items-center gap-1.5"><span class="w-8 border-t-2 border-dashed border-gray-400"></span> Perfect line</span>
+                        </div>
+                        <div class="mt-2 text-xs text-gray-400 dark:text-gray-500">Brier-style score: <span class="font-semibold ${brierScore < 0.05 ? 'text-emerald-600' : brierScore < 0.1 ? 'text-amber-600' : 'text-red-500'}">${brierScore.toFixed(3)}</span> <span class="text-gray-300 dark:text-gray-600">(lower is better, 0 = perfect)</span></div>
+                    </div>`;
+                    })() : '<div class="text-center py-8 text-gray-400 text-sm">Not enough resolved markets for calibration data.</div>'}
                 </div>
 
                 <!-- Flagged Markets -->
