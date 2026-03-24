@@ -243,25 +243,25 @@ const Pages = {
                     <div class="relative overflow-hidden rounded-xl p-4 bg-gradient-to-br from-shark-600 to-shark-800 text-white">
                         <div class="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
                         <div class="text-xs font-medium text-white/70 mb-1">Balance</div>
-                        <div class="text-xl sm:text-2xl font-bold stat-counter" data-target="${AppState.user?.balance || 0}">${(AppState.user?.balance || 0).toLocaleString()}</div>
+                        <div class="text-xl sm:text-2xl font-bold stat-counter" data-target="${AppState.user?.balance || 0}" data-prefix="" data-suffix="">0</div>
                         <div class="text-xs text-white/50 mt-1">tokens</div>
                     </div>
                     <div class="relative overflow-hidden rounded-xl p-4 ${portfolio.unrealizedPnL >= 0 ? 'bg-gradient-to-br from-emerald-500 to-emerald-700' : 'bg-gradient-to-br from-red-500 to-red-700'} text-white">
                         <div class="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
                         <div class="text-xs font-medium text-white/70 mb-1">P&L</div>
-                        <div class="text-xl sm:text-2xl font-bold">${portfolio.unrealizedPnL >= 0 ? '+' : ''}${portfolio.unrealizedPnL.toLocaleString()}</div>
+                        <div class="text-xl sm:text-2xl font-bold stat-counter" data-target="${portfolio.unrealizedPnL}" data-prefix="${portfolio.unrealizedPnL >= 0 ? '+' : ''}" data-suffix="">0</div>
                         <div class="text-xs text-white/50 mt-1">${activePreds.length} position${activePreds.length !== 1 ? 's' : ''} · ${portfolio.totalInvested.toLocaleString()} invested</div>
                     </div>
                     <div class="relative overflow-hidden rounded-xl p-4 bg-gradient-to-br from-amber-500 to-orange-600 text-white">
                         <div class="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
                         <div class="text-xs font-medium text-white/70 mb-1">Rank</div>
-                        <div class="text-xl sm:text-2xl font-bold">${userRank > 0 ? '#' + userRank : '—'}</div>
+                        <div class="text-xl sm:text-2xl font-bold stat-counter" data-target="${userRank}" data-prefix="#" data-suffix="" data-fallback="—">0</div>
                         <div class="text-xs text-white/50 mt-1">of ${AppState.leaderboard.length} forecasters</div>
                     </div>
                     <div class="relative overflow-hidden rounded-xl p-4 bg-gradient-to-br from-violet-500 to-purple-700 text-white">
                         <div class="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
                         <div class="text-xs font-medium text-white/70 mb-1">Markets</div>
-                        <div class="text-xl sm:text-2xl font-bold">${allActive.length}</div>
+                        <div class="text-xl sm:text-2xl font-bold stat-counter" data-target="${allActive.length}" data-prefix="" data-suffix="">0</div>
                         <div class="text-xs text-white/50 mt-1">${totalVolume.toLocaleString()} total volume</div>
                     </div>
                 </div>

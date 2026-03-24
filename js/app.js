@@ -61,6 +61,32 @@ function render() {
             };
             requestAnimationFrame(animate);
         }
+
+        // Animate stat counters on dashboard
+        document.querySelectorAll('.stat-counter').forEach(el => {
+            const target = parseInt(el.dataset.target);
+            const prefix = el.dataset.prefix || '';
+            const suffix = el.dataset.suffix || '';
+            const fallback = el.dataset.fallback;
+            if (fallback && (isNaN(target) || target === 0)) {
+                el.textContent = fallback;
+                return;
+            }
+            if (isNaN(target)) return;
+            const isNeg = target < 0;
+            const absTarget = Math.abs(target);
+            const duration = 1500;
+            const startTime = performance.now();
+            const tick = (now) => {
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const current = Math.round(eased * absTarget);
+                el.textContent = prefix + (isNeg ? '-' : '') + current.toLocaleString() + suffix;
+                if (progress < 1) requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+        });
     } catch (err) {
         console.error('Render error:', err);
         app.innerHTML = Components.header() + `<main>
