@@ -507,6 +507,7 @@ const AppState = {
             approved_by: isAdmin ? this.session.user.id : null,
             approved_at: isAdmin ? new Date().toISOString() : null,
             trending: false,
+            source_url: marketData.source_url || null,
         };
 
         if (isMulti) {

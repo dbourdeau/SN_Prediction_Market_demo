@@ -296,6 +296,7 @@ async function handleCreateMarket() {
     const desc = document.getElementById('create-desc')?.value?.trim();
     const category = document.getElementById('create-category')?.value;
     const closesAt = document.getElementById('create-closes')?.value;
+    const sourceUrl = document.getElementById('create-source-url')?.value?.trim() || null;
     const btn = document.getElementById('create-market-btn');
     const isMulti = document.getElementById('type-multi')?.classList.contains('border-shark-600');
 
@@ -303,7 +304,7 @@ async function handleCreateMarket() {
     if (!desc) { showToast('Please enter a description', 'error'); return; }
     if (!closesAt) { showToast('Please set a closing date', 'error'); return; }
 
-    let marketData = { title, description: desc, category, closesAt };
+    let marketData = { title, description: desc, category, closesAt, source_url: sourceUrl };
 
     if (isMulti) {
         const inputs = document.querySelectorAll('.multi-option-input');
@@ -343,13 +344,14 @@ async function handleEditMarket(marketId) {
     const title = document.getElementById('edit-title')?.value?.trim();
     const desc = document.getElementById('edit-desc')?.value?.trim();
     const closesAt = document.getElementById('edit-closes')?.value;
+    const sourceUrl = document.getElementById('edit-source-url')?.value?.trim() || null;
     const btn = document.getElementById('save-edit-btn');
 
     if (!title) { showToast('Title cannot be empty', 'error'); return; }
 
     if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
     try {
-        await AppState.editMarket(marketId, { title, description: desc, closes_at: closesAt || undefined });
+        await AppState.editMarket(marketId, { title, description: desc, closes_at: closesAt || undefined, source_url: sourceUrl });
         showToast('Market updated!', 'success');
         toggleEditMarket();
     } catch (e) {
