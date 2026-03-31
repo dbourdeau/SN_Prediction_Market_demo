@@ -296,62 +296,120 @@ const Pages = {
                     const fHistory = feat.history;
                     const fCanTrade = feat.status === 'active' && !feat.resolution;
 
+                    // Category-aware gradient
+                    const catGradients = {
+                        product_launch: 'from-blue-700 via-blue-800 to-blue-950',
+                        competitor:     'from-rose-700 via-rose-800 to-rose-950',
+                        sales:          'from-emerald-700 via-emerald-800 to-emerald-950',
+                        strategy:       'from-shark-700 via-shark-800 to-shark-950',
+                        innovation:     'from-violet-700 via-violet-800 to-violet-950',
+                        operations:     'from-amber-700 via-amber-800 to-amber-950',
+                        people:         'from-pink-700 via-pink-800 to-pink-950',
+                        fun:            'from-teal-700 via-teal-800 to-teal-950',
+                    };
+                    const grad = catGradients[feat.category] || catGradients.strategy;
+
+                    // Probability change
+                    let fProbChange = '';
+                    if (!fIsMulti && feat.history && feat.history.length >= 2) {
+                        const hist = feat.history;
+                        const cur = typeof hist[hist.length-1] === 'object' ? hist[hist.length-1].p : hist[hist.length-1];
+                        const prv = typeof hist[Math.max(0, hist.length-5)] === 'object' ? hist[Math.max(0, hist.length-5)].p : hist[Math.max(0, hist.length-5)];
+                        const diff = Math.round((cur - prv) * 100);
+                        if (diff !== 0) fProbChange = `<span class="text-xs font-bold px-2 py-0.5 rounded-full ${diff > 0 ? 'bg-green-400/20 text-green-300' : 'bg-red-400/20 text-red-300'}">${diff > 0 ? '↑' : '↓'}${Math.abs(diff)}%</span>`;
+                    }
+
+                    // SVG arc for binary probability
+                    const arcSvg = !fIsMulti ? (() => {
+                        const r = 36, cx = 44, cy = 44, stroke = 5;
+                        const circ = 2 * Math.PI * r;
+                        const dash = (fPct / 100) * circ;
+                        const color = fPct >= 60 ? '#4ade80' : fPct >= 40 ? '#fbbf24' : '#f87171';
+                        return `<svg width="88" height="88" viewBox="0 0 88 88" class="shrink-0">
+                            <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="${stroke}"/>
+                            <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}"
+                                stroke-dasharray="${dash.toFixed(1)} ${circ.toFixed(1)}"
+                                stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})"/>
+                            <text x="${cx}" y="${cy - 4}" text-anchor="middle" fill="white" font-size="16" font-weight="700" font-family="ui-sans-serif,system-ui,sans-serif">${fPct}%</text>
+                            <text x="${cx}" y="${cy + 12}" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="9" font-family="ui-sans-serif,system-ui,sans-serif">YES</text>
+                        </svg>`;
+                    })() : '';
+
                     return `
-                    <div class="relative overflow-hidden rounded-2xl p-5 sm:p-6 mb-6 cursor-pointer transition-all hover:shadow-lg bg-gradient-to-br from-shark-700 via-shark-800 to-shark-950 text-white" onclick="AppState.navigate('market', { marketId: ${feat.id} })">
-                        <div class="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4"></div>
-                        <div class="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/4"></div>
-                        <div class="relative">
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="text-xs font-semibold text-shark-300 uppercase tracking-wide bg-white/10 px-2 py-0.5 rounded-full">Featured</span>
-                                ${fCat ? `<span class="text-xs text-white/60">${fCat.icon} ${esc(fCat.label)}</span>` : ''}
-                                <span class="text-xs text-white/40">· ${feat.traders} traders · ${feat.volume.toLocaleString()} vol</span>
+                    <div class="relative overflow-hidden rounded-2xl mb-6 cursor-pointer transition-all duration-200 hover:shadow-2xl hover:-translate-y-0.5 bg-gradient-to-br ${grad} text-white" onclick="AppState.navigate('market', { marketId: ${feat.id} })">
+                        <!-- Decorative blobs -->
+                        <div class="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
+                        <div class="absolute bottom-0 left-1/4 w-40 h-40 bg-white/5 rounded-full translate-y-1/2 pointer-events-none"></div>
+
+                        <div class="relative p-5 sm:p-6">
+                            <!-- Top bar -->
+                            <div class="flex items-center gap-2 mb-4 flex-wrap">
+                                <span class="text-xs font-bold uppercase tracking-widest bg-white/15 px-2.5 py-1 rounded-full">⭐ Featured</span>
+                                ${fCat ? `<span class="text-xs bg-white/10 px-2.5 py-1 rounded-full text-white/80">${fCat.icon} ${esc(fCat.label)}</span>` : ''}
+                                ${feat.trending ? '<span class="text-xs bg-orange-400/20 text-orange-300 px-2.5 py-1 rounded-full">🔥 Trending</span>' : ''}
+                                ${fProbChange}
+                                <span class="ml-auto text-xs text-white/40">${fDays > 0 ? fDays + 'd left' : feat.resolution ? 'Resolved' : 'Expired'}</span>
                             </div>
-                            <div class="grid sm:grid-cols-2 gap-4 sm:gap-6">
-                                <div>
-                                    <h2 class="text-lg sm:text-xl font-bold text-white leading-snug mb-3">${esc(feat.title)}</h2>
-                                    <p class="text-sm text-white/60 line-clamp-2 mb-4">${esc(feat.description || '')}</p>
+
+                            <!-- Main grid -->
+                            <div class="grid sm:grid-cols-5 gap-4 sm:gap-6">
+                                <!-- Left: title + action -->
+                                <div class="sm:col-span-3">
+                                    <h2 class="text-xl sm:text-2xl font-bold text-white leading-snug mb-2">${esc(feat.title)}</h2>
+                                    <p class="text-sm text-white/55 line-clamp-2 mb-5">${esc(feat.description || '')}</p>
+
                                     ${fIsMulti ? `
-                                        <div class="space-y-2">
+                                        <div class="space-y-2.5 mb-4">
                                             ${fOptions.slice(0, 4).map((opt, i) => {
                                                 const optPct = Math.round((fProbs[i] || 0) * 100);
                                                 return `<div class="flex items-center gap-3">
-                                                    <div class="flex-1 bg-white/10 rounded-full h-7 overflow-hidden relative">
-                                                        <div class="h-full bg-white/25 rounded-full" style="width:${Math.max(optPct, 5)}%"></div>
+                                                    <div class="flex-1 bg-white/10 rounded-full h-8 overflow-hidden relative">
+                                                        <div class="h-full bg-white/20 rounded-full transition-all" style="width:${Math.max(optPct, 3)}%"></div>
                                                         <span class="absolute inset-0 flex items-center px-3 text-xs font-medium text-white/90">${esc(opt.label)}</span>
                                                     </div>
-                                                    <span class="text-sm font-bold text-white w-10 text-right">${optPct}%</span>
+                                                    <span class="text-sm font-bold text-white w-10 text-right shrink-0">${optPct}%</span>
                                                 </div>`;
                                             }).join('')}
                                         </div>
-                                    ` : fCanTrade ? `
-                                        <div class="flex gap-3">
-                                            <button onclick="event.stopPropagation(); handlePrediction(${feat.id}, 'yes')" class="flex-1 bg-green-500/20 border-2 border-green-400/40 rounded-xl py-3 text-center transition-all hover:bg-green-500/30 hover:border-green-400/60 backdrop-blur-sm">
-                                                <div class="text-xs text-green-300 font-semibold mb-0.5">Yes</div>
-                                                <div class="text-2xl font-bold text-green-200">${fPct}%</div>
-                                            </button>
-                                            <button onclick="event.stopPropagation(); handlePrediction(${feat.id}, 'no')" class="flex-1 bg-red-500/20 border-2 border-red-400/40 rounded-xl py-3 text-center transition-all hover:bg-red-500/30 hover:border-red-400/60 backdrop-blur-sm">
-                                                <div class="text-xs text-red-300 font-semibold mb-0.5">No</div>
-                                                <div class="text-2xl font-bold text-red-200">${100 - fPct}%</div>
-                                            </button>
-                                        </div>
                                     ` : `
-                                        <div class="flex gap-3">
-                                            <div class="flex-1 bg-green-500/20 border border-green-400/30 rounded-xl py-3 text-center">
-                                                <div class="text-xs text-green-300 font-semibold mb-0.5">Yes</div>
-                                                <div class="text-2xl font-bold text-green-200">${fPct}%</div>
-                                            </div>
-                                            <div class="flex-1 bg-red-500/20 border border-red-400/30 rounded-xl py-3 text-center">
-                                                <div class="text-xs text-red-300 font-semibold mb-0.5">No</div>
-                                                <div class="text-2xl font-bold text-red-200">${100 - fPct}%</div>
+                                        <div class="flex items-center gap-4 mb-4">
+                                            ${arcSvg}
+                                            <div class="flex-1">
+                                                <div class="w-full bg-white/10 rounded-full h-2 mb-1.5">
+                                                    <div class="h-full rounded-full bg-green-400/70" style="width:${fPct}%"></div>
+                                                </div>
+                                                <div class="flex justify-between text-xs text-white/50">
+                                                    <span>Yes ${fPct}%</span>
+                                                    <span>No ${100-fPct}%</span>
+                                                </div>
                                             </div>
                                         </div>
                                     `}
-                                    <div class="text-xs text-white/40 mt-3">${feat.resolution ? 'Resolved: ' + feat.resolution : fDays > 0 ? fDays + ' days left' : 'Expired'} · Click to view</div>
+
+                                    <!-- Trade buttons -->
+                                    ${fCanTrade && !fIsMulti ? `
+                                        <div class="flex gap-2">
+                                            <button onclick="event.stopPropagation(); handlePrediction(${feat.id}, 'yes')" class="flex-1 bg-green-500/25 border border-green-400/40 rounded-xl py-2.5 text-sm font-bold text-green-200 hover:bg-green-500/40 transition-all">Buy Yes</button>
+                                            <button onclick="event.stopPropagation(); handlePrediction(${feat.id}, 'no')" class="flex-1 bg-red-500/25 border border-red-400/40 rounded-xl py-2.5 text-sm font-bold text-red-200 hover:bg-red-500/40 transition-all">Buy No</button>
+                                        </div>
+                                    ` : fCanTrade && fIsMulti ? `
+                                        <button onclick="event.stopPropagation(); AppState.navigate('market', { marketId: ${feat.id} })" class="bg-white/15 border border-white/20 rounded-xl py-2.5 px-5 text-sm font-bold text-white hover:bg-white/25 transition-all">Trade →</button>
+                                    ` : ''}
                                 </div>
-                                <div class="hidden sm:block">
-                                    ${fIsMulti
-                                        ? Components.chartMulti(fHistory, fOptions, 400, 220, feat.id, feat.created_at)
-                                        : Components.chart(fHistory, 500, 200, feat.id, feat.created_at)}
+
+                                <!-- Right: chart + stats -->
+                                <div class="sm:col-span-2 flex flex-col gap-3">
+                                    <div class="hidden sm:block rounded-xl overflow-hidden bg-white/5">
+                                        ${fIsMulti
+                                            ? Components.chartMulti(fHistory, fOptions, 400, 180, feat.id, feat.created_at)
+                                            : Components.chart(fHistory, 500, 160, feat.id, feat.created_at)}
+                                    </div>
+                                    <!-- Stats pills -->
+                                    <div class="flex flex-wrap gap-2 text-xs">
+                                        <span class="bg-white/10 rounded-full px-3 py-1 text-white/70">👥 ${feat.traders} traders</span>
+                                        <span class="bg-white/10 rounded-full px-3 py-1 text-white/70">📊 ${feat.volume.toLocaleString()} vol</span>
+                                        <span class="bg-white/10 rounded-full px-3 py-1 text-white/70 cursor-pointer hover:bg-white/20" onclick="event.stopPropagation(); AppState.navigate('market', { marketId: ${feat.id} })">View market →</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
