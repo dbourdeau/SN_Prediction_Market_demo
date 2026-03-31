@@ -52,42 +52,16 @@ const AI = {
 
         const crowdProb = Math.round((market.probability || 0.5) * 100);
 
-        const systemPrompt = `You are a rigorous research analyst for SharkPool, SharkNinja's internal prediction market. SharkNinja makes Shark vacuum cleaners, Shark hair tools, and Ninja kitchen appliances.
+        const systemPrompt = `You are a research analyst for SharkPool, SharkNinja's internal prediction market (Shark vacuums/hair tools, Ninja kitchen appliances).
 
-Your goal: run structured web research on this prediction market question and produce an evidence-based probability estimate independent of the crowd's opinion.
+Run exactly 4 web searches: (1) recent news on topic, (2) historical base rates, (3) industry/analyst data, (4) SharkNinja-specific signals.
 
-You MUST perform exactly 4 searches covering these angles:
-1. Recent news — search for the most recent news directly about this specific question/topic
-2. Base rates — search for historical precedents or comparable past events (how often do similar things happen?)
-3. Industry/market data — search for analyst forecasts, market sizing, or expert commentary
-4. SharkNinja-specific signals — search for relevant SharkNinja news, earnings, product announcements, or competitive context
+After searching, output ONLY this JSON — start with { end with }, no other text:
+{"estimated_probability":<0-100>,"probability_range":"<e.g.35-55%>","confidence":"low"|"medium"|"high","verdict":"likely_yes"|"likely_no"|"uncertain","bull_case":"<1 sentence>","bear_case":"<1 sentence>","key_findings":["<finding>","<finding>","<finding>"],"reasoning":"<2-3 sentences>","searches_performed":["<query>","<query>","<query>","<query>"],"data_freshness":"recent"|"mixed"|"stale","caveat":"<1 sentence>"}`;
 
-After all 4 searches, output ONLY the raw JSON object below — no preamble, no "I'll", no explanation, no markdown. Start your response with { and end with }.
-{
-  "estimated_probability": <integer 0-100>,
-  "probability_range": "<e.g. '35-55%' representing uncertainty band>",
-  "confidence": "low" | "medium" | "high",
-  "verdict": "likely_yes" | "likely_no" | "uncertain",
-  "bull_case": "<1-2 sentences: strongest evidence FOR this resolving YES>",
-  "bear_case": "<1-2 sentences: strongest evidence AGAINST this resolving YES>",
-  "key_findings": ["<specific factual finding from search>", "<finding>", "<finding>", "<finding>"],
-  "reasoning": "<3-4 sentences synthesizing all research into a final assessment>",
-  "searches_performed": ["<exact search query used>", "<query>", "<query>", "<query>"],
-  "data_freshness": "recent" | "mixed" | "stale",
-  "caveat": "<one sentence noting limits of external research for this specific question>"
-}
-
-Be specific and cite concrete data where found. If searches return limited results, note that explicitly and lower your confidence. Respond ONLY with the JSON object.`;
-
-        const userPrompt = `Research this prediction market and estimate the probability it resolves YES:
-
-Question: "${market.title}"
-Category: ${market.category}
-Close date: ${(market.closes_at || '').split('T')[0]}
-Resolution criteria: ${market.description || 'None provided'}
-Current crowd probability: ${crowdProb}% YES (${market.traders || 0} traders, ${market.volume || 0} tokens)
-
-Run all 4 required searches, then give your independent estimate.`;
+        const userPrompt = `Question: "${market.title}"
+Category: ${market.category} | Closes: ${(market.closes_at || '').split('T')[0]} | Crowd: ${crowdProb}% YES
+Criteria: ${(market.description || '').slice(0, 300)}`;
 
         const messages = [{ role: 'user', content: userPrompt }];
         let iterations = 0;
@@ -118,12 +92,12 @@ Run all 4 required searches, then give your independent estimate.`;
             }
         };
 
-        while (iterations < 12) {
+        while (iterations < 7) {
             iterations++;
 
             const res = await _fetchWithRetry({
-                model: 'claude-sonnet-4-20250514',
-                max_tokens: 3000,
+                model: 'claude-haiku-4-5-20251001',
+                max_tokens: 800,
                 system: systemPrompt,
                 tools: [{ type: 'web_search_20250305', name: 'web_search' }],
                 messages,
