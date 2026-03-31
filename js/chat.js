@@ -26,6 +26,16 @@ Key things to know:
 
 Keep answers short and practical. Use plain language. If someone asks something outside SharkPool (general business, unrelated topics), politely redirect to SharkPool topics.`,
 
+    _promptTimer: null,
+
+    PROMPTS: [
+        "👋 Need help getting started?",
+        "💡 Not sure how trading works?",
+        "🤔 Have a question about SharkPool?",
+        "📊 Wondering what probability means?",
+        "🦈 I can help you make your first trade!",
+    ],
+
     init() {
         if (document.getElementById('chat-widget')) return; // already initialized
         const el = document.createElement('div');
@@ -33,6 +43,40 @@ Keep answers short and practical. Use plain language. If someone asks something 
         el.innerHTML = this._html();
         document.body.appendChild(el);
         this._bindEvents();
+        this._schedulePrompt();
+    },
+
+    _schedulePrompt() {
+        // Only prompt once per session
+        if (sessionStorage.getItem('sharkpool_chat_prompted')) return;
+        clearTimeout(this._promptTimer);
+        // Show after 25 seconds
+        this._promptTimer = setTimeout(() => {
+            if (!this.open) this._showPromptBubble();
+        }, 25000);
+    },
+
+    _showPromptBubble() {
+        if (this.open || document.getElementById('chat-prompt-bubble')) return;
+        sessionStorage.setItem('sharkpool_chat_prompted', '1');
+
+        const msg = this.PROMPTS[Math.floor(Math.random() * this.PROMPTS.length)];
+        const bubble = document.createElement('div');
+        bubble.id = 'chat-prompt-bubble';
+        bubble.style.cssText = 'position:fixed;bottom:76px;right:16px;z-index:51;animation:chatBubbleIn 0.3s ease;';
+        bubble.innerHTML = `
+            <div style="background:#0059a3;color:white;padding:10px 14px;border-radius:16px 16px 4px 16px;font-size:13px;font-weight:500;box-shadow:0 4px 20px rgba(0,89,163,0.35);cursor:pointer;max-width:220px;line-height:1.4;"
+                onclick="ChatWidget._dismissPrompt(true)">${msg}</div>
+            <button onclick="ChatWidget._dismissPrompt(false)" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#6b7280;color:white;border:none;font-size:10px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;">✕</button>`;
+        document.body.appendChild(bubble);
+
+        // Auto-dismiss after 8 seconds
+        setTimeout(() => this._dismissPrompt(false), 8000);
+    },
+
+    _dismissPrompt(openChat) {
+        document.getElementById('chat-prompt-bubble')?.remove();
+        if (openChat && !this.open) this.toggle();
     },
 
     _html() {
