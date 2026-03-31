@@ -748,6 +748,23 @@ const Components = {
             </header>
         `;
     },
+
+    footer() {
+        const year = new Date().getFullYear();
+        return `
+        <footer class="border-t border-gray-100 dark:border-gray-800 mt-12 py-6 px-4">
+            <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-400 dark:text-gray-600">
+                <div class="flex items-center gap-1.5">
+                    <svg class="w-4 h-4 opacity-60" viewBox="0 0 32 32" fill="none">
+                        <rect width="32" height="32" rx="6" fill="#0059a3"/>
+                        <path d="M16 6 L18 18 L26 22 L6 22 L14 18 Z" fill="white" opacity="0.9"/>
+                    </svg>
+                    <span>SharkPool &copy; ${year} &mdash; Built by Dan Bourdeau at SharkNinja. All rights reserved.</span>
+                </div>
+                <a href="mailto:daniel.bourdeau@sharkninja.com" class="hover:text-gray-600 dark:hover:text-gray-400 transition-colors">daniel.bourdeau@sharkninja.com</a>
+            </div>
+        </footer>`;
+    },
 };
 
 // ==================== GUIDED TOUR ====================
