@@ -1121,56 +1121,115 @@ async function handleDeepResearch() {
     if (placeholder) placeholder.classList.add('hidden');
     if (container) {
         container.classList.remove('hidden');
-        container.innerHTML = `<div class="flex flex-col items-center gap-2 py-6 text-sm text-blue-400">
-            <div class="w-5 h-5 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
-            <span>Searching the web for relevant data…</span>
-            <span class="text-xs text-gray-300">This may take 15–30 seconds</span>
-        </div>`;
+        container.innerHTML = `
+            <div id="research-progress" class="flex flex-col gap-2 py-4">
+                <div class="flex items-center gap-2 text-sm text-teal-600 font-medium">
+                    <div class="w-4 h-4 border-2 border-teal-200 border-t-teal-500 rounded-full animate-spin shrink-0"></div>
+                    <span id="research-status">Initializing research…</span>
+                </div>
+                <div class="flex gap-1.5 mt-1">
+                    ${[1,2,3,4].map(i => `<div id="search-dot-${i}" class="h-1.5 flex-1 rounded-full bg-gray-100"></div>`).join('')}
+                </div>
+                <p class="text-xs text-gray-300">Running 4 structured searches — takes ~20 seconds</p>
+            </div>`;
     }
 
+    const onProgress = (label, n) => {
+        const el = document.getElementById('research-status');
+        if (el) el.textContent = label;
+        for (let i = 1; i <= 4; i++) {
+            const dot = document.getElementById(`search-dot-${i}`);
+            if (dot) dot.className = `h-1.5 flex-1 rounded-full ${i <= n ? 'bg-teal-500' : 'bg-gray-100'}`;
+        }
+    };
+
     try {
-        const r = await AI.deepResearch(market);
+        const r = await AI.deepResearch(market, onProgress);
 
         const verdictCfg = {
             likely_yes: { label: 'Likely YES', color: 'bg-green-100 text-green-700 border-green-200', bar: 'bg-green-500' },
-            likely_no:  { label: 'Likely NO',  color: 'bg-red-100 text-red-600 border-red-200',     bar: 'bg-red-500'   },
-            uncertain:  { label: 'Uncertain',  color: 'bg-gray-100 text-gray-600 border-gray-200',  bar: 'bg-gray-400'  },
+            likely_no:  { label: 'Likely NO',  color: 'bg-red-100 text-red-600 border-red-200',       bar: 'bg-red-500'   },
+            uncertain:  { label: 'Uncertain',  color: 'bg-gray-100 text-gray-600 border-gray-200',    bar: 'bg-gray-400'  },
         };
         const confColor = { low: 'text-amber-500', medium: 'text-blue-500', high: 'text-green-600' };
+        const freshnessColor = { recent: 'text-green-500', mixed: 'text-amber-500', stale: 'text-red-400' };
         const v = verdictCfg[r.verdict] || verdictCfg.uncertain;
         const prob = Math.min(100, Math.max(0, r.estimated_probability || 0));
+        const crowdProb = r._crowdProb ?? Math.round((market.probability || 0.5) * 100);
+        const divergence = Math.abs(prob - crowdProb);
+        const divergenceDir = prob > crowdProb ? 'higher' : 'lower';
+
+        const divergenceHTML = divergence >= 15 ? `
+            <div class="flex items-start gap-2.5 p-3 rounded-lg border ${divergence >= 30 ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'}">
+                <span class="text-lg shrink-0">${divergence >= 30 ? '⚡' : '↕'}</span>
+                <div>
+                    <div class="text-xs font-bold ${divergence >= 30 ? 'text-amber-700' : 'text-blue-700'} mb-0.5">
+                        ${divergence >= 30 ? 'Strong' : 'Moderate'} Divergence from Crowd
+                    </div>
+                    <p class="text-xs ${divergence >= 30 ? 'text-amber-700' : 'text-blue-600'}">
+                        Web research estimates <strong>${prob}%</strong> vs crowd's <strong>${crowdProb}%</strong> — research is <strong>${divergence}pts ${divergenceDir}</strong>. This gap may represent a ${divergenceDir === 'higher' ? 'buying' : 'selling'} opportunity if you trust the external data.
+                    </p>
+                </div>
+            </div>` : `
+            <div class="flex items-center gap-2 text-xs text-gray-400 py-1">
+                <span>Research aligns with crowd:</span>
+                <span class="font-semibold text-gray-600">Web ${prob}% · Crowd ${crowdProb}%</span>
+                <span class="text-gray-300">(${divergence}pt gap)</span>
+            </div>`;
 
         container.innerHTML = `
-            <!-- Verdict + probability -->
+            <!-- Probability bar -->
             <div class="flex items-center gap-3 flex-wrap">
                 <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-bold ${v.color}">${v.label}</span>
                 <span class="text-xs ${confColor[r.confidence] || 'text-gray-400'} font-medium">Confidence: ${r.confidence || '—'}</span>
-                <span class="ml-auto text-sm font-bold text-gray-700">${prob}% est. probability</span>
+                ${r.data_freshness ? `<span class="text-xs ${freshnessColor[r.data_freshness] || 'text-gray-400'}">Data: ${r.data_freshness}</span>` : ''}
+                <span class="ml-auto">
+                    <span class="text-lg font-black text-gray-800">${prob}%</span>
+                    ${r.probability_range ? `<span class="text-xs text-gray-400 ml-1">range ${esc(r.probability_range)}</span>` : ''}
+                </span>
             </div>
             <div class="w-full bg-gray-100 rounded-full h-2">
-                <div class="${v.bar} h-2 rounded-full transition-all" style="width:${prob}%"></div>
+                <div class="${v.bar} h-2 rounded-full" style="width:${prob}%"></div>
             </div>
+
+            <!-- Divergence alert -->
+            ${divergenceHTML}
+
+            <!-- Bull / Bear cases -->
+            ${(r.bull_case || r.bear_case) ? `
+            <div class="grid grid-cols-2 gap-2">
+                ${r.bull_case ? `<div class="bg-green-50 border border-green-100 rounded-lg p-2.5">
+                    <div class="text-xs font-bold text-green-600 mb-1">Bull Case</div>
+                    <p class="text-xs text-gray-700 leading-relaxed">${esc(r.bull_case)}</p>
+                </div>` : ''}
+                ${r.bear_case ? `<div class="bg-red-50 border border-red-100 rounded-lg p-2.5">
+                    <div class="text-xs font-bold text-red-500 mb-1">Bear Case</div>
+                    <p class="text-xs text-gray-700 leading-relaxed">${esc(r.bear_case)}</p>
+                </div>` : ''}
+            </div>` : ''}
 
             <!-- Key Findings -->
             ${r.key_findings?.length ? `
             <div>
                 <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Key Findings</div>
                 <ul class="space-y-1.5">
-                    ${r.key_findings.map(f => `<li class="flex gap-2 text-sm text-gray-700"><span class="text-blue-400 shrink-0 mt-0.5">•</span><span>${esc(f)}</span></li>`).join('')}
+                    ${r.key_findings.map(f => `<li class="flex gap-2 text-sm text-gray-700 leading-snug"><span class="text-teal-400 shrink-0 mt-0.5">•</span><span>${esc(f)}</span></li>`).join('')}
                 </ul>
             </div>` : ''}
 
             <!-- Reasoning -->
-            <div class="bg-blue-50/60 rounded-lg px-3 py-2.5">
-                <div class="text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1">Research Opinion</div>
+            <div class="bg-teal-50/60 rounded-lg px-3 py-2.5">
+                <div class="text-xs font-semibold text-teal-600 uppercase tracking-wide mb-1">Research Synthesis</div>
                 <p class="text-sm text-gray-700 leading-relaxed">${esc(r.reasoning)}</p>
             </div>
 
             <!-- Searches performed -->
             ${r.searches_performed?.length ? `
-            <div class="text-xs text-gray-300 flex flex-wrap gap-1.5 items-center">
-                <span class="font-medium text-gray-400">Searched:</span>
-                ${r.searches_performed.map(s => `<span class="bg-gray-50 border border-gray-100 rounded px-1.5 py-0.5">${esc(s)}</span>`).join('')}
+            <div class="text-xs text-gray-400">
+                <span class="font-medium">Queries run:</span>
+                <ol class="mt-1 space-y-0.5 list-decimal list-inside text-gray-300">
+                    ${r.searches_performed.map(s => `<li>${esc(s)}</li>`).join('')}
+                </ol>
             </div>` : ''}
 
             <!-- Caveat -->

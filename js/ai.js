@@ -46,36 +46,52 @@ const AI = {
     },
 
     // Deep research: agentic loop using Claude's built-in web_search tool
-    async deepResearch(market) {
+    // onProgress(label) called each time a search fires, for live status updates
+    async deepResearch(market, onProgress) {
         const apiKey = await this._getKey();
 
-        const systemPrompt = `You are a research analyst for SharkPool, SharkNinja's internal prediction market (SharkNinja makes Shark vacuum cleaners, hair tools, and Ninja kitchen appliances).
+        const crowdProb = Math.round((market.probability || 0.5) * 100);
 
-Your job: use web search to research the topic of the given prediction market question, then form an evidence-based opinion on its likely outcome.
+        const systemPrompt = `You are a rigorous research analyst for SharkPool, SharkNinja's internal prediction market. SharkNinja makes Shark vacuum cleaners, Shark hair tools, and Ninja kitchen appliances.
 
-Search strategy:
-- Search for recent news and developments directly related to the question
-- Look for industry data, analyst reports, or expert forecasts
-- Find historical context or comparable past events
-- Consider the question's close date when assessing likelihood
+Your goal: run structured web research on this prediction market question and produce an evidence-based probability estimate independent of the crowd's opinion.
 
-After researching, respond ONLY with this JSON object:
+You MUST perform exactly 4 searches covering these angles:
+1. Recent news — search for the most recent news directly about this specific question/topic
+2. Base rates — search for historical precedents or comparable past events (how often do similar things happen?)
+3. Industry/market data — search for analyst forecasts, market sizing, or expert commentary
+4. SharkNinja-specific signals — search for relevant SharkNinja news, earnings, product announcements, or competitive context
+
+After all 4 searches, respond ONLY with this JSON object:
 {
-  "estimated_probability": <integer 0-100, your best estimate of YES likelihood>,
+  "estimated_probability": <integer 0-100>,
+  "probability_range": "<e.g. '35-55%' representing uncertainty band>",
   "confidence": "low" | "medium" | "high",
   "verdict": "likely_yes" | "likely_no" | "uncertain",
-  "key_findings": ["<finding>", "<finding>", "<finding>"],
-  "reasoning": "<2-3 sentences summarizing your conclusion based on the research>",
-  "searches_performed": ["<brief label of what you searched for>"],
-  "caveat": "<one sentence — note if external research may not reflect internal SharkNinja data>"
+  "bull_case": "<1-2 sentences: strongest evidence FOR this resolving YES>",
+  "bear_case": "<1-2 sentences: strongest evidence AGAINST this resolving YES>",
+  "key_findings": ["<specific factual finding from search>", "<finding>", "<finding>", "<finding>"],
+  "reasoning": "<3-4 sentences synthesizing all research into a final assessment>",
+  "searches_performed": ["<exact search query used>", "<query>", "<query>", "<query>"],
+  "data_freshness": "recent" | "mixed" | "stale",
+  "caveat": "<one sentence noting limits of external research for this specific question>"
 }
 
-Respond ONLY with the JSON object.`;
+Be specific and cite concrete data where found. If searches return limited results, note that explicitly and lower your confidence. Respond ONLY with the JSON object.`;
 
-        const userPrompt = `Research this prediction market question and estimate its probability:\n\nQuestion: "${market.title}"\nCategory: ${market.category}\nClose date: ${market.closes_at}\nDescription/Resolution criteria: ${market.description || 'None provided'}`;
+        const userPrompt = `Research this prediction market and estimate the probability it resolves YES:
+
+Question: "${market.title}"
+Category: ${market.category}
+Close date: ${(market.closes_at || '').split('T')[0]}
+Resolution criteria: ${market.description || 'None provided'}
+Current crowd probability: ${crowdProb}% YES (${market.traders || 0} traders, ${market.volume || 0} tokens)
+
+Run all 4 required searches, then give your independent estimate.`;
 
         const messages = [{ role: 'user', content: userPrompt }];
         let iterations = 0;
+        let searchCount = 0;
 
         const _fetchWithRetry = async (body) => {
             for (let attempt = 0; attempt < 3; attempt++) {
@@ -102,15 +118,15 @@ Respond ONLY with the JSON object.`;
             }
         };
 
-        while (iterations < 10) {
+        while (iterations < 12) {
             iterations++;
 
             const res = await _fetchWithRetry({
-                    model: 'claude-sonnet-4-20250514',
-                    max_tokens: 2048,
-                    system: systemPrompt,
-                    tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-                    messages,
+                model: 'claude-sonnet-4-20250514',
+                max_tokens: 3000,
+                system: systemPrompt,
+                tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+                messages,
             });
 
             const data = await res.json();
@@ -119,23 +135,35 @@ Respond ONLY with the JSON object.`;
                 const textBlock = data.content.find(b => b.type === 'text');
                 const raw = (textBlock?.text || '').replace(/<cite[^>]*>|<\/cite>/gi, '');
                 const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-                return JSON.parse(cleaned);
+                const result = JSON.parse(cleaned);
+                result._crowdProb = crowdProb; // attach for divergence calc in UI
+                return result;
             }
 
-            // Add assistant turn and continue the loop
             messages.push({ role: 'assistant', content: data.content });
 
             if (data.stop_reason === 'tool_use') {
+                searchCount++;
+                const searchLabels = ['Searching recent news…', 'Checking historical base rates…', 'Looking up industry data…', 'Searching SharkNinja signals…'];
+                if (onProgress) onProgress(searchLabels[Math.min(searchCount - 1, searchLabels.length - 1)], searchCount);
+
+                // Pass actual search results back — this was previously empty, making searches useless
                 const toolResults = data.content
                     .filter(b => b.type === 'tool_use')
-                    .map(b => ({ type: 'tool_result', tool_use_id: b.id, content: '' }));
+                    .map(b => ({
+                        type: 'tool_result',
+                        tool_use_id: b.id,
+                        content: b.content || b.input?.query || '',
+                    }));
                 messages.push({ role: 'user', content: toolResults });
             } else {
-                // Unexpected stop — try to extract text anyway
                 const textBlock = data.content?.find(b => b.type === 'text');
                 if (textBlock?.text) {
-                    const cleaned = textBlock.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-                    return JSON.parse(cleaned);
+                    const raw = textBlock.text.replace(/<cite[^>]*>|<\/cite>/gi, '');
+                    const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+                    const result = JSON.parse(cleaned);
+                    result._crowdProb = crowdProb;
+                    return result;
                 }
                 throw new Error('Unexpected research agent response');
             }
