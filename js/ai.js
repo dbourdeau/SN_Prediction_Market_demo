@@ -407,8 +407,40 @@ Respond ONLY with the JSON object.`;
 
         const userPrompt = `Generate an executive briefing for SharkNinja leadership based on these ${activeMarkets.length} active prediction markets (total platform volume: ${totalVolume} tokens, ${totalTraders} total trades):\n\n${marketData}\n\nToday's date: ${new Date().toISOString().split('T')[0]}`;
 
-        const raw = await this._call(systemPrompt, userPrompt, 2000);
-        const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        return JSON.parse(cleaned);
+        const apiKey = await this._getKey();
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 45000);
+
+        let res;
+        try {
+            res = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                signal: controller.signal,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey,
+                    'anthropic-version': '2023-06-01',
+                    'anthropic-dangerous-direct-browser-access': 'true',
+                },
+                body: JSON.stringify({
+                    model: 'claude-sonnet-4-20250514',
+                    max_tokens: 4000,
+                    system: systemPrompt,
+                    messages: [{ role: 'user', content: userPrompt }],
+                }),
+            });
+        } finally {
+            clearTimeout(timeout);
+        }
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error?.message || `Briefing API error (${res.status})`);
+        }
+
+        const data = await res.json();
+        const raw = (data.content?.[0]?.text || '').replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        if (!raw) throw new Error('Empty response from Claude — try again');
+        return JSON.parse(raw);
     },
 };
