@@ -679,35 +679,49 @@ const Pages = {
                             </div>` : ''}
 
                             ${!isResolved ? `
-                            <div class="border border-purple-200 rounded-xl mb-4 overflow-hidden">
-                                <div class="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-purple-600 to-violet-600">
-                                    <div class="flex items-center gap-2">
-                                        <svg class="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-                                        <span class="text-sm font-semibold text-white">AI Analysis</span>
-                                        <span class="text-xs text-white/50">powered by Claude</span>
+                            <div class="border border-violet-200 rounded-xl mb-4 overflow-hidden">
+                                <div class="flex items-center justify-between px-4 py-3" style="background:linear-gradient(135deg,#4c1d95,#6d28d9);">
+                                    <div class="flex items-center gap-2.5">
+                                        <div class="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
+                                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                                        </div>
+                                        <div>
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-sm font-bold text-white">AI Analysis</span>
+                                                <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-white/15 text-white/60 font-semibold tracking-wider">PLATFORM DATA</span>
+                                            </div>
+                                            <span class="text-[11px] text-white/45">Trades · volume · comments</span>
+                                        </div>
                                     </div>
-                                    <button onclick="handleAISummarize(${m.id})" id="ai-summary-btn" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/20 text-white hover:bg-white/30 transition-colors border border-white/20">Analyze</button>
+                                    <button onclick="handleAISummarize(${m.id})" id="ai-summary-btn" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-violet-700 hover:bg-violet-50 transition-colors shadow-sm">Analyze</button>
                                 </div>
                                 <div id="ai-summary-content" class="hidden bg-white px-4 py-4 space-y-4"></div>
-                                <div id="ai-summary-placeholder" class="px-4 py-5 text-center bg-purple-50/40">
-                                    <p class="text-xs text-purple-400">Click <strong>Analyze</strong> for an AI-powered breakdown of market sentiment, key signals, and risks.</p>
+                                <div id="ai-summary-placeholder" class="px-4 py-5 text-center bg-violet-50/50">
+                                    <p class="text-xs text-violet-400">Analyzes <strong>platform activity</strong> — trade patterns, volume, sentiment, and your position — to surface signals and risks.</p>
                                 </div>
                             </div>
                             ` : ''}
 
                             ${!isResolved ? `
-                            <div class="border border-blue-200 rounded-xl mb-4 overflow-hidden">
-                                <div class="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600">
-                                    <div class="flex items-center gap-2">
-                                        <svg class="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
-                                        <span class="text-sm font-semibold text-white">Web Research</span>
-                                        <span class="text-xs text-white/50">powered by Claude + live web</span>
+                            <div class="border border-teal-200 rounded-xl mb-4 overflow-hidden">
+                                <div class="flex items-center justify-between px-4 py-3" style="background:linear-gradient(135deg,#0f766e,#0891b2);">
+                                    <div class="flex items-center gap-2.5">
+                                        <div class="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
+                                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
+                                        </div>
+                                        <div>
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-sm font-bold text-white">Web Research</span>
+                                                <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-white/15 text-white/60 font-semibold tracking-wider flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-green-300 animate-pulse inline-block"></span>LIVE WEB</span>
+                                            </div>
+                                            <span class="text-[11px] text-white/45">News · industry data · analyst reports</span>
+                                        </div>
                                     </div>
-                                    <button onclick="handleDeepResearch(${m.id})" id="deep-research-btn" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/20 text-white hover:bg-white/30 transition-colors border border-white/20">Research</button>
+                                    <button onclick="handleDeepResearch(${m.id})" id="deep-research-btn" class="px-3 py-1.5 rounded-lg text-xs font-bold text-white border border-white/40 hover:bg-white/15 transition-colors">Research</button>
                                 </div>
                                 <div id="deep-research-content" class="hidden bg-white px-4 py-4 space-y-4"></div>
-                                <div id="deep-research-placeholder" class="px-4 py-5 text-center bg-blue-50/40">
-                                    <p class="text-xs text-blue-400">Click <strong>Research</strong> to have Claude search the web and form an independent opinion on this market's outcome.</p>
+                                <div id="deep-research-placeholder" class="px-4 py-5 text-center bg-teal-50/50">
+                                    <p class="text-xs text-teal-500">Searches the <strong>live web</strong> for news, data, and context — then forms an independent probability estimate.</p>
                                 </div>
                             </div>
                             ` : ''}
