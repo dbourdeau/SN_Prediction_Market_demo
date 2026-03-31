@@ -111,6 +111,47 @@ Respond ONLY with the JSON array, no other text.`;
         }
     },
 
+    // Feature C: Draft resolution criteria from a market title
+    async draftResolutionCriteria(title, category) {
+        const systemPrompt = `You are a market designer for SharkPool, an internal prediction market at SharkNinja (makes Shark vacuums/hair tools and Ninja kitchen appliances).
+
+Given a market question title, write clear resolution criteria and background context. Format your response as two short paragraphs:
+1. "Resolution Criteria:" — exactly how this market resolves YES, NO, or void. Be specific. Reference measurable thresholds, official sources, or dates.
+2. "Background:" — 1-2 sentences of relevant context for traders.
+
+Keep the total under 400 characters. Plain text only, no markdown.`;
+        return await this._call(systemPrompt, `Title: ${title}\nCategory: ${category || 'general'}`, 300);
+    },
+
+    // Feature D: AI quality review for a pending market (admin use)
+    async reviewMarketQuality(market) {
+        const systemPrompt = `You are a market quality reviewer for SharkPool, an internal prediction market at SharkNinja.
+
+Review the submitted market and respond with a JSON object:
+{
+  "score": <1-10 integer, 10 = perfect>,
+  "recommendation": "approve" | "approve_with_edits" | "reject",
+  "issues": [<short string per issue, max 3>],
+  "suggestion": "<one sentence improvement tip, or empty string if none>"
+}
+
+Score criteria:
+- 8-10: Clear question, specific resolution criteria, measurable outcome, realistic timeframe → approve
+- 5-7: Mostly good but has minor clarity or specificity issues → approve_with_edits
+- 1-4: Vague, unresolvable, duplicate, or inappropriate → reject
+
+Respond ONLY with the JSON object.`;
+
+        const userPrompt = `Title: ${market.title}
+Category: ${market.category}
+Closes: ${market.closes_at}
+Description/Criteria: ${market.description || '(none provided)'}`;
+
+        const raw = await this._call(systemPrompt, userPrompt, 300);
+        const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        return JSON.parse(cleaned);
+    },
+
     // Feature B: Summarize a market's activity
     async summarizeMarket(marketId) {
         if (this._loading) return null;

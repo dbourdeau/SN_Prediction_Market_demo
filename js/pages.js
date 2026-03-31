@@ -1369,7 +1369,7 @@ const Pages = {
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Question * <span class="font-normal text-gray-400" id="title-count">0/200</span></label>
                         <input type="text" id="create-title" placeholder="Will [specific outcome] happen by [date]? e.g. &quot;Will NinjaCreami exceed 1M units sold by Q3?&quot;" maxlength="200"
-                            oninput="document.getElementById('title-count').textContent=this.value.length+'/200'"
+                            oninput="document.getElementById('title-count').textContent=this.value.length+'/200'; onTitleInputForAI();"
                             onkeydown="if(event.key==='Enter') event.preventDefault()"
                             class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500 focus:border-transparent"/>
                     </div>
@@ -1384,11 +1384,17 @@ const Pages = {
                                 <li><strong>Edge cases:</strong> What happens if the event is delayed, cancelled, or ambiguous?</li>
                             </ul>
                         </div>
-                        <textarea id="create-desc" rows="5" maxlength="5000" placeholder="Resolution criteria: This market resolves YES if [specific condition] as confirmed by [source of truth] by [date]. It resolves NO if [condition is not met]. If [edge case], the market will be voided.
+                        <div class="relative">
+                            <textarea id="create-desc" rows="5" maxlength="5000" placeholder="Resolution criteria: This market resolves YES if [specific condition] as confirmed by [source of truth] by [date]. It resolves NO if [condition is not met]. If [edge case], the market will be voided.
 
 Background: [Provide relevant context for traders]"
-                            oninput="document.getElementById('desc-count').textContent=this.value.length+'/5000'"
-                            class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500 focus:border-transparent resize-none"></textarea>
+                                oninput="document.getElementById('desc-count').textContent=this.value.length+'/5000'"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500 focus:border-transparent resize-none"></textarea>
+                            <button id="ai-desc-btn" onclick="handleAISuggestCriteria()" class="hidden absolute bottom-3 right-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 transition-colors shadow-sm">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                Draft with AI
+                            </button>
+                        </div>
                     </div>
                     <!-- Multi-outcome options (hidden by default) -->
                     <div id="multi-options-section" class="hidden">
@@ -1681,16 +1687,20 @@ Background: [Provide relevant context for traders]"
                     <h2 class="text-lg font-bold text-blue-700 mb-4">📝 Pending Approval (${pending.length})</h2>
                     <div class="space-y-3">
                         ${pending.map(m => `
-                            <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-blue-50 rounded-lg gap-3">
-                                <div class="flex-1 min-w-0">
-                                    <div class="text-sm font-medium text-gray-900">${esc(m.title)}</div>
-                                    <div class="text-xs text-gray-500 mt-1">${esc(m.created_by_name || 'Unknown')} · ${esc(m.category)} · closes ${formatDate(m.closes_at)}</div>
-                                    <div class="text-xs text-gray-500 mt-1 line-clamp-2">${esc(m.description)}</div>
+                            <div class="flex flex-col p-3 bg-blue-50 rounded-lg gap-2">
+                                <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                                    <div class="flex-1 min-w-0">
+                                        <div class="text-sm font-medium text-gray-900">${esc(m.title)}</div>
+                                        <div class="text-xs text-gray-500 mt-1">${esc(m.created_by_name || 'Unknown')} · ${esc(m.category)} · closes ${formatDate(m.closes_at)}</div>
+                                        <div class="text-xs text-gray-500 mt-1 line-clamp-2">${esc(m.description)}</div>
+                                    </div>
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        <button onclick="event.stopPropagation(); handleAIReviewMarket(${m.id})" id="ai-review-btn-${m.id}" class="px-3 py-1.5 rounded text-xs font-bold bg-violet-100 text-violet-700 hover:bg-violet-200 border border-violet-200">⚡ AI Review</button>
+                                        <button onclick="event.stopPropagation(); handleApproveMarket(${m.id})" class="px-3 py-1.5 rounded text-xs font-bold bg-green-500 text-white hover:bg-green-600">Approve</button>
+                                        <button onclick="event.stopPropagation(); handleRejectMarket(${m.id})" class="px-3 py-1.5 rounded text-xs font-bold bg-red-500 text-white hover:bg-red-600">Reject</button>
+                                    </div>
                                 </div>
-                                <div class="flex items-center gap-2 shrink-0">
-                                    <button onclick="event.stopPropagation(); handleApproveMarket(${m.id})" class="px-3 py-1.5 rounded text-xs font-bold bg-green-500 text-white hover:bg-green-600">Approve</button>
-                                    <button onclick="event.stopPropagation(); handleRejectMarket(${m.id})" class="px-3 py-1.5 rounded text-xs font-bold bg-red-500 text-white hover:bg-red-600">Reject</button>
-                                </div>
+                                <div id="ai-review-result-${m.id}" class="hidden"></div>
                             </div>
                         `).join('')}
                     </div>

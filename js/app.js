@@ -925,6 +925,80 @@ function applyAISuggestion(index) {
     showToast('AI suggestion applied — review and edit before creating!', 'success');
 }
 
+// Auto-suggest resolution criteria from title
+let _aiDescDebounce = null;
+function onTitleInputForAI() {
+    const title = document.getElementById('create-title')?.value?.trim();
+    const btn = document.getElementById('ai-desc-btn');
+    if (!btn) return;
+    // Show button once title is long enough
+    if (title && title.length > 20) {
+        btn.classList.remove('hidden');
+    } else {
+        btn.classList.add('hidden');
+    }
+}
+
+async function handleAISuggestCriteria() {
+    const title = document.getElementById('create-title')?.value?.trim();
+    const category = document.getElementById('create-category')?.value;
+    const desc = document.getElementById('create-desc');
+    const btn = document.getElementById('ai-desc-btn');
+    if (!title || !desc) return;
+
+    const originalLabel = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<svg class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Drafting…';
+
+    try {
+        const criteria = await AI.draftResolutionCriteria(title, category);
+        desc.value = criteria;
+        desc.dispatchEvent(new Event('input'));
+        showToast('Resolution criteria drafted!', 'success');
+    } catch (e) {
+        showToast('AI draft failed: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalLabel;
+    }
+}
+
+// Admin: AI quality review for a pending market
+async function handleAIReviewMarket(marketId) {
+    const market = (AppState.markets || []).find(m => m.id === marketId);
+    if (!market) return;
+
+    const btn = document.getElementById(`ai-review-btn-${marketId}`);
+    const result = document.getElementById(`ai-review-result-${marketId}`);
+    if (!btn || !result) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Reviewing…';
+
+    try {
+        const review = await AI.reviewMarketQuality(market);
+        const scoreColor = review.score >= 8 ? 'text-green-700 bg-green-50 border-green-200'
+                         : review.score >= 5 ? 'text-amber-700 bg-amber-50 border-amber-200'
+                         : 'text-red-700 bg-red-50 border-red-200';
+        const recLabel = { approve: '✅ Approve', approve_with_edits: '⚠️ Approve with edits', reject: '❌ Reject' }[review.recommendation] || review.recommendation;
+
+        result.className = `mt-1 p-3 rounded-lg border text-xs ${scoreColor}`;
+        result.innerHTML = `
+            <div class="flex items-center gap-3 mb-1.5">
+                <span class="font-bold text-sm">${recLabel}</span>
+                <span class="font-semibold">Score: ${review.score}/10</span>
+            </div>
+            ${review.issues?.length ? `<ul class="list-disc list-inside space-y-0.5 mb-1">${review.issues.map(i => `<li>${esc(i)}</li>`).join('')}</ul>` : ''}
+            ${review.suggestion ? `<p class="italic opacity-80">${esc(review.suggestion)}</p>` : ''}`;
+        result.classList.remove('hidden');
+    } catch (e) {
+        showToast('AI review failed: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '⚡ Re-review';
+    }
+}
+
 async function handleAISummarize(marketId) {
     const btn = document.getElementById('ai-summary-btn');
     const container = document.getElementById('ai-summary-content');
