@@ -230,7 +230,8 @@ async function handlePrediction(marketId, direction, optionIndex) {
         : document.getElementById(`btn-${direction}-${marketId}`);
 
     if (amount < 10) { showToast('Minimum prediction is 10 tokens', 'error'); return; }
-    if (amount > AppState.user.balance) { showToast('Insufficient token balance', 'error'); return; }
+    if (!AppState.user) { showToast('You must be logged in to trade', 'error'); return; }
+    if (amount > AppState.user.balance) { showToast(`Insufficient tokens (you have ${AppState.user.balance})`, 'error'); return; }
 
     if (btn) { btn.disabled = true; btn.textContent = 'Buying...'; }
     try {
@@ -240,12 +241,13 @@ async function handlePrediction(marketId, direction, optionIndex) {
         } else if (result) {
             showToast(`Bought ${result.shares.toFixed(1)} ${direction.toUpperCase()} shares for ${amount} tokens!`, 'success');
         } else {
-            showToast('Failed to place prediction.', 'error');
+            showToast('Trade failed — please try again', 'error');
         }
     } catch (e) {
-        showToast('Failed to place prediction.', 'error');
+        console.error('Prediction error:', e);
+        showToast(e.message || 'Trade failed — please try again', 'error');
     } finally {
-        if (btn) { btn.disabled = false; }
+        if (btn) { btn.disabled = false; btn.textContent = btn.dataset.label || (direction === 'yes' ? 'Buy YES' : direction === 'no' ? 'Buy NO' : 'Buy'); }
     }
 }
 
