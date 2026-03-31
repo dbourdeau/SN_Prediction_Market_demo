@@ -746,6 +746,9 @@ const Components = {
                     </div>
                 </div>
             </header>
+            <div class="bg-amber-50 border-b border-amber-200 dark:bg-amber-900/20 dark:border-amber-700/40 px-4 py-2 text-center text-xs text-amber-700 dark:text-amber-400">
+                ⚠️ <strong>Testing mode:</strong> This platform is currently in development. All markets are for demonstration purposes only and carry no real-world value.
+            </div>
         `;
     },
 
