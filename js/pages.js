@@ -695,6 +695,23 @@ const Pages = {
                             </div>
                             ` : ''}
 
+                            ${!isResolved ? `
+                            <div class="border border-blue-200 rounded-xl mb-4 overflow-hidden">
+                                <div class="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600">
+                                    <div class="flex items-center gap-2">
+                                        <svg class="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
+                                        <span class="text-sm font-semibold text-white">Web Research</span>
+                                        <span class="text-xs text-white/50">powered by Claude + live web</span>
+                                    </div>
+                                    <button onclick="handleDeepResearch(${m.id})" id="deep-research-btn" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/20 text-white hover:bg-white/30 transition-colors border border-white/20">Research</button>
+                                </div>
+                                <div id="deep-research-content" class="hidden bg-white px-4 py-4 space-y-4"></div>
+                                <div id="deep-research-placeholder" class="px-4 py-5 text-center bg-blue-50/40">
+                                    <p class="text-xs text-blue-400">Click <strong>Research</strong> to have Claude search the web and form an independent opinion on this market's outcome.</p>
+                                </div>
+                            </div>
+                            ` : ''}
+
                             ${canEdit ? `<button onclick="toggleEditMarket()" id="edit-market-btn" class="text-xs text-shark-600 font-medium hover:text-shark-800 mb-4">Edit market</button>
                             <div id="edit-market-form" class="hidden mb-4 p-4 bg-gray-50 rounded-lg space-y-3">
                                 <input type="text" id="edit-title" value="${esc(m.title)}" maxlength="200" class="w-full px-3 py-2 border rounded-lg text-sm"/>

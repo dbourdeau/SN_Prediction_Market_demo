@@ -1081,6 +1081,80 @@ async function handleAISummarize(marketId) {
     }
 }
 
+async function handleDeepResearch(marketId) {
+    const btn = document.getElementById('deep-research-btn');
+    const container = document.getElementById('deep-research-content');
+    const placeholder = document.getElementById('deep-research-placeholder');
+    const market = AppState.selectedMarket;
+
+    if (btn) { btn.disabled = true; btn.textContent = 'Searching…'; }
+    if (placeholder) placeholder.classList.add('hidden');
+    if (container) {
+        container.classList.remove('hidden');
+        container.innerHTML = `<div class="flex flex-col items-center gap-2 py-6 text-sm text-blue-400">
+            <div class="w-5 h-5 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
+            <span>Searching the web for relevant data…</span>
+            <span class="text-xs text-gray-300">This may take 15–30 seconds</span>
+        </div>`;
+    }
+
+    try {
+        const r = await AI.deepResearch(market);
+
+        const verdictCfg = {
+            likely_yes: { label: 'Likely YES', color: 'bg-green-100 text-green-700 border-green-200', bar: 'bg-green-500' },
+            likely_no:  { label: 'Likely NO',  color: 'bg-red-100 text-red-600 border-red-200',     bar: 'bg-red-500'   },
+            uncertain:  { label: 'Uncertain',  color: 'bg-gray-100 text-gray-600 border-gray-200',  bar: 'bg-gray-400'  },
+        };
+        const confColor = { low: 'text-amber-500', medium: 'text-blue-500', high: 'text-green-600' };
+        const v = verdictCfg[r.verdict] || verdictCfg.uncertain;
+        const prob = Math.min(100, Math.max(0, r.estimated_probability || 0));
+
+        container.innerHTML = `
+            <!-- Verdict + probability -->
+            <div class="flex items-center gap-3 flex-wrap">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-bold ${v.color}">${v.label}</span>
+                <span class="text-xs ${confColor[r.confidence] || 'text-gray-400'} font-medium">Confidence: ${r.confidence || '—'}</span>
+                <span class="ml-auto text-sm font-bold text-gray-700">${prob}% est. probability</span>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-2">
+                <div class="${v.bar} h-2 rounded-full transition-all" style="width:${prob}%"></div>
+            </div>
+
+            <!-- Key Findings -->
+            ${r.key_findings?.length ? `
+            <div>
+                <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Key Findings</div>
+                <ul class="space-y-1.5">
+                    ${r.key_findings.map(f => `<li class="flex gap-2 text-sm text-gray-700"><span class="text-blue-400 shrink-0 mt-0.5">•</span><span>${esc(f)}</span></li>`).join('')}
+                </ul>
+            </div>` : ''}
+
+            <!-- Reasoning -->
+            <div class="bg-blue-50/60 rounded-lg px-3 py-2.5">
+                <div class="text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1">Research Opinion</div>
+                <p class="text-sm text-gray-700 leading-relaxed">${esc(r.reasoning)}</p>
+            </div>
+
+            <!-- Searches performed -->
+            ${r.searches_performed?.length ? `
+            <div class="text-xs text-gray-300 flex flex-wrap gap-1.5 items-center">
+                <span class="font-medium text-gray-400">Searched:</span>
+                ${r.searches_performed.map(s => `<span class="bg-gray-50 border border-gray-100 rounded px-1.5 py-0.5">${esc(s)}</span>`).join('')}
+            </div>` : ''}
+
+            <!-- Caveat -->
+            <p class="text-xs text-gray-300 border-t border-gray-100 pt-3">${esc(r.caveat || 'External research may not reflect internal SharkNinja data.')}</p>`;
+
+    } catch (e) {
+        console.error('Deep research error:', e);
+        if (container) container.innerHTML = `<div class="text-sm text-red-500 py-2">${esc(e.message)}</div>`;
+        if (placeholder) placeholder.classList.remove('hidden');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Re-research'; }
+    }
+}
+
 // ==================== INIT ====================
 
 AppState.subscribe(render);

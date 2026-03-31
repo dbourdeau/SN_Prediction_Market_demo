@@ -45,6 +45,94 @@ const AI = {
         return data.content?.[0]?.text || '';
     },
 
+    // Deep research: agentic loop using Claude's built-in web_search tool
+    async deepResearch(market) {
+        const apiKey = await this._getKey();
+
+        const systemPrompt = `You are a research analyst for SharkPool, SharkNinja's internal prediction market (SharkNinja makes Shark vacuum cleaners, hair tools, and Ninja kitchen appliances).
+
+Your job: use web search to research the topic of the given prediction market question, then form an evidence-based opinion on its likely outcome.
+
+Search strategy:
+- Search for recent news and developments directly related to the question
+- Look for industry data, analyst reports, or expert forecasts
+- Find historical context or comparable past events
+- Consider the question's close date when assessing likelihood
+
+After researching, respond ONLY with this JSON object:
+{
+  "estimated_probability": <integer 0-100, your best estimate of YES likelihood>,
+  "confidence": "low" | "medium" | "high",
+  "verdict": "likely_yes" | "likely_no" | "uncertain",
+  "key_findings": ["<finding>", "<finding>", "<finding>"],
+  "reasoning": "<2-3 sentences summarizing your conclusion based on the research>",
+  "searches_performed": ["<brief label of what you searched for>"],
+  "caveat": "<one sentence — note if external research may not reflect internal SharkNinja data>"
+}
+
+Respond ONLY with the JSON object.`;
+
+        const userPrompt = `Research this prediction market question and estimate its probability:\n\nQuestion: "${market.title}"\nCategory: ${market.category}\nClose date: ${market.closes_at}\nDescription/Resolution criteria: ${market.description || 'None provided'}`;
+
+        const messages = [{ role: 'user', content: userPrompt }];
+        let iterations = 0;
+
+        while (iterations < 10) {
+            iterations++;
+
+            const res = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey,
+                    'anthropic-version': '2023-06-01',
+                    'anthropic-dangerous-direct-browser-access': 'true',
+                },
+                body: JSON.stringify({
+                    model: 'claude-sonnet-4-6',
+                    max_tokens: 2048,
+                    system: systemPrompt,
+                    tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+                    messages,
+                }),
+            });
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error?.message || `Research error (${res.status})`);
+            }
+
+            const data = await res.json();
+
+            if (data.stop_reason === 'end_turn') {
+                const textBlock = data.content.find(b => b.type === 'text');
+                const raw = textBlock?.text || '';
+                const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+                return JSON.parse(cleaned);
+            }
+
+            // Add assistant turn and continue the loop
+            messages.push({ role: 'assistant', content: data.content });
+
+            if (data.stop_reason === 'tool_use') {
+                const toolResults = data.content
+                    .filter(b => b.type === 'tool_use')
+                    .map(b => ({ type: 'tool_result', tool_use_id: b.id, content: '' }));
+                messages.push({ role: 'user', content: toolResults });
+            } else {
+                // Unexpected stop — try to extract text anyway
+                const textBlock = data.content?.find(b => b.type === 'text');
+                if (textBlock?.text) {
+                    const cleaned = textBlock.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+                    return JSON.parse(cleaned);
+                }
+                throw new Error('Unexpected research agent response');
+            }
+        }
+
+        throw new Error('Research agent did not complete');
+    },
+
     // Chat: multi-turn conversation (array of {role, content} objects)
     async _callChat(systemPrompt, messages, maxTokens = 512) {
         const apiKey = await this._getKey();
