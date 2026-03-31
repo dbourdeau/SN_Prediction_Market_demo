@@ -2247,6 +2247,12 @@ Background: [Provide relevant context for traders]"
 
     // ==================== INTEL BRIEFING ====================
     briefing() {
+        if (!AppState.user?.is_admin) return `
+            <div class="max-w-2xl mx-auto px-4 py-16 text-center">
+                <div class="text-4xl mb-4">🔒</div>
+                <h2 class="text-lg font-semibold text-gray-700 mb-2">Admin Only</h2>
+                <p class="text-sm text-gray-400">The Intel Briefing is only available to SharkPool admins.</p>
+            </div>`;
         const activeCount = (AppState.markets || []).filter(m => m.status === 'active' && !m.resolution).length;
         const totalVolume = (AppState.markets || []).reduce((s, m) => s + (m.volume || 0), 0);
 
