@@ -879,6 +879,11 @@ const Pages = {
                                     </div>
                                     `}
                                 </div>
+                            ` : m.status === 'pending' ? `
+                                <h3 class="font-semibold text-gray-900 mb-3">Pending Approval</h3>
+                                <div class="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                                    <p class="text-sm text-amber-700">This market is awaiting admin approval before trading opens.</p>
+                                </div>
                             ` : `
                                 <h3 class="font-semibold text-gray-900 mb-4">Trading Closed</h3>
                                 <p class="text-sm text-gray-500">This market has expired and is awaiting resolution.</p>
