@@ -678,53 +678,6 @@ const Pages = {
                                 <svg class="w-3.5 h-3.5 text-gray-400 shrink-0 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
                             </div>` : ''}
 
-                            ${!isResolved ? `
-                            <div class="border border-violet-200 rounded-xl mb-4 overflow-hidden">
-                                <div class="flex items-center justify-between px-4 py-3" style="background:linear-gradient(135deg,#4c1d95,#6d28d9);">
-                                    <div class="flex items-center gap-2.5">
-                                        <div class="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
-                                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                                        </div>
-                                        <div>
-                                            <div class="flex items-center gap-2">
-                                                <span class="text-sm font-bold text-white">AI Analysis</span>
-                                                <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-white/15 text-white/60 font-semibold tracking-wider">PLATFORM DATA</span>
-                                            </div>
-                                            <span class="text-[11px] text-white/45">Trades · volume · comments</span>
-                                        </div>
-                                    </div>
-                                    <button onclick="handleAISummarize(${m.id})" id="ai-summary-btn" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-violet-700 hover:bg-violet-50 transition-colors shadow-sm">Analyze</button>
-                                </div>
-                                <div id="ai-summary-content" class="hidden bg-white px-4 py-4 space-y-4"></div>
-                                <div id="ai-summary-placeholder" class="px-4 py-5 text-center bg-violet-50/50">
-                                    <p class="text-xs text-violet-400">Analyzes <strong>platform activity</strong> — trade patterns, volume, sentiment, and your position — to surface signals and risks.</p>
-                                </div>
-                            </div>
-                            ` : ''}
-
-                            ${!isResolved ? `
-                            <div class="border border-teal-200 rounded-xl mb-4 overflow-hidden">
-                                <div class="flex items-center justify-between px-4 py-3" style="background:linear-gradient(135deg,#0f766e,#0891b2);">
-                                    <div class="flex items-center gap-2.5">
-                                        <div class="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
-                                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
-                                        </div>
-                                        <div>
-                                            <div class="flex items-center gap-2">
-                                                <span class="text-sm font-bold text-white">Web Research</span>
-                                                <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-white/15 text-white/60 font-semibold tracking-wider flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-green-300 animate-pulse inline-block"></span>LIVE WEB</span>
-                                            </div>
-                                            <span class="text-[11px] text-white/45">News · industry data · analyst reports</span>
-                                        </div>
-                                    </div>
-                                    <button onclick="handleDeepResearch(${m.id})" id="deep-research-btn" class="px-3 py-1.5 rounded-lg text-xs font-bold text-white border border-white/40 hover:bg-white/15 transition-colors">Research</button>
-                                </div>
-                                <div id="deep-research-content" class="hidden bg-white px-4 py-4 space-y-4"></div>
-                                <div id="deep-research-placeholder" class="px-4 py-5 text-center bg-teal-50/50">
-                                    <p class="text-xs text-teal-500">Searches the <strong>live web</strong> for news, data, and context — then forms an independent probability estimate.</p>
-                                </div>
-                            </div>
-                            ` : ''}
 
                             ${canEdit ? `<button onclick="toggleEditMarket()" id="edit-market-btn" class="text-xs text-shark-600 font-medium hover:text-shark-800 mb-4">Edit market</button>
                             <div id="edit-market-form" class="hidden mb-4 p-4 bg-gray-50 rounded-lg space-y-3">
@@ -762,6 +715,46 @@ const Pages = {
                                 <div class="bg-gray-50 rounded-lg p-3 sm:p-4">${isMulti ? Components.chartMulti(m.history, m.options, 500, 220, m.id, m.created_at) : Components.chart(m.history, 500, 200, m.id, m.created_at)}</div>
                             </div>
                         </div>
+
+                        ${!isResolved ? `
+                        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                            <!-- Tab bar -->
+                            <div class="flex border-b border-gray-100">
+                                <button id="ai-tab-btn-analysis" onclick="switchAITab('analysis')"
+                                    class="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-bold border-b-2 border-violet-600 text-violet-700 bg-violet-50/60 transition-colors">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                                    Platform Analysis
+                                    <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-500 font-semibold tracking-wider hidden sm:inline">TRADES & VOLUME</span>
+                                </button>
+                                <button id="ai-tab-btn-research" onclick="switchAITab('research')"
+                                    class="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-bold border-b-2 border-transparent text-gray-400 hover:text-teal-600 transition-colors">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
+                                    Web Research
+                                    <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-400 font-semibold tracking-wider hidden sm:inline flex items-center gap-1"><span class="w-1 h-1 rounded-full bg-green-400 inline-block"></span>LIVE WEB</span>
+                                </button>
+                            </div>
+
+                            <!-- Analysis pane -->
+                            <div id="ai-pane-analysis" class="px-4 py-4">
+                                <div class="flex items-center justify-between mb-3">
+                                    <p class="text-xs text-violet-400">Analyzes <strong>platform activity</strong> — trade patterns, volume, sentiment, and your position.</p>
+                                    <button onclick="handleAISummarize(${m.id})" id="ai-summary-btn" class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-violet-600 text-white hover:bg-violet-700 transition-colors shadow-sm">Analyze</button>
+                                </div>
+                                <div id="ai-summary-content" class="hidden space-y-4"></div>
+                                <div id="ai-summary-placeholder"></div>
+                            </div>
+
+                            <!-- Research pane -->
+                            <div id="ai-pane-research" class="hidden px-4 py-4">
+                                <div class="flex items-center justify-between mb-3">
+                                    <p class="text-xs text-teal-500">Searches the <strong>live web</strong> for news, data, and context — forms an independent probability estimate.</p>
+                                    <button onclick="handleDeepResearch()" id="deep-research-btn" class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-teal-600 text-white hover:bg-teal-700 transition-colors shadow-sm">Research</button>
+                                </div>
+                                <div id="deep-research-content" class="hidden space-y-4"></div>
+                                <div id="deep-research-placeholder"></div>
+                            </div>
+                        </div>
+                        ` : ''}
 
                         ${allPreds.length > 0 ? `
                         <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">

@@ -117,7 +117,7 @@ Respond ONLY with the JSON object.`;
 
             if (data.stop_reason === 'end_turn') {
                 const textBlock = data.content.find(b => b.type === 'text');
-                const raw = textBlock?.text || '';
+                const raw = (textBlock?.text || '').replace(/<cite[^>]*>|<\/cite>/gi, '');
                 const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
                 return JSON.parse(cleaned);
             }

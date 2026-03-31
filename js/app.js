@@ -1081,7 +1081,34 @@ async function handleAISummarize(marketId) {
     }
 }
 
-async function handleDeepResearch(marketId) {
+function switchAITab(tab) {
+    const isAnalysis = tab === 'analysis';
+    document.getElementById('ai-pane-analysis')?.classList.toggle('hidden', !isAnalysis);
+    document.getElementById('ai-pane-research')?.classList.toggle('hidden', isAnalysis);
+
+    const btnA = document.getElementById('ai-tab-btn-analysis');
+    const btnR = document.getElementById('ai-tab-btn-research');
+    if (btnA) {
+        btnA.classList.toggle('border-violet-600', isAnalysis);
+        btnA.classList.toggle('text-violet-700', isAnalysis);
+        btnA.classList.toggle('bg-violet-50/60', isAnalysis);
+        btnA.classList.toggle('border-transparent', !isAnalysis);
+        btnA.classList.toggle('text-gray-400', !isAnalysis);
+        btnA.classList.remove('bg-violet-50/60');
+        if (isAnalysis) btnA.classList.add('bg-violet-50/60');
+    }
+    if (btnR) {
+        btnR.classList.toggle('border-teal-600', !isAnalysis);
+        btnR.classList.toggle('text-teal-700', !isAnalysis);
+        btnR.classList.toggle('bg-teal-50/60', !isAnalysis);
+        btnR.classList.toggle('border-transparent', isAnalysis);
+        btnR.classList.toggle('text-gray-400', isAnalysis);
+        btnR.classList.remove('bg-teal-50/60');
+        if (!isAnalysis) btnR.classList.add('bg-teal-50/60');
+    }
+}
+
+async function handleDeepResearch() {
     const btn = document.getElementById('deep-research-btn');
     const container = document.getElementById('deep-research-content');
     const placeholder = document.getElementById('deep-research-placeholder');
