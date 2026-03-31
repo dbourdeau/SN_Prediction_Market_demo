@@ -953,5 +953,6 @@ async function handleAISummarize(marketId) {
 // ==================== INIT ====================
 
 AppState.subscribe(render);
+AppState.subscribe(() => { if (AppState.session) ChatWidget.init(); });
 render();
 AppState.init();
