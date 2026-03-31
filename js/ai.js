@@ -339,4 +339,76 @@ ${commentsSummary}`;
             this._loading = false;
         }
     },
+
+    // Executive Briefing: synthesize all active markets into a leadership-ready report
+    async generateBriefing(markets) {
+        const systemPrompt = `You are a strategic intelligence analyst for SharkNinja's internal prediction market platform, SharkPool.
+
+Your job is to synthesize the current state of all active prediction markets into a concise executive briefing — something a VP or executive could read in 2 minutes to understand what the collective intelligence of SharkNinja employees currently believes about the business.
+
+Respond ONLY with this JSON object:
+{
+  "headline": "<one punchy sentence summarizing the overall mood/outlook>",
+  "overall_sentiment": "optimistic" | "cautious" | "mixed" | "uncertain",
+  "generated_at": "<ISO timestamp>",
+  "categories": [
+    {
+      "name": "<category name>",
+      "summary": "<1-2 sentences on what markets in this category collectively show>",
+      "markets": [
+        {
+          "title": "<market title>",
+          "probability": <integer 0-100>,
+          "signal": "bullish" | "bearish" | "neutral",
+          "notable": "<one short observation, e.g. 'High conviction — 89% YES with strong volume' or 'Crowd shifted 15pts in 3 days'>",
+          "volume": <integer tokens>
+        }
+      ]
+    }
+  ],
+  "high_conviction": [
+    { "title": "<market title>", "probability": <integer>, "direction": "YES" | "NO", "reason": "<why this is notable>" }
+  ],
+  "watch_list": [
+    { "title": "<market title>", "reason": "<why leadership should watch this one>" }
+  ],
+  "key_takeaways": ["<takeaway 1>", "<takeaway 2>", "<takeaway 3>"],
+  "total_markets": <integer>,
+  "total_volume": <integer>,
+  "total_traders": <integer>
+}
+
+Rules:
+- high_conviction: markets with probability > 75% or < 25% AND volume > 100 (max 4)
+- watch_list: markets with sharp recent movement, low volume but important topic, or probability near 50% on a critical question (max 3)
+- key_takeaways: 3 bullets written for a C-suite audience — strategic, direct, no jargon
+- Skip markets with 0 traders
+- Group by category, use readable category names (e.g. "Product Launch" not "product_launch")
+
+Respond ONLY with the JSON object.`;
+
+        const activeMarkets = markets.filter(m => m.status === 'active' && !m.resolution && m.traders > 0);
+        const marketData = activeMarkets.map(m => {
+            const pct = Math.round((m.probability || 0) * 100);
+            const hist = m.history || [];
+            let trend = 'stable';
+            if (hist.length >= 3) {
+                const recent = typeof hist[hist.length-1] === 'object' ? hist[hist.length-1].p : hist[hist.length-1];
+                const older = typeof hist[Math.max(0, hist.length-5)] === 'object' ? hist[Math.max(0, hist.length-5)].p : hist[Math.max(0, hist.length-5)];
+                const delta = recent - older;
+                if (delta > 0.05) trend = 'rising';
+                else if (delta < -0.05) trend = 'falling';
+            }
+            return `- [${m.category}] "${m.title}" | ${pct}% YES | Volume: ${m.volume}t | Traders: ${m.traders} | Trend: ${trend} | Closes: ${(m.closes_at || '').split('T')[0]}`;
+        }).join('\n');
+
+        const totalVolume = activeMarkets.reduce((s, m) => s + (m.volume || 0), 0);
+        const totalTraders = activeMarkets.reduce((s, m) => s + (m.traders || 0), 0);
+
+        const userPrompt = `Generate an executive briefing for SharkNinja leadership based on these ${activeMarkets.length} active prediction markets (total platform volume: ${totalVolume} tokens, ${totalTraders} total trades):\n\n${marketData}\n\nToday's date: ${new Date().toISOString().split('T')[0]}`;
+
+        const raw = await this._call(systemPrompt, userPrompt, 2000);
+        const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        return JSON.parse(cleaned);
+    },
 };

@@ -27,6 +27,7 @@ function render() {
             case 'admin': pageContent = Pages.admin(); break;
             case 'transactions': pageContent = Pages.transactions(); break;
             case 'analytics': pageContent = Pages.analytics(); break;
+            case 'briefing': pageContent = Pages.briefing(); break;
             default: pageContent = Pages.dashboard();
         }
 
@@ -1181,6 +1182,139 @@ async function handleDeepResearch() {
         if (placeholder) placeholder.classList.remove('hidden');
     } finally {
         if (btn) { btn.disabled = false; btn.textContent = 'Re-research'; }
+    }
+}
+
+// ==================== INTEL BRIEFING ====================
+
+async function handleGenerateBriefing() {
+    const btn = document.getElementById('briefing-btn');
+    const container = document.getElementById('briefing-output');
+    const placeholder = document.getElementById('briefing-placeholder');
+
+    if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
+    if (placeholder) placeholder.classList.add('hidden');
+    if (container) {
+        container.classList.remove('hidden');
+        container.innerHTML = `<div class="flex flex-col items-center gap-3 py-16 text-gray-400">
+            <div class="w-6 h-6 border-2 border-gray-200 border-t-indigo-500 rounded-full animate-spin"></div>
+            <span class="text-sm">Analyzing ${(AppState.markets || []).filter(m => m.status === 'active' && !m.resolution).length} active markets…</span>
+        </div>`;
+    }
+
+    try {
+        const r = await AI.generateBriefing(AppState.markets || []);
+
+        const sentimentCfg = {
+            optimistic: { label: 'Optimistic', color: 'bg-green-100 text-green-700 border-green-200', dot: 'bg-green-500' },
+            cautious:   { label: 'Cautious',   color: 'bg-amber-100 text-amber-700 border-amber-200', dot: 'bg-amber-500' },
+            mixed:      { label: 'Mixed',       color: 'bg-blue-100 text-blue-700 border-blue-200',   dot: 'bg-blue-500' },
+            uncertain:  { label: 'Uncertain',   color: 'bg-gray-100 text-gray-600 border-gray-200',   dot: 'bg-gray-400' },
+        };
+        const signalColor = { bullish: 'text-green-600', bearish: 'text-red-500', neutral: 'text-gray-500' };
+        const signalIcon  = { bullish: '↑', bearish: '↓', neutral: '→' };
+        const s = sentimentCfg[r.overall_sentiment] || sentimentCfg.mixed;
+
+        const categoriesHTML = (r.categories || []).map(cat => `
+            <div class="border border-gray-100 rounded-xl overflow-hidden">
+                <div class="bg-gray-50 px-4 py-2.5 flex items-center justify-between">
+                    <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">${esc(cat.name)}</span>
+                    <span class="text-xs text-gray-400">${cat.markets?.length || 0} market${cat.markets?.length !== 1 ? 's' : ''}</span>
+                </div>
+                <div class="px-4 py-3">
+                    <p class="text-sm text-gray-600 mb-3">${esc(cat.summary)}</p>
+                    <div class="space-y-2">
+                        ${(cat.markets || []).map(m => `
+                            <div class="flex items-start gap-3 py-2 border-t border-gray-50">
+                                <div class="shrink-0 w-10 text-center">
+                                    <span class="text-lg font-black ${m.probability >= 60 ? 'text-green-600' : m.probability <= 40 ? 'text-red-500' : 'text-gray-500'}">${m.probability}%</span>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-sm font-medium text-gray-800 leading-tight mb-0.5">${esc(m.title)}</div>
+                                    <div class="text-xs text-gray-400">${esc(m.notable)}</div>
+                                </div>
+                                <span class="shrink-0 text-sm font-bold ${signalColor[m.signal] || 'text-gray-400'}">${signalIcon[m.signal] || '→'}</span>
+                            </div>`).join('')}
+                    </div>
+                </div>
+            </div>`).join('');
+
+        const highConvictionHTML = (r.high_conviction || []).map(m => `
+            <div class="flex items-start gap-3 p-3 bg-white rounded-lg border border-gray-100">
+                <div class="shrink-0 px-2 py-1 rounded-lg text-xs font-black ${m.direction === 'YES' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}">${m.direction} ${m.probability}%</div>
+                <div class="min-w-0">
+                    <div class="text-sm font-semibold text-gray-800 leading-tight">${esc(m.title)}</div>
+                    <div class="text-xs text-gray-500 mt-0.5">${esc(m.reason)}</div>
+                </div>
+            </div>`).join('');
+
+        const watchListHTML = (r.watch_list || []).map(m => `
+            <div class="flex items-start gap-2.5 p-3 bg-amber-50 rounded-lg border border-amber-100">
+                <span class="text-amber-500 shrink-0 mt-0.5">⚑</span>
+                <div>
+                    <div class="text-sm font-semibold text-gray-800">${esc(m.title)}</div>
+                    <div class="text-xs text-amber-700 mt-0.5">${esc(m.reason)}</div>
+                </div>
+            </div>`).join('');
+
+        const copyText = `SharkPool Intel Briefing — ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}\n\n${r.headline}\n\nKey Takeaways:\n${(r.key_takeaways || []).map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\nHigh Conviction Calls:\n${(r.high_conviction || []).map(m => `• ${m.title} — ${m.direction} at ${m.probability}%`).join('\n')}\n\nWatch List:\n${(r.watch_list || []).map(m => `• ${m.title}: ${m.reason}`).join('\n')}\n\nGenerated by SharkPool`;
+
+        container.innerHTML = `
+            <!-- Header -->
+            <div class="flex items-start justify-between gap-4 mb-6">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-bold ${s.color}">
+                            <span class="w-1.5 h-1.5 rounded-full ${s.dot}"></span>${s.label} Outlook
+                        </span>
+                        <span class="text-xs text-gray-400">${r.total_markets} markets · ${(r.total_volume || 0).toLocaleString()}t volume · ${(r.total_traders || 0).toLocaleString()} trades</span>
+                    </div>
+                    <p class="text-lg font-semibold text-gray-900 leading-snug">${esc(r.headline)}</p>
+                </div>
+                <button onclick="navigator.clipboard.writeText(${JSON.stringify(copyText)}).then(()=>showToast('Copied to clipboard','success'))"
+                    class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    Copy
+                </button>
+            </div>
+
+            <!-- Key Takeaways -->
+            <div class="rounded-xl p-4 mb-6" style="background:linear-gradient(135deg,#1e1b4b,#312e81);">
+                <div class="text-xs font-bold text-indigo-300 uppercase tracking-wider mb-3">Key Takeaways for Leadership</div>
+                <ol class="space-y-2">
+                    ${(r.key_takeaways || []).map((t, i) => `
+                        <li class="flex gap-3 text-sm text-white/90 leading-relaxed">
+                            <span class="shrink-0 w-5 h-5 rounded-full bg-indigo-500/50 flex items-center justify-center text-xs font-bold text-indigo-200">${i + 1}</span>
+                            <span>${esc(t)}</span>
+                        </li>`).join('')}
+                </ol>
+            </div>
+
+            <!-- High Conviction + Watch List side by side -->
+            <div class="grid sm:grid-cols-2 gap-4 mb-6">
+                <div>
+                    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">High Conviction Calls</div>
+                    <div class="space-y-2">${highConvictionHTML || '<p class="text-xs text-gray-400 p-3">No high-conviction markets yet.</p>'}</div>
+                </div>
+                <div>
+                    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Watch List</div>
+                    <div class="space-y-2">${watchListHTML || '<p class="text-xs text-gray-400 p-3">Nothing flagged.</p>'}</div>
+                </div>
+            </div>
+
+            <!-- Category breakdown -->
+            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">By Category</div>
+            <div class="space-y-3">${categoriesHTML}</div>
+
+            <!-- Footer -->
+            <p class="text-xs text-gray-300 border-t border-gray-100 pt-4 mt-4">Generated by SharkPool AI · ${new Date().toLocaleString()} · Based on platform data only</p>`;
+
+    } catch (e) {
+        console.error('Briefing error:', e);
+        if (container) container.innerHTML = `<div class="text-sm text-red-500 py-4 text-center">${esc(e.message || 'Failed to generate briefing')}</div>`;
+        if (placeholder) placeholder.classList.remove('hidden');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Regenerate'; }
     }
 }
 

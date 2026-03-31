@@ -2244,6 +2244,68 @@ Background: [Provide relevant context for traders]"
                 </div>
             </div>`;
     },
+
+    // ==================== INTEL BRIEFING ====================
+    briefing() {
+        const activeCount = (AppState.markets || []).filter(m => m.status === 'active' && !m.resolution).length;
+        const totalVolume = (AppState.markets || []).reduce((s, m) => s + (m.volume || 0), 0);
+
+        return `
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-20 lg:pb-8 fade-in">
+                <!-- Page header -->
+                <div class="flex items-start justify-between mb-6">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:linear-gradient(135deg,#1e1b4b,#4338ca);">
+                                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            </div>
+                            <h1 class="text-xl font-bold text-gray-900">Intel Briefing</h1>
+                        </div>
+                        <p class="text-sm text-gray-500">AI-synthesized snapshot of what the SharkNinja crowd currently believes</p>
+                    </div>
+                    <button id="briefing-btn" onclick="handleGenerateBriefing()"
+                        class="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white shadow-sm transition-colors"
+                        style="background:linear-gradient(135deg,#1e1b4b,#4338ca);">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        Generate Briefing
+                    </button>
+                </div>
+
+                <!-- Stats bar -->
+                <div class="grid grid-cols-3 gap-3 mb-6">
+                    <div class="bg-white rounded-xl border border-gray-200 p-3 text-center">
+                        <div class="text-2xl font-black text-indigo-600">${activeCount}</div>
+                        <div class="text-xs text-gray-400 mt-0.5">Active Markets</div>
+                    </div>
+                    <div class="bg-white rounded-xl border border-gray-200 p-3 text-center">
+                        <div class="text-2xl font-black text-indigo-600">${totalVolume.toLocaleString()}</div>
+                        <div class="text-xs text-gray-400 mt-0.5">Tokens Traded</div>
+                    </div>
+                    <div class="bg-white rounded-xl border border-gray-200 p-3 text-center">
+                        <div class="text-2xl font-black text-indigo-600">${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                        <div class="text-xs text-gray-400 mt-0.5">Today</div>
+                    </div>
+                </div>
+
+                <!-- Output area -->
+                <div class="bg-white rounded-xl border border-gray-200 p-5 sm:p-6">
+                    <div id="briefing-output" class="hidden"></div>
+                    <div id="briefing-placeholder" class="py-12 text-center">
+                        <div class="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center" style="background:linear-gradient(135deg,#e0e7ff,#c7d2fe);">
+                            <svg class="w-7 h-7 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        </div>
+                        <h3 class="text-base font-semibold text-gray-700 mb-1">Ready to generate</h3>
+                        <p class="text-sm text-gray-400 max-w-sm mx-auto mb-5">Claude will analyze all ${activeCount} active markets and produce a leadership-ready intelligence report with key signals, high-conviction calls, and strategic takeaways.</p>
+                        <button onclick="handleGenerateBriefing()"
+                            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white shadow-sm"
+                            style="background:linear-gradient(135deg,#1e1b4b,#4338ca);">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                            Generate Now
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+    },
 };
 
 // Helper for trade estimates
