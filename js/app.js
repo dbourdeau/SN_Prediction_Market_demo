@@ -1002,25 +1002,82 @@ async function handleAIReviewMarket(marketId) {
 async function handleAISummarize(marketId) {
     const btn = document.getElementById('ai-summary-btn');
     const container = document.getElementById('ai-summary-content');
+    const placeholder = document.getElementById('ai-summary-placeholder');
 
-    if (btn) { btn.disabled = true; btn.textContent = 'Analyzing...'; }
-    if (container) { container.classList.remove('hidden'); container.innerHTML = '<div class="flex items-center gap-2 text-xs text-gray-400"><div class="w-3 h-3 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin"></div> Analyzing market activity...</div>'; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Analyzing…'; }
+    if (placeholder) placeholder.classList.add('hidden');
+    if (container) {
+        container.classList.remove('hidden');
+        container.innerHTML = `<div class="flex items-center gap-2 py-4 justify-center text-sm text-purple-400">
+            <div class="w-4 h-4 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin"></div>
+            Analyzing market activity…
+        </div>`;
+    }
 
     try {
-        const summary = await AI.summarizeMarket(marketId);
-        if (container) {
-            container.innerHTML = `
-                <p class="text-sm text-gray-700 leading-relaxed">${esc(summary)}</p>
-                <p class="text-xs text-gray-400 mt-2 flex items-center gap-1">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    AI-generated summary — may not reflect all nuances
-                </p>`;
-        }
+        const r = await AI.summarizeMarket(marketId);
+
+        const sentimentCfg = {
+            bullish: { label: 'Bullish', color: 'bg-green-100 text-green-700 border-green-200', dot: 'bg-green-500', icon: '↑' },
+            bearish: { label: 'Bearish', color: 'bg-red-100 text-red-600 border-red-200',   dot: 'bg-red-500',   icon: '↓' },
+            neutral: { label: 'Neutral', color: 'bg-gray-100 text-gray-600 border-gray-200', dot: 'bg-gray-400',  icon: '→' },
+        };
+        const recCfg = {
+            buy_yes: { label: 'Buy YES', color: 'bg-green-600 text-white' },
+            buy_no:  { label: 'Buy NO',  color: 'bg-red-600 text-white' },
+            hold:    { label: 'Hold',    color: 'bg-amber-500 text-white' },
+            watch:   { label: 'Watch',   color: 'bg-blue-500 text-white' },
+        };
+        const trendLabel = { rising: '↑ Rising', falling: '↓ Falling', stable: '→ Stable' };
+
+        const s = sentimentCfg[r.sentiment] || sentimentCfg.neutral;
+        const rec = recCfg[r.recommendation] || recCfg.watch;
+
+        container.innerHTML = `
+            <!-- Sentiment row -->
+            <div class="flex items-center gap-3 flex-wrap">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-bold ${s.color}">
+                    <span class="w-1.5 h-1.5 rounded-full ${s.dot}"></span>
+                    ${s.icon} ${s.label}
+                </span>
+                <span class="text-xs text-gray-400">Confidence: ${r.confidence}/10</span>
+                <span class="text-xs text-gray-400">Trend: ${trendLabel[r.trend] || r.trend}</span>
+                ${r.key_stat ? `<span class="text-xs text-purple-500 font-medium ml-auto">${esc(r.key_stat)}</span>` : ''}
+            </div>
+
+            <!-- Signal -->
+            <div class="bg-gray-50 rounded-lg px-3 py-2.5">
+                <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Market Signal</div>
+                <p class="text-sm text-gray-800 leading-relaxed">${esc(r.signal)}</p>
+            </div>
+
+            <!-- Rationale -->
+            <p class="text-sm text-gray-600 leading-relaxed">${esc(r.rationale)}</p>
+
+            <!-- Risks -->
+            ${r.risks?.length ? `
+            <div>
+                <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Key Risks</div>
+                <div class="flex flex-wrap gap-2">
+                    ${r.risks.map(risk => `<span class="text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2.5 py-1">⚠ ${esc(risk)}</span>`).join('')}
+                </div>
+            </div>` : ''}
+
+            <!-- Recommendation -->
+            <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                <span class="px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 ${rec.color}">${rec.label}</span>
+                <p class="text-xs text-gray-600">${esc(r.rec_reason)}</p>
+            </div>
+
+            <!-- Disclaimer -->
+            <p class="text-xs text-gray-300 border-t border-gray-100 pt-3">${esc(r.disclaimer || 'AI analysis is based on platform data only.')}</p>`;
+
     } catch (e) {
         console.error('AI summarize error:', e);
-        if (container) container.innerHTML = `<div class="text-sm text-red-500">${esc(e.message)}</div>`;
+        if (container) container.innerHTML = `<div class="text-sm text-red-500 py-2">${esc(e.message)}</div>`;
+        if (placeholder) placeholder.classList.remove('hidden');
     } finally {
-        if (btn) { btn.disabled = false; btn.textContent = 'Refresh'; }
+        if (btn) { btn.disabled = false; btn.textContent = 'Re-analyze'; }
     }
 }
 

@@ -152,7 +152,7 @@ Description/Criteria: ${market.description || '(none provided)'}`;
         return JSON.parse(cleaned);
     },
 
-    // Feature B: Summarize a market's activity
+    // Feature B: Structured market analysis
     async summarizeMarket(marketId) {
         if (this._loading) return null;
         this._loading = true;
@@ -161,39 +161,61 @@ Description/Criteria: ${market.description || '(none provided)'}`;
             const predictions = AppState.selectedMarketPredictions || [];
             const comments = AppState.selectedMarketComments || [];
 
-            const systemPrompt = `You are an analyst for SharkPool, an internal prediction market at SharkNinja. Provide a brief, insightful summary of market activity.
+            const systemPrompt = `You are a sharp, concise analyst for SharkPool, SharkNinja's internal prediction market. Analyze the market data and return a JSON object with this exact shape:
 
-Your summary should be 2-4 sentences covering:
-- Current market sentiment and probability trend
-- Key trading patterns (large bets, recent momentum shifts)
-- Notable points from the discussion (if any comments)
-- What the market signal means for the underlying question
+{
+  "sentiment": "bullish" | "bearish" | "neutral",
+  "confidence": <integer 1-10>,
+  "trend": "rising" | "falling" | "stable",
+  "signal": "<1 sentence: what the market probability is telling us about the underlying question>",
+  "rationale": "<2-3 sentences of analytical reasoning covering trading patterns, momentum, and what drives the current probability>",
+  "risks": ["<short risk phrase>", "<short risk phrase>"],
+  "recommendation": "buy_yes" | "buy_no" | "hold" | "watch",
+  "rec_reason": "<1 sentence explaining the recommendation>",
+  "key_stat": "<one punchy stat or observation, e.g. '73% of volume came in the last 48h'>",
+  "disclaimer": "AI analysis is based on platform data only and does not constitute financial advice."
+}
 
-Be concise and analytical. Use plain language. Do not use markdown formatting — just plain text paragraphs.`;
+Be direct and insightful. Base everything only on the data provided. Respond ONLY with the JSON object.`;
+
+            // Compute probability trend from history
+            const hist = market.history || [];
+            let trend = 'stable';
+            if (hist.length >= 3) {
+                const recent = typeof hist[hist.length-1] === 'object' ? hist[hist.length-1].p : hist[hist.length-1];
+                const older = typeof hist[Math.max(0, hist.length-5)] === 'object' ? hist[Math.max(0, hist.length-5)].p : hist[Math.max(0, hist.length-5)];
+                const delta = recent - older;
+                if (delta > 0.05) trend = 'rising';
+                else if (delta < -0.05) trend = 'falling';
+            }
 
             const tradesSummary = predictions.slice(0, 20).map(p =>
-                `${p.profiles?.name || 'User'} bet ${p.amount}t on ${(p.direction || '?').toUpperCase()} (${p.shares?.toFixed(1) || '?'} shares)`
-            ).join('; ') || 'None yet';
+                `${p.profiles?.name || 'User'}: ${p.amount}t on ${(p.direction || '?').toUpperCase()} (${p.shares?.toFixed(1) || '?'} shares)`
+            ).join('; ') || 'No trades yet';
 
             const commentsSummary = comments.slice(0, 10).map(c =>
                 `${c.profiles?.name || 'User'}: "${c.text}"`
             ).join('\n') || 'No comments yet';
 
             const daysLeft = Math.max(0, Math.ceil((new Date(market.closes_at) - Date.now()) / 86400000));
+            const probPct = Math.round((market.probability || 0) * 100);
 
             const userPrompt = `Market: "${market.title}"
-Description: ${market.description}
-Current probability: ${Math.round(market.probability * 100)}%
-Status: ${market.status}
-Volume: ${market.volume} tokens across ${market.traders} traders
+Category: ${market.category}
+Description/Resolution Criteria: ${market.description}
+Current probability: ${probPct}% YES
+Probability trend: ${trend}
+Volume: ${market.volume} tokens | Traders: ${market.traders}
 Days remaining: ${daysLeft}
 
 Recent trades: ${tradesSummary}
 
-Comments:
+Discussion:
 ${commentsSummary}`;
 
-            return await this._call(systemPrompt, userPrompt, 512);
+            const raw = await this._call(systemPrompt, userPrompt, 600);
+            const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+            return JSON.parse(cleaned);
         } finally {
             this._loading = false;
         }
