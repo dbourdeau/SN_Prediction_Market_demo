@@ -200,6 +200,23 @@ Be direct and insightful. Base everything only on the data provided. Respond ONL
             const daysLeft = Math.max(0, Math.ceil((new Date(market.closes_at) - Date.now()) / 86400000));
             const probPct = Math.round((market.probability || 0) * 100);
 
+            // Current user's position on this market
+            const myPositions = (AppState.userPredictions || []).filter(
+                p => p.market_id === market.id && p.status === 'active'
+            );
+            let userPositionText = 'None — user has no position on this market.';
+            if (myPositions.length > 0) {
+                const posLines = myPositions.map(p => {
+                    const currentValue = market.market_type === 'multi'
+                        ? AMM.sellRevenueMulti(market.q_values || [], p.shares, p.option_index)
+                        : AMM.sellRevenue(market.q_yes || 0, market.q_no || 0, p.shares, p.direction);
+                    const pnl = Math.round(currentValue) - p.amount;
+                    const entryProb = Math.round((p.entry_prob || 0) * 100);
+                    return `Direction: ${(p.direction || '?').toUpperCase()} | Invested: ${p.amount}t | Shares: ${p.shares?.toFixed(1)} | Entry prob: ${entryProb}% | Current sell value: ${Math.round(currentValue)}t | Unrealized P&L: ${pnl >= 0 ? '+' : ''}${pnl}t`;
+                });
+                userPositionText = posLines.join('\n');
+            }
+
             const userPrompt = `Market: "${market.title}"
 Category: ${market.category}
 Description/Resolution Criteria: ${market.description}
@@ -208,7 +225,10 @@ Probability trend: ${trend}
 Volume: ${market.volume} tokens | Traders: ${market.traders}
 Days remaining: ${daysLeft}
 
-Recent trades: ${tradesSummary}
+USER'S CURRENT POSITION:
+${userPositionText}
+
+Recent trades (all users): ${tradesSummary}
 
 Discussion:
 ${commentsSummary}`;
