@@ -27,21 +27,7 @@ js/
 docs/
   ARCHITECTURE.md   — System diagram and data flows
   DATABASE.md       — Full schema reference
-supabase-setup.sql          — Initial schema
-supabase-migration-v2.sql   — AMM columns, resolution
-supabase-migration-v3.sql   — Admin features, edit support
-supabase-migration-v4.sql   — Notifications
-supabase-migration-v5.sql   — Profiles, leaderboard
-supabase-migration-v6.sql   — Transactions
-supabase-migration-v7.sql   — Multi-outcome markets
-supabase-migration-v8.sql   — Comments/discussion
-supabase-migration-v9.sql   — Sell positions
-supabase-migration-v10.sql  — Optimistic locking
-supabase-migration-v11.sql  — Analytics RPCs
-supabase-migration-v12.sql  — Achievements
-supabase-migration-v13.sql  — AI config (app_config table, get_ai_key RPC)
-supabase-migration-v14.sql  — source_url field on markets
-supabase-migration-ai.sql   — AI API key storage
+schema.sql     — Complete database schema (single source of truth, run on fresh project)
 ```
 
 ## Architecture
@@ -69,9 +55,9 @@ All user-generated content must be escaped with `esc()` (components.js). Never u
 - No imports/exports — all files are plain `<script>` tags
 - All globals are accessible on `window`
 
-### SQL Migrations
-- Never modify existing migration files
-- New schema changes = new file `supabase-migration-v{N+1}.sql`
+### SQL Schema
+- `schema.sql` is the single source of truth for the full database schema
+- For schema changes: update `schema.sql` directly (add columns/functions with `IF NOT EXISTS`)
 - Always use `IF NOT EXISTS` / `IF EXISTS` for safety
 - RLS is enabled on all user-facing tables
 
