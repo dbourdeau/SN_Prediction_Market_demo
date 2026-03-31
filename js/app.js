@@ -1007,6 +1007,7 @@ async function handleAISummarize(marketId) {
     const container = document.getElementById('ai-summary-content');
     const placeholder = document.getElementById('ai-summary-placeholder');
 
+    AppState._renderLocked = true;
     if (btn) { btn.disabled = true; btn.textContent = 'Analyzing…'; }
     if (placeholder) placeholder.classList.add('hidden');
     if (container) {
@@ -1080,6 +1081,7 @@ async function handleAISummarize(marketId) {
         if (container) container.innerHTML = `<div class="text-sm text-red-500 py-2">${esc(e.message)}</div>`;
         if (placeholder) placeholder.classList.remove('hidden');
     } finally {
+        AppState._renderLocked = false;
         if (btn) { btn.disabled = false; btn.textContent = 'Re-analyze'; }
     }
 }
@@ -1117,6 +1119,7 @@ async function handleDeepResearch() {
     const placeholder = document.getElementById('deep-research-placeholder');
     const market = AppState.selectedMarket;
 
+    AppState._renderLocked = true;
     if (btn) { btn.disabled = true; btn.textContent = 'Searching…'; }
     if (placeholder) placeholder.classList.add('hidden');
     if (container) {
@@ -1240,6 +1243,7 @@ async function handleDeepResearch() {
         if (container) container.innerHTML = `<div class="text-sm text-red-500 py-2">${esc(e.message)}</div>`;
         if (placeholder) placeholder.classList.remove('hidden');
     } finally {
+        AppState._renderLocked = false;
         if (btn) { btn.disabled = false; btn.textContent = 'Re-research'; }
     }
 }
@@ -1251,6 +1255,7 @@ async function handleGenerateBriefing() {
     const container = document.getElementById('briefing-output');
     const placeholder = document.getElementById('briefing-placeholder');
 
+    AppState._renderLocked = true;
     if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
     if (placeholder) placeholder.classList.add('hidden');
     if (container) {
@@ -1378,6 +1383,7 @@ async function handleGenerateBriefing() {
         if (container) container.innerHTML = `<div class="text-sm text-red-500 py-4 text-center">${esc(e.message || 'Failed to generate briefing')}</div>`;
         if (placeholder) placeholder.classList.remove('hidden');
     } finally {
+        AppState._renderLocked = false;
         if (btn) { btn.disabled = false; btn.textContent = 'Regenerate'; }
     }
 }

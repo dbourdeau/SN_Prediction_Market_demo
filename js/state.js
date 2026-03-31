@@ -42,9 +42,10 @@ const AppState = {
     _commentsChannel: null,
     _predictionsChannel: null,
 
+    _renderLocked: false, // set true during long AI calls to prevent re-render wiping the panel
     listeners: [],
     subscribe(fn) { this.listeners.push(fn); },
-    notify() { this.listeners.forEach(fn => fn()); },
+    notify() { if (!this._renderLocked) this.listeners.forEach(fn => fn()); },
 
     // ==================== AUTH ====================
 
