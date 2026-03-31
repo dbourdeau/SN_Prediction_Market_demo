@@ -62,7 +62,7 @@ You MUST perform exactly 4 searches covering these angles:
 3. Industry/market data — search for analyst forecasts, market sizing, or expert commentary
 4. SharkNinja-specific signals — search for relevant SharkNinja news, earnings, product announcements, or competitive context
 
-After all 4 searches, respond ONLY with this JSON object:
+After all 4 searches, output ONLY the raw JSON object below — no preamble, no "I'll", no explanation, no markdown. Start your response with { and end with }.
 {
   "estimated_probability": <integer 0-100>,
   "probability_range": "<e.g. '35-55%' representing uncertainty band>",
@@ -135,8 +135,11 @@ Run all 4 required searches, then give your independent estimate.`;
                 const textBlock = data.content.find(b => b.type === 'text');
                 const raw = (textBlock?.text || '').replace(/<cite[^>]*>|<\/cite>/gi, '');
                 const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-                const result = JSON.parse(cleaned);
-                result._crowdProb = crowdProb; // attach for divergence calc in UI
+                // Extract JSON object even if Claude prefixed with conversational text
+                const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) throw new Error('No JSON found in research response');
+                const result = JSON.parse(jsonMatch[0]);
+                result._crowdProb = crowdProb;
                 return result;
             }
 
@@ -161,9 +164,12 @@ Run all 4 required searches, then give your independent estimate.`;
                 if (textBlock?.text) {
                     const raw = textBlock.text.replace(/<cite[^>]*>|<\/cite>/gi, '');
                     const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-                    const result = JSON.parse(cleaned);
-                    result._crowdProb = crowdProb;
-                    return result;
+                    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        const result = JSON.parse(jsonMatch[0]);
+                        result._crowdProb = crowdProb;
+                        return result;
+                    }
                 }
                 throw new Error('Unexpected research agent response');
             }
