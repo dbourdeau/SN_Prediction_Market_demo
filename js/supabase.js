@@ -67,9 +67,8 @@ const Auth = {
 const DB = {
     // ---- Markets ----
     async getMarkets(limit = 50, offset = 0) {
-        // Omit 'history' (large JSONB) — only needed on the detail page, fetched via getMarket()
         const { data, error } = await supabaseClient
-            .from('markets').select('id,title,description,category,status,resolution,resolved_at,closes_at,probability,logit,q_yes,q_no,q_values,probabilities,options,volume,traders,trending,created_by,created_by_name,approved_by,approved_at,edited_at,source_url,version,market_type')
+            .from('markets').select('*')
             .order('created_at', { ascending: false })
             .range(offset, offset + limit - 1);
         if (error) throw error;
