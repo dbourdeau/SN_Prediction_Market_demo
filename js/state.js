@@ -175,24 +175,27 @@ const AppState = {
         DB.unsubscribe(this._predictionsChannel);
         this._commentsChannel = this._predictionsChannel = null;
 
-        const needsAsync = !!(data?.marketId || data?.profileId || page === 'leaderboard' || page === 'admin' || page === 'transactions');
         this.currentPage = page;
-        this.selectedMarket = null;
         this.selectedMarketComments = [];
         this.selectedMarketPredictions = [];
         this._commentsShown = 10;
-        if (needsAsync) this.navigating = true;
-        this.notify(); // show page immediately (with loading state)
 
         if (data?.marketId) {
             const mid = data.marketId;
+
+            // Render immediately from cache so the page is instant
+            const cached = this.markets.find(m => m.id === mid) || null;
+            this.selectedMarket = cached;
+            this.navigating = !cached; // only show skeleton if we have nothing cached
+            this.notify();
+
             const withTimeout = (promise, ms = 8000) =>
                 Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
 
-            // Load market, comments, and predictions in parallel
+            // Fetch fresh market data + secondary data in parallel, background
             try {
                 const [market, comments, predictions] = await withTimeout(Promise.all([
-                    DB.getMarket(mid).catch(e => { console.error('Failed to load market:', e); return null; }),
+                    DB.getMarket(mid).catch(e => { console.error('Failed to load market:', e); return cached; }),
                     DB.getComments(mid).catch(() => []),
                     DB.getMarketPredictions(mid).catch(() => []),
                 ]));
@@ -200,10 +203,10 @@ const AppState = {
                 this.selectedMarketComments = comments || [];
                 this.selectedMarketPredictions = predictions || [];
             } catch (e) {
-                // Timeout — use whatever we have from the local markets cache
                 console.error('Market load timed out:', e);
-                this.selectedMarket = this.selectedMarket || this.markets.find(m => m.id === mid) || null;
+                this.selectedMarket = cached;
             }
+            this.navigating = false;
             this.notify();
 
             // Subscribe to realtime (non-blocking, don't await)
