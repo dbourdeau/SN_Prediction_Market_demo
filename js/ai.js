@@ -109,12 +109,18 @@ Criteria: ${(market.description || '').slice(0, 300)}`;
                 const textBlock = data.content.find(b => b.type === 'text');
                 const raw = (textBlock?.text || '').replace(/<cite[^>]*>|<\/cite>/gi, '');
                 const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-                // Extract JSON object even if Claude prefixed with conversational text
                 const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-                if (!jsonMatch) throw new Error('No JSON found in research response');
-                const result = JSON.parse(jsonMatch[0]);
-                result._crowdProb = crowdProb;
-                return result;
+                if (jsonMatch) {
+                    try {
+                        const result = JSON.parse(jsonMatch[0]);
+                        result._crowdProb = crowdProb;
+                        return result;
+                    } catch (_) {}
+                }
+                // Claude wrote prose instead of JSON — push its response and demand JSON explicitly
+                messages.push({ role: 'assistant', content: data.content });
+                messages.push({ role: 'user', content: 'Output ONLY the JSON object now. Start with { and end with }. No other text.' });
+                continue; // loop will fire one more time to get the JSON
             }
 
             messages.push({ role: 'assistant', content: data.content });
