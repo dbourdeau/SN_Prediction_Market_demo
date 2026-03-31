@@ -104,6 +104,25 @@ function render() {
     }
 }
 
+// ==================== FEATURED MARKET CAROUSEL ====================
+
+function featuredNext() {
+    if (featuredCandidateCount < 2) return;
+    featuredIdx = (featuredIdx + 1) % featuredCandidateCount;
+    if (AppState.currentPage === 'dashboard') AppState.notify();
+}
+
+function featuredPrev() {
+    if (featuredCandidateCount < 2) return;
+    featuredIdx = (featuredIdx - 1 + featuredCandidateCount) % featuredCandidateCount;
+    if (AppState.currentPage === 'dashboard') AppState.notify();
+}
+
+function featuredGoTo(idx) {
+    featuredIdx = idx;
+    if (AppState.currentPage === 'dashboard') AppState.notify();
+}
+
 // ==================== AUTH ====================
 
 function switchAuthTab(tab) {

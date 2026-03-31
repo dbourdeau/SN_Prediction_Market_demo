@@ -1,5 +1,9 @@
 // All page renderers
 
+// Persists featured market index across re-renders
+let featuredIdx = 0;
+let featuredCandidateCount = 0;
+
 const Pages = {
     // ==================== LOGIN / SIGNUP ====================
     login() {
@@ -283,9 +287,11 @@ const Pages = {
                         : highVolume.length > 0 ? highVolume
                         : allActive.length > 0 ? allActive
                         : allMarkets.filter(m => m.status !== 'pending').slice(0, 6);
-                    // Rotate through candidates based on the hour
-                    const rotateIdx = candidates.length > 0 ? Math.floor(Date.now() / 3600000) % candidates.length : -1;
-                    const feat = rotateIdx >= 0 ? candidates[rotateIdx] : null;
+                    if (candidates.length === 0) return '';
+                    // Clamp index in case markets changed
+                    featuredIdx = Math.max(0, Math.min(featuredIdx, candidates.length - 1));
+                    featuredCandidateCount = candidates.length;
+                    const feat = candidates[featuredIdx];
                     if (!feat) return '';
                     const fPct = Math.round((feat.probability || 0) * 100);
                     const fDays = daysLeft(feat.closes_at);
@@ -335,8 +341,15 @@ const Pages = {
                         </svg>`;
                     })() : '';
 
+                    const dots = candidates.length > 1 ? candidates.map((_, i) =>
+                        `<button onclick="event.stopPropagation(); featuredGoTo(${i})" class="w-1.5 h-1.5 rounded-full transition-all ${i === featuredIdx ? 'bg-white w-4' : 'bg-white/30 hover:bg-white/60'}"></button>`
+                    ).join('') : '';
+
                     return `
-                    <div class="relative overflow-hidden rounded-2xl mb-6 cursor-pointer transition-all duration-200 hover:shadow-2xl hover:-translate-y-0.5 bg-gradient-to-br ${grad} text-white" onclick="AppState.navigate('market', { marketId: ${feat.id} })">
+                    <div id="featured-card" class="relative overflow-hidden rounded-2xl mb-6 cursor-pointer transition-all duration-200 hover:shadow-2xl hover:-translate-y-0.5 bg-gradient-to-br ${grad} text-white" onclick="AppState.navigate('market', { marketId: ${feat.id} })"
+                        data-touch-start=""
+                        ontouchstart="this.dataset.touchStart=event.touches[0].clientX"
+                        ontouchend="event.stopPropagation(); const dx=event.changedTouches[0].clientX-parseFloat(this.dataset.touchStart||0); if(Math.abs(dx)>40){dx<0?featuredNext():featuredPrev();}">
                         <!-- Decorative blobs -->
                         <div class="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
                         <div class="absolute bottom-0 left-1/4 w-40 h-40 bg-white/5 rounded-full translate-y-1/2 pointer-events-none"></div>
@@ -348,7 +361,13 @@ const Pages = {
                                 ${fCat ? `<span class="text-xs bg-white/10 px-2.5 py-1 rounded-full text-white/80">${fCat.icon} ${esc(fCat.label)}</span>` : ''}
                                 ${feat.trending ? '<span class="text-xs bg-orange-400/20 text-orange-300 px-2.5 py-1 rounded-full">🔥 Trending</span>' : ''}
                                 ${fProbChange}
-                                <span class="ml-auto text-xs text-white/40">${fDays > 0 ? fDays + 'd left' : feat.resolution ? 'Resolved' : 'Expired'}</span>
+                                <div class="ml-auto flex items-center gap-2">
+                                    <span class="text-xs text-white/40">${fDays > 0 ? fDays + 'd left' : feat.resolution ? 'Resolved' : 'Expired'}</span>
+                                    ${candidates.length > 1 ? `
+                                    <button onclick="event.stopPropagation(); featuredPrev()" class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center transition-colors text-white/80 text-sm">‹</button>
+                                    <button onclick="event.stopPropagation(); featuredNext()" class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center transition-colors text-white/80 text-sm">›</button>
+                                    ` : ''}
+                                </div>
                             </div>
 
                             <!-- Main grid -->
@@ -404,11 +423,12 @@ const Pages = {
                                             ? Components.chartMulti(fHistory, fOptions, 400, 180, feat.id, feat.created_at)
                                             : Components.chart(fHistory, 500, 160, feat.id, feat.created_at)}
                                     </div>
-                                    <!-- Stats pills -->
+                                    <!-- Stats pills + dots -->
                                     <div class="flex flex-wrap gap-2 text-xs">
                                         <span class="bg-white/10 rounded-full px-3 py-1 text-white/70">👥 ${feat.traders} traders</span>
                                         <span class="bg-white/10 rounded-full px-3 py-1 text-white/70">📊 ${feat.volume.toLocaleString()} vol</span>
                                         <span class="bg-white/10 rounded-full px-3 py-1 text-white/70 cursor-pointer hover:bg-white/20" onclick="event.stopPropagation(); AppState.navigate('market', { marketId: ${feat.id} })">View market →</span>
+                                        ${dots ? `<div class="flex items-center gap-1 ml-auto">${dots}</div>` : ''}
                                     </div>
                                 </div>
                             </div>
