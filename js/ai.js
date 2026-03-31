@@ -97,7 +97,7 @@ Criteria: ${(market.description || '').slice(0, 300)}`;
 
             const res = await _fetchWithRetry({
                 model: 'claude-haiku-4-5-20251001',
-                max_tokens: 800,
+                max_tokens: 1500,
                 system: systemPrompt,
                 tools: [{ type: 'web_search_20250305', name: 'web_search' }],
                 messages,
@@ -124,28 +124,32 @@ Criteria: ${(market.description || '').slice(0, 300)}`;
                 const searchLabels = ['Searching recent news…', 'Checking historical base rates…', 'Looking up industry data…', 'Searching SharkNinja signals…'];
                 if (onProgress) onProgress(searchLabels[Math.min(searchCount - 1, searchLabels.length - 1)], searchCount);
 
-                // Pass actual search results back — this was previously empty, making searches useless
-                const toolResults = data.content
-                    .filter(b => b.type === 'tool_use')
-                    .map(b => ({
-                        type: 'tool_result',
-                        tool_use_id: b.id,
-                        content: b.content || b.input?.query || '',
-                    }));
+                // Web search results come back as tool_result blocks — pass them back to continue the loop
+                const toolUseBlocks = data.content.filter(b => b.type === 'tool_use');
+                const toolResults = toolUseBlocks.map(b => ({
+                    type: 'tool_result',
+                    tool_use_id: b.id,
+                    content: 'Search completed. Use the results to inform your analysis.',
+                }));
                 messages.push({ role: 'user', content: toolResults });
             } else {
+                // Handle max_tokens truncation or any other stop reason —
+                // try to extract JSON from whatever text we have
                 const textBlock = data.content?.find(b => b.type === 'text');
                 if (textBlock?.text) {
                     const raw = textBlock.text.replace(/<cite[^>]*>|<\/cite>/gi, '');
                     const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
                     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
                     if (jsonMatch) {
-                        const result = JSON.parse(jsonMatch[0]);
-                        result._crowdProb = crowdProb;
-                        return result;
+                        try {
+                            const result = JSON.parse(jsonMatch[0]);
+                            result._crowdProb = crowdProb;
+                            return result;
+                        } catch (_) {}
                     }
                 }
-                throw new Error('Unexpected research agent response');
+                console.warn('Unexpected stop_reason:', data.stop_reason, data.content);
+                throw new Error(`Research stopped unexpectedly (${data.stop_reason || 'unknown'}) — please try again`);
             }
         }
 
