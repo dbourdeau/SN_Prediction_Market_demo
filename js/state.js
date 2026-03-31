@@ -227,12 +227,15 @@ const AppState = {
         }
 
         if (data?.profileId) {
+            const withTimeout = (promise, ms = 8000) =>
+                Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
             try {
-                const [profile, predictions] = await Promise.all([
-                    DB.getProfileByID(data.profileId), DB.getPredictions(data.profileId)
-                ]);
+                const [profile, predictions] = await withTimeout(Promise.all([
+                    DB.getProfileByID(data.profileId).catch(() => null),
+                    DB.getPredictions(data.profileId).catch(() => []),
+                ]));
                 this.viewingProfile = profile;
-                this.viewingProfilePredictions = predictions;
+                this.viewingProfilePredictions = predictions || [];
             } catch (e) { console.error('Failed to load profile:', e); }
         }
 
