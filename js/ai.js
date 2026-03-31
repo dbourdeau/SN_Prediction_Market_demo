@@ -77,30 +77,41 @@ Respond ONLY with the JSON object.`;
         const messages = [{ role: 'user', content: userPrompt }];
         let iterations = 0;
 
+        const _fetchWithRetry = async (body) => {
+            for (let attempt = 0; attempt < 3; attempt++) {
+                const res = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey,
+                        'anthropic-version': '2023-06-01',
+                        'anthropic-beta': 'web-search-2025-03-05',
+                        'anthropic-dangerous-direct-browser-access': 'true',
+                    },
+                    body: JSON.stringify(body),
+                });
+                if (res.status === 529 && attempt < 2) {
+                    await new Promise(r => setTimeout(r, 3000 * (attempt + 1)));
+                    continue;
+                }
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error?.message || `Research error (${res.status})`);
+                }
+                return res;
+            }
+        };
+
         while (iterations < 10) {
             iterations++;
 
-            const res = await fetch('https://api.anthropic.com/v1/messages', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-api-key': apiKey,
-                    'anthropic-version': '2023-06-01',
-                    'anthropic-dangerous-direct-browser-access': 'true',
-                },
-                body: JSON.stringify({
-                    model: 'claude-sonnet-4-6',
+            const res = await _fetchWithRetry({
+                    model: 'claude-sonnet-4-20250514',
                     max_tokens: 2048,
                     system: systemPrompt,
                     tools: [{ type: 'web_search_20250305', name: 'web_search' }],
                     messages,
-                }),
             });
-
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                throw new Error(err.error?.message || `Research error (${res.status})`);
-            }
 
             const data = await res.json();
 
