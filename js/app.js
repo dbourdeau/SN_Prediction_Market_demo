@@ -1579,6 +1579,23 @@ async function handleGenerateBriefing() {
     }
 }
 
+// ==================== MORE MENU ====================
+
+function toggleMoreMenu() {
+    const menu = document.getElementById('more-menu');
+    if (!menu) return;
+    menu.classList.toggle('hidden');
+}
+
+function closeMoreMenu() {
+    document.getElementById('more-menu')?.classList.add('hidden');
+}
+
+document.addEventListener('click', (e) => {
+    const container = document.getElementById('more-menu-container');
+    if (container && !container.contains(e.target)) closeMoreMenu();
+});
+
 // ==================== TOURNAMENTS ====================
 
 async function handleCreateTournament() {

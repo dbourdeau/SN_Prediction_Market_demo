@@ -677,20 +677,29 @@ const Components = {
     },
 
     header() {
-        const navItems = [
-            { id: 'dashboard', label: 'Dashboard', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>' },
-            { id: 'markets', label: 'Markets', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>' },
-            { id: 'leaderboard', label: 'Leaderboard', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>' },
-            { id: 'create', label: 'Create', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>' },
+        // Primary nav — always visible
+        const primaryNav = [
+            { id: 'dashboard',   label: 'Dashboard',   icon: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>' },
+            { id: 'markets',     label: 'Markets',     icon: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>' },
+            { id: 'leaderboard', label: 'Leaderboard', icon: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>' },
+            { id: 'create',      label: 'Create',      icon: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>' },
+            { id: 'tournaments', label: 'Tournaments',  icon: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15V9m-3 6V11m6 4v-2M5 20h14M8 20v-3a2 2 0 012-2h4a2 2 0 012 2v3M8 9.5V7a4 4 0 118 0v2.5"/></svg>' },
         ];
 
-        navItems.push({ id: 'tournaments', label: 'Tournaments', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15V9m-3 6V11m6 4v-2M5 20h14M8 20v-3a2 2 0 012-2h4a2 2 0 012 2v3M8 9.5V7a4 4 0 118 0v2.5"/></svg>' });
-        navItems.push({ id: 'briefing', label: 'Intel', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>' });
-        navItems.push({ id: 'guide', label: 'Guide', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>' });
+        // Secondary nav — lives in "More" dropdown
+        const pendingCount = (AppState.pendingMarkets || []).length;
+        const moreNav = [
+            { id: 'briefing', label: 'Intel Briefing', icon: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>' },
+            { id: 'analytics', label: 'Analytics',     icon: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>' },
+            { id: 'guide',    label: 'Guide',          icon: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>' },
+        ];
         if (AppState.user?.is_admin) {
-            const pendingCount = (AppState.pendingMarkets || []).length;
-            navItems.push({ id: 'admin', label: 'Admin' + (pendingCount > 0 ? ` (${pendingCount})` : ''), icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>' });
+            moreNav.push({ id: 'admin', label: 'Admin' + (pendingCount > 0 ? ` (${pendingCount})` : ''), icon: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>', badge: pendingCount });
         }
+
+        const allMobileNav = [...primaryNav, ...moreNav];
+        const moreIds = new Set(moreNav.map(i => i.id));
+        const moreActive = moreIds.has(AppState.currentPage);
 
         const unread = AppState.unreadCount;
         const uid = AppState.session?.user?.id || '';
@@ -699,6 +708,7 @@ const Components = {
             <header class="gradient-bg text-white sticky top-0 z-50 shadow-lg">
                 <div class="max-w-7xl mx-auto px-4 sm:px-6">
                     <div class="flex items-center justify-between h-14 sm:h-16">
+                        <!-- Logo -->
                         <div class="flex items-center gap-2 cursor-pointer shrink-0" onclick="AppState.navigate('dashboard')">
                             <svg class="w-7 h-7 sm:w-8 sm:h-8" viewBox="0 0 32 32" fill="none">
                                 <rect width="32" height="32" rx="7" fill="white" fill-opacity="0.15"/>
@@ -707,46 +717,72 @@ const Components = {
                             </svg>
                             <span class="hidden sm:block font-bold text-lg tracking-tight">SharkPool</span>
                         </div>
+
+                        <!-- Desktop primary nav -->
                         <nav class="hidden md:flex items-center gap-0.5">
-                            ${navItems.map(item => `
+                            ${primaryNav.map(item => `
                                 <button id="nav-${item.id}" onclick="AppState.navigate('${item.id}')"
-                                    class="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium
+                                    class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors
                                     ${AppState.currentPage === item.id ? 'bg-white/20 text-white shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/10'}">
                                     ${item.icon} ${item.label}
                                 </button>
                             `).join('')}
+
+                            <!-- More dropdown -->
+                            <div class="relative" id="more-menu-container">
+                                <button onclick="toggleMoreMenu()" id="more-menu-btn"
+                                    class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+                                    ${moreActive ? 'bg-white/20 text-white shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/10'}">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+                                    More
+                                    ${pendingCount > 0 && AppState.user?.is_admin ? `<span class="bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold leading-none">${pendingCount}</span>` : ''}
+                                </button>
+                                <div id="more-menu" class="hidden absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50">
+                                    ${moreNav.map(item => `
+                                        <button onclick="AppState.navigate('${item.id}');closeMoreMenu()"
+                                            class="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-left transition-colors
+                                            ${AppState.currentPage === item.id ? 'bg-shark-50 text-shark-700' : 'text-gray-700 hover:bg-gray-50'}">
+                                            <span class="${AppState.currentPage === item.id ? 'text-shark-600' : 'text-gray-400'}">${item.icon}</span>
+                                            ${item.label}
+                                            ${item.badge ? `<span class="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full font-bold">${item.badge}</span>` : ''}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            </div>
                         </nav>
-                        <div class="flex items-center gap-2 sm:gap-3">
-                            <button onclick="AppState.toggleDarkMode()" class="text-white/70 hover:text-white transition-colors p-1" title="Toggle dark mode">
+
+                        <!-- Right controls -->
+                        <div class="flex items-center gap-1.5 sm:gap-2">
+                            <button onclick="AppState.toggleDarkMode()" class="text-white/70 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10" title="Toggle dark mode">
                                 ${AppState.darkMode
-                                    ? '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>'
-                                    : '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>'
+                                    ? '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>'
+                                    : '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>'
                                 }
                             </button>
-                            <button id="nav-notifications" onclick="AppState.navigate('notifications')" class="relative text-white/70 hover:text-white transition-colors p-1">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-                                ${unread > 0 ? `<span class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold">${unread > 9 ? '9+' : unread}</span>` : ''}
+                            <button id="nav-notifications" onclick="AppState.navigate('notifications')" class="relative text-white/70 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                                ${unread > 0 ? `<span class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold leading-none">${unread > 9 ? '9+' : unread}</span>` : ''}
                             </button>
-                            <div id="tour-balance" class="flex items-center gap-1 sm:gap-2 bg-white/10 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5">
-                                <span class="text-xs sm:text-sm font-semibold">${(AppState.user?.balance || 0).toLocaleString()}</span>
-                                <span class="text-xs text-white/60 hidden sm:inline">SharkBucks</span>
-                                <span class="text-xs text-white/60 sm:hidden">t</span>
+                            <div id="tour-balance" class="flex items-center gap-1.5 bg-white/10 rounded-lg px-2.5 py-1.5">
+                                <span class="text-sm font-semibold">${(AppState.user?.balance || 0).toLocaleString()}</span>
+                                <span class="text-xs text-white/50 hidden sm:inline">SB</span>
                             </div>
                             <button onclick="AppState.navigate('profile', { profileId: '${uid}' })" class="cursor-pointer">
                                 ${this.avatar(AppState.user?.avatar || 'XX', 'sm')}
                             </button>
-                            <button onclick="handleLogout()" class="text-white/60 hover:text-white transition-colors p-1" title="Sign Out">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                            <button onclick="handleLogout()" class="text-white/60 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10 hidden sm:block" title="Sign Out">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
                             </button>
                         </div>
                     </div>
+
                     <!-- Mobile nav -->
                     <div class="flex md:hidden gap-1 pb-2 overflow-x-auto scrollbar-hide -mx-1 px-1">
-                        ${navItems.map(item => `
+                        ${allMobileNav.map(item => `
                             <button onclick="AppState.navigate('${item.id}')"
-                                class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap
-                                ${AppState.currentPage === item.id ? 'bg-white/20 text-white' : 'text-white/70'}">
-                                ${item.label}
+                                class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors
+                                ${AppState.currentPage === item.id ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'}">
+                                ${item.label}${item.badge ? ` <span class="bg-red-500 text-white text-xs px-1 rounded-full">${item.badge}</span>` : ''}
                             </button>
                         `).join('')}
                     </div>
