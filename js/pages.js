@@ -219,8 +219,8 @@ const Pages = {
                                 </div>
                                 <div class="bg-gray-50 rounded-xl p-4">
                                     <div class="text-2xl mb-2">💰</div>
-                                    <h3 class="font-semibold text-gray-900 text-sm mb-1">You Start with 1,000 Tokens</h3>
-                                    <p class="text-xs text-gray-500">Use tokens to trade. Winning predictions pay out — grow your balance!</p>
+                                    <h3 class="font-semibold text-gray-900 text-sm mb-1">You Start with 1,000 SharkBucks</h3>
+                                    <p class="text-xs text-gray-500">Use SharkBucks to trade. Winning predictions pay out — grow your balance!</p>
                                 </div>
                                 <div class="bg-gray-50 rounded-xl p-4">
                                     <div class="text-2xl mb-2">🏆</div>
@@ -248,7 +248,7 @@ const Pages = {
                         <div class="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
                         <div class="text-xs font-medium text-white/70 mb-1">Balance</div>
                         <div class="text-xl sm:text-2xl font-bold stat-counter" data-target="${AppState.user?.balance || 0}" data-prefix="" data-suffix="">0</div>
-                        <div class="text-xs text-white/50 mt-1">tokens</div>
+                        <div class="text-xs text-white/50 mt-1">SharkBucks</div>
                     </div>
                     <div class="relative overflow-hidden rounded-xl p-4 ${portfolio.unrealizedPnL >= 0 ? 'bg-gradient-to-br from-emerald-500 to-emerald-700' : 'bg-gradient-to-br from-red-500 to-red-700'} text-white">
                         <div class="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
@@ -878,7 +878,7 @@ const Pages = {
                                 })()}
                                 <div class="space-y-4">
                                     <div>
-                                        <label class="block text-sm text-gray-600 mb-1">Amount (tokens)</label>
+                                        <label class="block text-sm text-gray-600 mb-1">Amount (SharkBucks)</label>
                                         <input type="range" id="pred-slider" min="10" max="${Math.min(AppState.user?.balance || 500, 500)}" step="10" value="50"
                                             oninput="document.getElementById('pred-amount').value=this.value; updateTradeEstimate(${m.id})"
                                             class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-shark-600"/>
@@ -1668,7 +1668,7 @@ Background: [Provide relevant context for traders]"
                     </div>
                     ${isOwnProfile ? `
                     <div class="mt-4 p-3 bg-shark-50 rounded-lg flex items-center justify-between">
-                        <span class="text-sm text-shark-700 font-medium">Token Balance</span>
+                        <span class="text-sm text-shark-700 font-medium">SharkBuck Balance</span>
                         <span class="text-lg sm:text-xl font-bold text-shark-700">${(p.balance || 0).toLocaleString()}</span>
                     </div>
                     <div class="mt-3 p-3 bg-gray-50 rounded-lg">
@@ -1677,7 +1677,7 @@ Background: [Provide relevant context for traders]"
                             <input type="text" readonly value="${esc(AppState.getReferralLink())}" class="flex-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-600 truncate" id="referral-link-input"/>
                             <button onclick="navigator.clipboard.writeText(document.getElementById('referral-link-input').value).then(() => showToast('Referral link copied!', 'success'))" class="px-3 py-1.5 bg-shark-600 text-white rounded-lg text-xs font-medium hover:bg-shark-700 shrink-0">Copy</button>
                         </div>
-                        <p class="text-xs text-gray-400 mt-1">Share this link — you both earn 100 tokens when someone signs up!</p>
+                        <p class="text-xs text-gray-400 mt-1">Share this link — you both earn 100 SharkBucks when someone signs up!</p>
                     </div>
                     <button onclick="AppState.navigate('dashboard'); setTimeout(() => Tour.start(), 300)" class="mt-3 text-sm text-shark-600 hover:text-shark-800 font-medium">Replay guided tour</button>` : ''}
                 </div>
@@ -1846,7 +1846,7 @@ Background: [Provide relevant context for traders]"
                                         <div class="text-sm font-semibold text-gray-900">${esc(m.title)}</div>
                                         <div class="flex items-center gap-3 mt-1 text-xs text-gray-500 flex-wrap">
                                             <span>${m.traders} traders</span>
-                                            <span class="font-medium text-amber-700">${m.volume} tokens at stake</span>
+                                            <span class="font-medium text-amber-700">${m.volume} SharkBucks at stake</span>
                                             <span>closed ${formatDate(m.closes_at)}</span>
                                             <span>${Math.round((m.probability || 0.5) * 100)}% crowd prob</span>
                                         </div>
@@ -1904,7 +1904,7 @@ Background: [Provide relevant context for traders]"
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2 shrink-0">
-                                    <button onclick="event.stopPropagation(); handleAdjustBalance('${u.id}', 100)" class="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700" title="Add 100 tokens">+100</button>
+                                    <button onclick="event.stopPropagation(); handleAdjustBalance('${u.id}', 100)" class="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700" title="Add 100 SharkBucks">+100</button>
                                     <button onclick="event.stopPropagation(); handleToggleAdmin('${u.id}', ${!u.is_admin})" class="px-2 py-1 rounded text-xs font-medium ${u.is_admin ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'}">${u.is_admin ? 'Remove Admin' : 'Make Admin'}</button>
                                 </div>
                             </div>
@@ -2181,7 +2181,7 @@ Background: [Provide relevant context for traders]"
 
                 <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
                     ${Components.statCard('Total Markets', stats.totalMarkets, `${stats.activeMarkets} active`, '📊')}
-                    ${Components.statCard('Total Volume', stats.totalVolume.toLocaleString(), 'tokens traded', '💰')}
+                    ${Components.statCard('Total Volume', stats.totalVolume.toLocaleString(), 'SharkBucks traded', '💰')}
                     ${Components.statCard('Participation', Math.round(stats.participationRate * 100) + '%', 'markets with trades', '👥')}
                     ${Components.statCard('Resolved', stats.resolvedMarkets, 'markets', '✅')}
                 </div>
@@ -2384,7 +2384,7 @@ Background: [Provide relevant context for traders]"
                     </div>
                     <div class="bg-white rounded-xl border border-gray-200 p-3 text-center">
                         <div class="text-2xl font-black text-indigo-600">${totalVolume.toLocaleString()}</div>
-                        <div class="text-xs text-gray-400 mt-0.5">Tokens Traded</div>
+                        <div class="text-xs text-gray-400 mt-0.5">SharkBucks Traded</div>
                     </div>
                     <div class="bg-white rounded-xl border border-gray-200 p-3 text-center">
                         <div class="text-2xl font-black text-indigo-600">${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
@@ -2432,7 +2432,7 @@ function _tradeEstimateHTML(qYes, qNo, amount) {
 
     const yesProfit = Math.round(estYes.shares) - amount;
     const noProfit = Math.round(estNo.shares) - amount;
-    return `<div class="font-semibold text-gray-700 mb-2">If you spend ${amount} tokens:</div>
+    return `<div class="font-semibold text-gray-700 mb-2">If you spend ${amount} SharkBucks:</div>
         <div class="grid grid-cols-2 gap-2">
             <div class="bg-green-50 rounded-lg p-2 text-center">
                 <div class="text-xs text-green-600 font-medium">Buy YES</div>
@@ -2447,5 +2447,5 @@ function _tradeEstimateHTML(qYes, qNo, amount) {
                 <div class="text-xs ${noProfit >= 0 ? 'text-green-600' : 'text-red-500'}">Profit: ${noProfit >= 0 ? '+' : ''}${noProfit}t</div>
             </div>
         </div>
-        <div class="text-xs text-gray-400 mt-2 text-center">Each winning share pays 1 token</div>${slippageWarning}`;
+        <div class="text-xs text-gray-400 mt-2 text-center">Each winning share pays 1 SharkBuck</div>${slippageWarning}`;
 }

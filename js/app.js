@@ -234,9 +234,9 @@ async function handlePrediction(marketId, direction, optionIndex) {
         ? document.getElementById(`btn-opt-${optionIndex}-${marketId}`)
         : document.getElementById(`btn-${direction}-${marketId}`);
 
-    if (amount < 10) { showToast('Minimum prediction is 10 tokens', 'error'); return; }
+    if (amount < 10) { showToast('Minimum prediction is 10 SharkBucks', 'error'); return; }
     if (!AppState.user) { showToast('You must be logged in to trade', 'error'); return; }
-    if (amount > AppState.user.balance) { showToast(`Insufficient tokens (you have ${AppState.user.balance})`, 'error'); return; }
+    if (amount > AppState.user.balance) { showToast(`Insufficient SharkBucks (you have ${AppState.user.balance})`, 'error'); return; }
 
     if (btn) { btn.dataset.origText = btn.textContent; btn.disabled = true; btn.textContent = 'Buying...'; }
     try {
@@ -244,7 +244,7 @@ async function handlePrediction(marketId, direction, optionIndex) {
         if (result && result.error) {
             showToast(result.error, 'error');
         } else if (result) {
-            showToast(`Bought ${result.shares.toFixed(1)} ${direction.toUpperCase()} shares for ${amount} tokens!`, 'success');
+            showToast(`Bought ${result.shares.toFixed(1)} ${direction.toUpperCase()} shares for ${amount} SharkBucks!`, 'success');
         } else {
             showToast('Trade failed — please try again', 'error');
         }
@@ -276,7 +276,7 @@ function updateTradeEstimate(marketId) {
 async function handleSellPosition(predictionId) {
     const confirmed = await showModal({
         title: 'Sell Position',
-        message: 'Sell this position? You will receive tokens at the current market price.',
+        message: 'Sell this position? You will receive SharkBucks at the current market price.',
         confirmText: 'Sell',
         danger: false,
     });
@@ -291,7 +291,7 @@ async function handleSellPosition(predictionId) {
             showToast(result.error, 'error');
         } else if (result && result.revenue !== undefined) {
             const profitLabel = result.profit >= 0 ? `+${result.profit}` : `${result.profit}`;
-            showToast(`Position sold for ${result.revenue} tokens (${profitLabel} profit)!`, result.profit >= 0 ? 'success' : 'info');
+            showToast(`Position sold for ${result.revenue} SharkBucks (${profitLabel} profit)!`, result.profit >= 0 ? 'success' : 'info');
         } else {
             showToast('Failed to sell position.', 'error');
         }
@@ -481,7 +481,7 @@ async function handleToggleAdmin(userId, isAdmin) {
 async function handleAdjustBalance(userId, amount) {
     try {
         await AppState.adjustUserBalance(userId, amount);
-        showToast(`Added ${amount} tokens to user balance.`, 'success');
+        showToast(`Added ${amount} SharkBucks to user balance.`, 'success');
     } catch (e) {
         showToast('Failed to adjust balance.', 'error');
     }
@@ -719,7 +719,7 @@ function _tradeEstimateHTMLMulti(qValues, options, amount) {
     const slippageWarning = maxImpact > 5
         ? `<div class="text-xs mt-2 px-2 py-1 rounded ${maxImpact > 15 ? 'bg-red-50 text-red-600' : 'bg-yellow-50 text-yellow-600'}">⚠ Price impact: ~${maxImpact.toFixed(1)}%</div>`
         : '';
-    return lines + `<div class="text-xs text-gray-400 mt-2">Winning shares pay 1 token each</div>${slippageWarning}`;
+    return lines + `<div class="text-xs text-gray-400 mt-2">Winning shares pay 1 SharkBuck each</div>${slippageWarning}`;
 }
 
 // ==================== BALANCE RECONCILIATION ====================

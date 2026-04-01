@@ -3,7 +3,7 @@
 
 const AMM = {
     // Liquidity parameter: higher = more stable prices, lower = more volatile
-    // At b=200, a 50-token trade moves price ~0.6% — better for small user bases
+    // At b=200, a 50-SharkBuck trade moves price ~0.6% — better for small user bases
     b: 200,
 
     // Get YES probability from logit score
@@ -71,13 +71,13 @@ const AMM = {
     },
 
     // Estimate potential payout for a trade
-    // If you buy YES shares and YES wins, each share = 1 token
+    // If you buy YES shares and YES wins, each share = 1 SharkBuck
     estimatePayout(qYes, qNo, budget, direction) {
         const shares = this.sharesForBudget(qYes, qNo, budget, direction);
         return {
             shares: shares,
             costPerShare: shares > 0 ? budget / shares : 0,
-            potentialPayout: shares, // each winning share = 1 token
+            potentialPayout: shares, // each winning share = 1 SharkBuck
             potentialProfit: shares - budget,
             impliedProbability: shares > 0 ? budget / shares : 0,
         };

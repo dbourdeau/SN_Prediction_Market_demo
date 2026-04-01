@@ -309,8 +309,8 @@ const AppState = {
         const market = this.markets.find(m => m.id === marketId);
         if (!market) return { error: 'Market not found' };
         if (market.status !== 'active' || market.resolution) return { error: 'Market is no longer active' };
-        if (amount > this.user.balance) return { error: 'Insufficient token balance' };
-        if (amount < 10) return { error: 'Minimum trade is 10 tokens' };
+        if (amount > this.user.balance) return { error: 'Insufficient SharkBuck balance' };
+        if (amount < 10) return { error: 'Minimum trade is 10 SharkBucks' };
 
         const isMulti = market.market_type === 'multi';
         let shares, marketUpdates, predDirection, entryProb, priceImpact;
@@ -846,7 +846,7 @@ const AppState = {
         DB.logTransaction({
             user_id: userId, type: 'admin_adjust', amount: amount,
             balance_after: newBalance,
-            description: `Admin adjustment: ${amount > 0 ? '+' : ''}${amount} tokens`,
+            description: `Admin adjustment: ${amount > 0 ? '+' : ''}${amount} SharkBucks`,
         });
         DB.logAuditEvent(this.session.user.id, 'adjust_balance', 'user', userId, { amount, newBalance, userName: user.name });
 
@@ -876,7 +876,7 @@ const AppState = {
                 const expectedBalance = 1000 + (txnSums[u.id] || 0);
                 const actualBalance = u.balance || 0;
                 const diff = actualBalance - expectedBalance;
-                if (Math.abs(diff) > 1) { // tolerance of 1 token for rounding
+                if (Math.abs(diff) > 1) { // tolerance of 1 SharkBuck for rounding
                     discrepancies.push({
                         userId: u.id,
                         name: u.name,
@@ -1237,7 +1237,7 @@ const AppState = {
                 this.user.balance += 100;
                 this.notify();
                 setTimeout(() => {
-                    if (typeof showToast === 'function') showToast('Referral bonus: +100 tokens!', 'success');
+                    if (typeof showToast === 'function') showToast('Referral bonus: +100 SharkBucks!', 'success');
                 }, 600);
             }
             localStorage.removeItem('sn_referrer');
@@ -1257,7 +1257,7 @@ const AppState = {
                 this.notify();
                 // Show toast after a brief delay so the page has rendered
                 setTimeout(() => {
-                    if (typeof showToast === 'function') showToast(`Daily bonus: +${bonus} tokens!`, 'success');
+                    if (typeof showToast === 'function') showToast(`Daily bonus: +${bonus} SharkBucks!`, 'success');
                 }, 500);
             }
         } catch (e) {

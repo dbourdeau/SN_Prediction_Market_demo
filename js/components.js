@@ -726,7 +726,7 @@ const Components = {
                             </button>
                             <div id="tour-balance" class="flex items-center gap-1 sm:gap-2 bg-white/10 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5">
                                 <span class="text-xs sm:text-sm font-semibold">${(AppState.user?.balance || 0).toLocaleString()}</span>
-                                <span class="text-xs text-white/60 hidden sm:inline">tokens</span>
+                                <span class="text-xs text-white/60 hidden sm:inline">SharkBucks</span>
                                 <span class="text-xs text-white/60 sm:hidden">t</span>
                             </div>
                             <button onclick="AppState.navigate('profile', { profileId: '${uid}' })" class="cursor-pointer">
@@ -782,8 +782,8 @@ const Tour = {
     steps: [
         {
             target: () => document.getElementById('tour-balance'),
-            title: 'Your Token Balance',
-            text: 'You start with 1,000 tokens. Use them to buy shares on predictions you believe in. Winning predictions pay out!',
+            title: 'Your SharkBuck Balance',
+            text: 'You start with 1,000 SharkBucks. Use them to buy shares on predictions you believe in. Winning predictions pay out!',
             icon: '💰',
         },
         {

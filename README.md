@@ -1,6 +1,6 @@
 # SharkPool — SharkNinja Internal Prediction Market
 
-SharkPool is a prediction market platform for SharkNinja employees to forecast business outcomes: product launches, competitive moves, sales targets, and strategic decisions. Users trade virtual tokens on the likelihood of future events, surfacing collective intelligence across the organization.
+SharkPool is a prediction market platform for SharkNinja employees to forecast business outcomes: product launches, competitive moves, sales targets, and strategic decisions. Users trade virtual SharkBucks on the likelihood of future events, surfacing collective intelligence across the organization.
 
 Built as a lightweight single-page app for the SharkNinja AI Hackathon 2026.
 
@@ -8,7 +8,7 @@ Built as a lightweight single-page app for the SharkNinja AI Hackathon 2026.
 
 1. Open `index.html` in a browser (or serve via any static file server)
 2. Sign in with your email and choose a department
-3. You start with **500 tokens** — trade on markets, earn tokens for correct predictions
+3. You start with **500 SharkBucks** — trade on markets, earn SharkBucks for correct predictions
 4. Create your own markets for others to trade on
 
 No build step, no Node.js, no bundler. Runs entirely in the browser with Supabase as the backend.
@@ -51,19 +51,19 @@ SharkPool uses an **LMSR (Logarithmic Market Scoring Rule)** automated market ma
 
 ### Key concepts
 
-- **Liquidity parameter `b=200`**: Controls price sensitivity. A 50-token trade moves price ~0.6%. Higher `b` = more stable prices.
+- **Liquidity parameter `b=200`**: Controls price sensitivity. A 50-SharkBuck trade moves price ~0.6%. Higher `b` = more stable prices.
 - **Binary markets**: Two share pools (`q_yes`, `q_no`). Price = `sigmoid((q_yes - q_no) / b)`.
 - **Multi-outcome markets**: N share pools. Prices = `softmax(q_values / b)`. Probabilities always sum to 1.
 - **Cost function**: `C(q) = b * ln(Σ exp(q_i / b))`. Trade cost = `C(after) - C(before)`.
 - **Shares for budget**: Binary search (60 iterations) over the cost function.
-- **Payouts**: Winning shares pay 1 token each. Buy 80 YES shares for 50 tokens → 30 profit if YES wins.
+- **Payouts**: Winning shares pay 1 SharkBuck each. Buy 80 YES shares for 50 SharkBucks → 30 profit if YES wins.
 
 ### Example trade
 
 Starting state: `q_yes=0, q_no=0` → price = 50%.
-- User buys 50 tokens of YES → gets ~73 shares → new price shifts to ~56%
-- If YES wins: user receives 73 tokens (23 profit)
-- If NO wins: user loses the 50 tokens
+- User buys 50 SharkBucks of YES → gets ~73 shares → new price shifts to ~56%
+- If YES wins: user receives 73 SharkBucks (23 profit)
+- If NO wins: user loses the 50 SharkBucks
 
 ## Database Schema
 
@@ -76,7 +76,7 @@ Starting state: `q_yes=0, q_no=0` → price = 50%.
 | `predictions` | User positions. Direction, amount, shares, entry probability, status, option index for multi-outcome |
 | `comments` | Market discussion threads. Soft-delete via `deleted_at` |
 | `notifications` | Per-user notification feed (resolution, payout, comment, closing-soon, welcome) |
-| `transactions` | Token ledger (buy, sell, payout, void_refund, admin_adjust, signup_bonus) |
+| `transactions` | SharkBuck ledger (buy, sell, payout, void_refund, admin_adjust, signup_bonus) |
 | `watchlist` | User market watchlist |
 | `audit_log` | Admin action log |
 | `app_config` | Server-side config (Anthropic API key, Intel briefing cache) — no RLS read policy |
@@ -105,7 +105,7 @@ Starting state: `q_yes=0, q_no=0` → price = 50%.
 
 | Column | Purpose |
 |--------|---------|
-| `balance` | Current token balance (min 0) |
+| `balance` | Current SharkBuck balance (min 0) |
 | `points` | Cumulative earnings score |
 | `accuracy` | Win rate (resolved predictions won / total) |
 | `brier_score` | Rolling mean Brier score — `(forecast − outcome)²` lower is better; `NULL` until 5+ resolved bets |
@@ -226,7 +226,7 @@ A weekly AI-generated market intelligence briefing (the **Intel** page). Covers 
 - **User profiles** — trade history, win rate, Brier score, avatar customization
 - **Leaderboard** — individual (sortable by Points or Brier Score) and by department
 - **Watchlist** — follow markets, get notified on resolution
-- **Referral system** with token bonuses
+- **Referral system** with SharkBuck bonuses
 - **Daily login bonus**
 - **Achievements** (earned badges)
 
@@ -241,7 +241,7 @@ A weekly AI-generated market intelligence briefing (the **Intel** page). Covers 
 - **Audit trail** — all admin actions logged with actor, target, and timestamp
 
 ### Scoring
-- **Points** — tokens earned from correct predictions (cumulative)
+- **Points** — SharkBucks earned from correct predictions (cumulative)
 - **Win rate** — fraction of resolved predictions that paid out
 - **Brier score** — rolling mean of `(forecast_probability − outcome)²`; lower is better; unlocks after 5 resolved bets; sortable on leaderboard; color-coded on profiles
 
@@ -272,7 +272,7 @@ Created → [Pending] → Active → Closed → Resolved
 | Intel | `briefing` | Weekly AI-generated market intelligence briefing |
 | Notifications | `notifications` | User notification inbox |
 | Profile | `profile` | User stats (balance, points, win rate, trades, Brier score), positions, avatar |
-| Transactions | `transactions` | Token ledger with CSV export |
+| Transactions | `transactions` | SharkBuck ledger with CSV export |
 | Analytics | `analytics` | Platform-wide stats and market analytics |
 | Admin | `admin` | Admin dashboard (admin users only) |
 

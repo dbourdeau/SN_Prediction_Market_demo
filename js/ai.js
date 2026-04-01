@@ -449,7 +449,7 @@ Category: ${market.category}
 Description/Resolution Criteria: ${market.description}
 Current probability: ${probPct}% YES
 Probability trend: ${trend}
-Volume: ${market.volume} tokens | Traders: ${market.traders}
+Volume: ${market.volume} SharkBucks | Traders: ${market.traders}
 Days remaining: ${daysLeft}
 
 USER'S CURRENT POSITION:
@@ -489,7 +489,7 @@ Respond ONLY with this JSON object:
           "probability": <integer 0-100>,
           "signal": "bullish" | "bearish" | "neutral",
           "notable": "<one short observation, e.g. 'High conviction — 89% YES with strong volume' or 'Crowd shifted 15pts in 3 days'>",
-          "volume": <integer tokens>
+          "volume": <integer SharkBucks>
         }
       ]
     }
@@ -533,7 +533,7 @@ Respond ONLY with the JSON object.`;
         const totalVolume = activeMarkets.reduce((s, m) => s + (m.volume || 0), 0);
         const totalTraders = activeMarkets.reduce((s, m) => s + (m.traders || 0), 0);
 
-        const userPrompt = `Generate an executive briefing for SharkNinja leadership based on these ${activeMarkets.length} active prediction markets (total platform volume: ${totalVolume} tokens, ${totalTraders} total trades):\n\n${marketData}\n\nToday's date: ${new Date().toISOString().split('T')[0]}`;
+        const userPrompt = `Generate an executive briefing for SharkNinja leadership based on these ${activeMarkets.length} active prediction markets (total platform volume: ${totalVolume} SharkBucks, ${totalTraders} total trades):\n\n${marketData}\n\nToday's date: ${new Date().toISOString().split('T')[0]}`;
 
         const apiKey = await this._getKey();
         const controller = new AbortController();

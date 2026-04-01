@@ -367,7 +367,7 @@ DECLARE
     v_new_balance  INTEGER;
     v_rows         INTEGER;
 BEGIN
-    IF p_amount < 10 THEN RAISE EXCEPTION 'Minimum trade is 10 tokens'; END IF;
+    IF p_amount < 10 THEN RAISE EXCEPTION 'Minimum trade is 10 SharkBucks'; END IF;
     IF p_shares <= 0 THEN RAISE EXCEPTION 'Invalid shares value'; END IF;
     IF p_shares > p_amount * 20 THEN RAISE EXCEPTION 'Shares value out of range'; END IF;
 
@@ -520,10 +520,10 @@ BEGIN
             SELECT balance INTO v_new_balance FROM profiles WHERE id = pred.user_id;
             INSERT INTO transactions (user_id, type, amount, balance_after, description, market_id, prediction_id)
             VALUES (pred.user_id, 'payout', v_payout, v_new_balance,
-                    'Market voided — refund of ' || ROUND(v_payout::numeric, 1) || ' tokens', p_market_id, pred.id);
+                    'Market voided — refund of ' || ROUND(v_payout::numeric, 1) || ' SharkBucks', p_market_id, pred.id);
             INSERT INTO notifications (user_id, type, title, message, market_id)
             VALUES (pred.user_id, 'payout', 'Market Voided',
-                    '"' || v_short_title || '" was voided. Your ' || pred.amount || ' tokens were refunded.', p_market_id);
+                    '"' || v_short_title || '" was voided. Your ' || pred.amount || ' SharkBucks were refunded.', p_market_id);
 
         ELSIF pred.direction = p_resolution THEN
             v_payout := pred.shares;
@@ -540,10 +540,10 @@ BEGIN
             SELECT balance INTO v_new_balance FROM profiles WHERE id = pred.user_id;
             INSERT INTO transactions (user_id, type, amount, balance_after, description, market_id, prediction_id)
             VALUES (pred.user_id, 'payout', ROUND(v_payout), v_new_balance,
-                    'Won ' || ROUND(v_payout::numeric, 1) || ' tokens — "' || v_short_title || '"', p_market_id, pred.id);
+                    'Won ' || ROUND(v_payout::numeric, 1) || ' SharkBucks — "' || v_short_title || '"', p_market_id, pred.id);
             INSERT INTO notifications (user_id, type, title, message, market_id)
             VALUES (pred.user_id, 'payout', 'You Won! 🎉',
-                    'Resolved ' || UPPER(p_resolution) || ': "' || v_short_title || '". You earned ' || ROUND(v_payout::numeric, 1) || ' tokens!', p_market_id);
+                    'Resolved ' || UPPER(p_resolution) || ': "' || v_short_title || '". You earned ' || ROUND(v_payout::numeric, 1) || ' SharkBucks!', p_market_id);
         ELSE
             -- Brier score: forecast = probability in the direction bet, outcome = 0.0 (wrong)
             v_brier_sq := POWER(CASE pred.direction WHEN 'yes' THEN pred.entry_prob ELSE 1.0 - pred.entry_prob END - 0.0, 2);
@@ -614,10 +614,10 @@ BEGIN
             SELECT balance INTO v_new_balance FROM profiles WHERE id = pred.user_id;
             INSERT INTO transactions (user_id, type, amount, balance_after, description, market_id, prediction_id)
             VALUES (pred.user_id, 'payout', v_payout, v_new_balance,
-                    'Market voided — refund of ' || ROUND(v_payout::numeric, 1) || ' tokens', p_market_id, pred.id);
+                    'Market voided — refund of ' || ROUND(v_payout::numeric, 1) || ' SharkBucks', p_market_id, pred.id);
             INSERT INTO notifications (user_id, type, title, message, market_id)
             VALUES (pred.user_id, 'payout', 'Market Voided',
-                    '"' || LEFT(v_market.title, 70) || '" was voided. Your ' || pred.amount || ' tokens were refunded.', p_market_id);
+                    '"' || LEFT(v_market.title, 70) || '" was voided. Your ' || pred.amount || ' SharkBucks were refunded.', p_market_id);
 
         ELSIF pred.option_index = p_winning_index THEN
             v_payout := pred.shares;
@@ -633,10 +633,10 @@ BEGIN
             SELECT balance INTO v_new_balance FROM profiles WHERE id = pred.user_id;
             INSERT INTO transactions (user_id, type, amount, balance_after, description, market_id, prediction_id)
             VALUES (pred.user_id, 'payout', ROUND(v_payout), v_new_balance,
-                    'Won ' || ROUND(v_payout::numeric, 1) || ' tokens on "' || LEFT(v_resolution, 40) || '"', p_market_id, pred.id);
+                    'Won ' || ROUND(v_payout::numeric, 1) || ' SharkBucks on "' || LEFT(v_resolution, 40) || '"', p_market_id, pred.id);
             INSERT INTO notifications (user_id, type, title, message, market_id)
             VALUES (pred.user_id, 'payout', 'You Won! 🎉',
-                    'Resolved "' || LEFT(v_resolution, 40) || '": "' || LEFT(v_market.title, 60) || '". You earned ' || ROUND(v_payout::numeric, 1) || ' tokens!', p_market_id);
+                    'Resolved "' || LEFT(v_resolution, 40) || '": "' || LEFT(v_market.title, 60) || '". You earned ' || ROUND(v_payout::numeric, 1) || ' SharkBucks!', p_market_id);
         ELSE
             UPDATE predictions SET status = 'lost', payout = 0 WHERE id = pred.id;
             UPDATE profiles SET
@@ -773,7 +773,7 @@ BEGIN
     VALUES (p_referrer_id, 'signup_bonus', v_bonus, v_new_balance, 'Referral bonus (referred a new user)');
     INSERT INTO notifications (user_id, type, title, message)
     VALUES (p_referrer_id, 'payout', 'Referral Bonus!',
-            'Someone joined using your referral link! You earned ' || v_bonus || ' tokens.');
+            'Someone joined using your referral link! You earned ' || v_bonus || ' SharkBucks.');
     RETURN TRUE;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
