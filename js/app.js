@@ -1167,10 +1167,10 @@ function buildResearchHTML(r, cachedAt) {
                 </p>
             </div>
         </div>` : `
-        <div class="flex items-center gap-2 text-xs text-gray-400 py-1">
+        <div class="flex items-center gap-2 text-xs text-gray-500 py-1">
             <span>Research aligns with crowd:</span>
-            <span class="font-semibold text-gray-600">Web ${prob}% · Crowd ${crowdProb}%</span>
-            <span class="text-gray-300">(${divergence}pt gap)</span>
+            <span class="font-semibold text-gray-700">Web ${prob}% · Crowd ${crowdProb}%</span>
+            <span class="text-gray-400">(${divergence}pt gap)</span>
         </div>`;
 
     const cachedBadge = cachedAt ? (() => {
@@ -1218,27 +1218,27 @@ function buildResearchHTML(r, cachedAt) {
         <div>
             <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Key Findings</div>
             <ul class="space-y-1.5">
-                ${r.key_findings.map(f => `<li class="flex gap-2 text-sm text-gray-700 leading-snug"><span class="text-teal-400 shrink-0 mt-0.5">•</span><span>${esc(f)}</span></li>`).join('')}
+                ${r.key_findings.map(f => `<li class="flex gap-2 text-sm text-gray-700 leading-snug"><span class="text-teal-600 shrink-0 mt-0.5">•</span><span>${esc(f)}</span></li>`).join('')}
             </ul>
         </div>` : ''}
 
         <!-- Reasoning -->
-        <div class="bg-teal-50/60 rounded-lg px-3 py-2.5">
-            <div class="text-xs font-semibold text-teal-600 uppercase tracking-wide mb-1">Research Synthesis</div>
-            <p class="text-sm text-gray-700 leading-relaxed">${esc(r.reasoning)}</p>
+        <div class="bg-teal-100 rounded-lg px-3 py-2.5">
+            <div class="text-xs font-semibold text-teal-700 uppercase tracking-wide mb-1">Research Synthesis</div>
+            <p class="text-sm text-gray-800 leading-relaxed">${esc(r.reasoning)}</p>
         </div>
 
         <!-- Searches performed -->
         ${r.searches_performed?.length ? `
-        <div class="text-xs text-gray-400">
+        <div class="text-xs text-gray-500">
             <span class="font-medium">Queries run:</span>
-            <ol class="mt-1 space-y-0.5 list-decimal list-inside text-gray-300">
+            <ol class="mt-1 space-y-0.5 list-decimal list-inside text-gray-500">
                 ${r.searches_performed.map(s => `<li>${esc(s)}</li>`).join('')}
             </ol>
         </div>` : ''}
 
         <!-- Caveat -->
-        <p class="text-xs text-gray-300 border-t border-gray-100 pt-3">${esc(r.caveat || 'External research may not reflect internal SharkNinja data.')}</p>
+        <p class="text-xs text-gray-500 border-t border-gray-200 pt-3">${esc(r.caveat || 'External research may not reflect internal SharkNinja data.')}</p>
         ${cachedBadge}`;
 }
 
@@ -1251,22 +1251,22 @@ function switchAITab(tab) {
     const btnA = document.getElementById('ai-tab-btn-analysis');
     const btnR = document.getElementById('ai-tab-btn-research');
     if (btnA) {
-        btnA.classList.toggle('border-violet-600', isAnalysis);
-        btnA.classList.toggle('text-violet-700', isAnalysis);
-        btnA.classList.toggle('bg-violet-50/60', isAnalysis);
+        btnA.classList.toggle('border-violet-700', isAnalysis);
+        btnA.classList.toggle('text-violet-800', isAnalysis);
+        btnA.classList.toggle('bg-violet-100', isAnalysis);
         btnA.classList.toggle('border-transparent', !isAnalysis);
-        btnA.classList.toggle('text-gray-400', !isAnalysis);
-        btnA.classList.remove('bg-violet-50/60');
-        if (isAnalysis) btnA.classList.add('bg-violet-50/60');
+        btnA.classList.toggle('text-gray-500', !isAnalysis);
+        btnA.classList.remove('bg-violet-100');
+        if (isAnalysis) btnA.classList.add('bg-violet-100');
     }
     if (btnR) {
-        btnR.classList.toggle('border-teal-600', !isAnalysis);
-        btnR.classList.toggle('text-teal-700', !isAnalysis);
-        btnR.classList.toggle('bg-teal-50/60', !isAnalysis);
+        btnR.classList.toggle('border-teal-700', !isAnalysis);
+        btnR.classList.toggle('text-teal-800', !isAnalysis);
+        btnR.classList.toggle('bg-teal-100', !isAnalysis);
         btnR.classList.toggle('border-transparent', isAnalysis);
-        btnR.classList.toggle('text-gray-400', isAnalysis);
-        btnR.classList.remove('bg-teal-50/60');
-        if (!isAnalysis) btnR.classList.add('bg-teal-50/60');
+        btnR.classList.toggle('text-gray-500', isAnalysis);
+        btnR.classList.remove('bg-teal-100');
+        if (!isAnalysis) btnR.classList.add('bg-teal-100');
     }
 
     // Auto-load cached research when switching to the research tab

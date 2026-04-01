@@ -756,23 +756,23 @@ const Pages = {
                             <!-- Tab bar -->
                             <div class="flex border-b border-gray-100">
                                 <button id="ai-tab-btn-analysis" onclick="switchAITab('analysis')"
-                                    class="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-bold border-b-2 ${onAnalysis ? 'border-violet-600 text-violet-700 bg-violet-50/60' : 'border-transparent text-gray-400 hover:text-violet-600'} transition-colors">
+                                    class="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-bold border-b-2 ${onAnalysis ? 'border-violet-700 text-violet-800 bg-violet-100' : 'border-transparent text-gray-500 hover:text-violet-700'} transition-colors">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                                     Platform Analysis
-                                    <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-500 font-semibold tracking-wider hidden sm:inline">TRADES & VOLUME</span>
+                                    <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-200 text-violet-700 font-semibold tracking-wider hidden sm:inline">TRADES & VOLUME</span>
                                 </button>
                                 <button id="ai-tab-btn-research" onclick="switchAITab('research')"
-                                    class="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-bold border-b-2 ${onResearch ? 'border-teal-600 text-teal-700 bg-teal-50/60' : 'border-transparent text-gray-400 hover:text-teal-600'} transition-colors">
+                                    class="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-bold border-b-2 ${onResearch ? 'border-teal-700 text-teal-800 bg-teal-100' : 'border-transparent text-gray-500 hover:text-teal-700'} transition-colors">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
                                     Web Research
-                                    <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-400 font-semibold tracking-wider hidden sm:inline flex items-center gap-1"><span class="w-1 h-1 rounded-full bg-green-400 inline-block"></span>LIVE WEB</span>
+                                    <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-600 font-semibold tracking-wider hidden sm:inline flex items-center gap-1"><span class="w-1 h-1 rounded-full bg-teal-500 inline-block"></span>LIVE WEB</span>
                                 </button>
                             </div>
 
                             <!-- Analysis pane -->
                             <div id="ai-pane-analysis" class="${onAnalysis ? '' : 'hidden'} px-4 py-4">
                                 <div class="flex items-center justify-between mb-3">
-                                    <p class="text-xs text-violet-400">Analyzes <strong>platform activity</strong> — trade patterns, volume, sentiment, and your position.</p>
+                                    <p class="text-xs text-violet-600">Analyzes <strong>platform activity</strong> — trade patterns, volume, sentiment, and your position.</p>
                                     <button onclick="handleAISummarize(${m.id})" id="ai-summary-btn" class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-violet-600 text-white hover:bg-violet-700 transition-colors shadow-sm">Analyze</button>
                                 </div>
                                 <div id="ai-summary-content" class="hidden space-y-4"></div>
@@ -783,7 +783,7 @@ const Pages = {
                             <div id="ai-pane-research" class="${onResearch ? '' : 'hidden'} px-4 py-4">
                                 <div class="flex items-center justify-between mb-3">
                                     <div>
-                                        <p class="text-xs text-teal-500">Searches the <strong>live web</strong> for news, data, and context — forms an independent probability estimate.</p>
+                                        <p class="text-xs text-teal-700">Searches the <strong>live web</strong> for news, data, and context — forms an independent probability estimate.</p>
                                         ${agoLabel ? `<p class="text-xs text-gray-400 mt-0.5">Last run: <span class="font-medium text-gray-500">${esc(agoLabel)}</span></p>` : ''}
                                     </div>
                                     <button onclick="handleDeepResearch()" id="deep-research-btn" class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-teal-600 text-white hover:bg-teal-700 transition-colors shadow-sm">${cache ? 'Re-run' : 'Research'}</button>
