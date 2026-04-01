@@ -146,7 +146,7 @@ const Components = {
 
     // Returns a consistent cheeky anonymous name for a given numeric trade id
     cheekiName(id) {
-        const names = ['A shark','A ninja','A fin','A wave','A current','A depth','A tide','A gill','A reef','A crest'];
+        const names = ['The Hammerhead','Silent Mako','Reef Prophet','Shadow Ninja','Deep Current','Tidal Sage','The Barracuda','Stealth Fin','Coral Oracle','Midnight Swimmer','The Great White','Razor Tide','Phantom Gill','Lurking Orca','The Kraken'];
         return names[(id || 0) % names.length];
     },
 
