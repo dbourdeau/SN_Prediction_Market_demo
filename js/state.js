@@ -36,6 +36,7 @@ const AppState = {
     pendingMarkets: [], // markets awaiting admin approval
     auditLog: [], // admin audit trail
     leaderboardTab: 'individual', // 'individual' or 'departments'
+    leaderboardSort: 'points', // 'points' or 'brier'
     hasSeenOnboarding: localStorage.getItem('sn_onboarded') === 'true',
 
     _marketsChannel: null,
@@ -1173,6 +1174,11 @@ const AppState = {
 
     setLeaderboardTab(tab) {
         this.leaderboardTab = tab;
+        this.notify();
+    },
+
+    setLeaderboardSort(sort) {
+        this.leaderboardSort = sort;
         this.notify();
     },
 

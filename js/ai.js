@@ -294,6 +294,91 @@ Description/Criteria: ${market.description || '(none provided)'}`;
         return JSON.parse(cleaned);
     },
 
+    // Feature E: AI resolution suggestion for expired markets (admin use)
+    async suggestResolution(market) {
+        const systemPrompt = `You are an admin assistant for SharkPool, a prediction market at SharkNinja (makes Shark vacuums/Ninja appliances).
+
+You are given a closed prediction market question. Use the live web to find current evidence, then suggest the resolution.
+
+Respond ONLY with this JSON object:
+{
+  "verdict": "yes" | "no" | "void",
+  "confidence": "low" | "medium" | "high",
+  "reasoning": "<2-3 sentences explaining why, citing specific evidence found>",
+  "caveat": "<one sentence noting any uncertainty or data gap, or empty string>"
+}
+
+"void" only if the question is fundamentally unanswerable or the event was cancelled.`;
+
+        const userPrompt = `Title: ${market.title}
+Category: ${market.category}
+Closed: ${market.closes_at}
+Description/Criteria: ${market.description || '(none provided)'}
+Current crowd probability: ${Math.round((market.probability || 0.5) * 100)}%`;
+
+        const apiKey = await this._getKey();
+        const messages = [{ role: 'user', content: userPrompt }];
+
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+                'anthropic-beta': 'web-search-2025-03-05',
+                'anthropic-dangerous-direct-browser-access': 'true',
+            },
+            body: JSON.stringify({
+                model: 'claude-sonnet-4-20250514',
+                max_tokens: 600,
+                system: systemPrompt,
+                tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+                messages,
+            }),
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error?.message || `Resolution suggest error (${res.status})`);
+        }
+
+        // Agentic loop — run until end_turn
+        let data = await res.json();
+        let iterations = 0;
+        while (data.stop_reason !== 'end_turn' && iterations < 5) {
+            iterations++;
+            const toolResults = (data.content || [])
+                .filter(b => b.type === 'tool_use')
+                .map(b => ({ type: 'tool_result', tool_use_id: b.id, content: 'Search completed.' }));
+            messages.push({ role: 'assistant', content: data.content });
+            messages.push({ role: 'user', content: toolResults.length ? toolResults : 'Continue.' });
+            const r2 = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey,
+                    'anthropic-version': '2023-06-01',
+                    'anthropic-beta': 'web-search-2025-03-05',
+                    'anthropic-dangerous-direct-browser-access': 'true',
+                },
+                body: JSON.stringify({
+                    model: 'claude-sonnet-4-20250514',
+                    max_tokens: 600,
+                    system: systemPrompt,
+                    tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+                    messages,
+                }),
+            });
+            data = await r2.json();
+        }
+
+        const textBlock = data.content?.find(b => b.type === 'text');
+        const raw = (textBlock?.text || '').replace(/<cite[^>]*>|<\/cite>/gi, '');
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error('No JSON in resolution suggestion response');
+        return JSON.parse(jsonMatch[0]);
+    },
+
     // Feature B: Structured market analysis
     async summarizeMarket(marketId) {
         if (this._loading) return null;

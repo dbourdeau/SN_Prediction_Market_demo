@@ -1094,36 +1094,60 @@ const Pages = {
                 </div>` : ''}
 
                 <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <!-- Sort toggle -->
+                    <div class="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 bg-gray-50/60">
+                        <span class="text-xs text-gray-500 font-medium">Sort by:</span>
+                        <button onclick="AppState.setLeaderboardSort('points')" class="px-2.5 py-1 rounded text-xs font-semibold ${AppState.leaderboardSort !== 'brier' ? 'bg-shark-100 text-shark-700' : 'text-gray-500 hover:text-gray-700'}">Points</button>
+                        <button onclick="AppState.setLeaderboardSort('brier')" class="px-2.5 py-1 rounded text-xs font-semibold ${AppState.leaderboardSort === 'brier' ? 'bg-teal-100 text-teal-700' : 'text-gray-500 hover:text-gray-700'}">Brier Score</button>
+                        ${AppState.leaderboardSort === 'brier' ? '<span class="text-xs text-teal-500 ml-1">↓ Lower is better · requires ≥5 resolved bets</span>' : ''}
+                    </div>
                     <div class="overflow-x-auto">
                         <table class="w-full">
                             <thead><tr class="border-b border-gray-200 bg-gray-50">
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-12">#</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Forecaster</th>
-                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Accuracy</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">${AppState.leaderboardSort === 'brier' ? 'Brier Score' : 'Win Rate'}</th>
                                 <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Trades</th>
                                 <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Points</th>
                             </tr></thead>
                             <tbody>
-                                ${lb.map((p, idx) => {
-                                    const isUser = p.id === AppState.user?.id;
-                                    const rank = idx + 1;
-                                    return `<tr class="border-b border-gray-100 ${isUser ? 'bg-shark-50' : idx % 2 === 1 ? 'bg-gray-50/50' : ''} hover:bg-gray-50 cursor-pointer" onclick="AppState.navigate('profile', { profileId: '${p.id}' })">
-                                        <td class="px-3 sm:px-4 py-3"><span class="text-sm font-bold ${rank <= 3 ? 'text-shark-600' : 'text-gray-400'}">${rank}</span></td>
-                                        <td class="px-3 sm:px-4 py-3">
-                                            <div class="flex items-center gap-2 sm:gap-3">
-                                                ${Components.avatar(p.avatar || p.name || 'XX', 'sm')}
-                                                <div class="min-w-0">
-                                                    <div class="text-sm font-semibold text-gray-900 truncate">${esc(p.name)} ${isUser ? '<span class="text-xs text-shark-600">(You)</span>' : ''}</div>
-                                                    <div class="text-xs text-gray-500 truncate">${esc(p.department)}</div>
+                                ${(() => {
+                                    const isBrier = AppState.leaderboardSort === 'brier';
+                                    // For Brier sort: only show users with >=5 resolved bets, sort ascending (lower=better)
+                                    let rows = isBrier
+                                        ? [...lb].filter(p => (p.brier_n || 0) >= 5).sort((a, b) => (a.brier_score ?? 1) - (b.brier_score ?? 1))
+                                        : lb;
+                                    if (rows.length === 0 && isBrier) {
+                                        return '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400 text-sm">No forecasters with ≥5 resolved bets yet.</td></tr>';
+                                    }
+                                    return rows.map((p, idx) => {
+                                        const isUser = p.id === AppState.user?.id;
+                                        const rank = idx + 1;
+                                        const brierVal = p.brier_score != null ? p.brier_score.toFixed(3) : '—';
+                                        const brierColor = p.brier_score != null
+                                            ? (p.brier_score < 0.15 ? 'text-green-600 font-semibold' : p.brier_score < 0.25 ? 'text-blue-600' : 'text-gray-600')
+                                            : 'text-gray-400';
+                                        return `<tr class="border-b border-gray-100 ${isUser ? 'bg-shark-50' : idx % 2 === 1 ? 'bg-gray-50/50' : ''} hover:bg-gray-50 cursor-pointer" onclick="AppState.navigate('profile', { profileId: '${p.id}' })">
+                                            <td class="px-3 sm:px-4 py-3"><span class="text-sm font-bold ${rank <= 3 ? (isBrier ? 'text-teal-600' : 'text-shark-600') : 'text-gray-400'}">${rank}</span></td>
+                                            <td class="px-3 sm:px-4 py-3">
+                                                <div class="flex items-center gap-2 sm:gap-3">
+                                                    ${Components.avatar(p.avatar || p.name || 'XX', 'sm')}
+                                                    <div class="min-w-0">
+                                                        <div class="text-sm font-semibold text-gray-900 truncate">${esc(p.name)} ${isUser ? '<span class="text-xs text-shark-600">(You)</span>' : ''}</div>
+                                                        <div class="text-xs text-gray-500 truncate">${esc(p.department)}</div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </td>
-                                        <td class="px-3 sm:px-4 py-3 text-right hidden sm:table-cell"><span class="text-sm">${Math.round((p.accuracy || 0) * 100)}%</span></td>
-                                        <td class="px-3 sm:px-4 py-3 text-right hidden sm:table-cell"><span class="text-sm text-gray-600">${p.trades || 0}</span></td>
-                                        <td class="px-3 sm:px-4 py-3 text-right"><span class="text-sm font-bold">${p.points.toLocaleString()}</span></td>
-                                    </tr>`;
-                                }).join('')}
-                                ${lb.length === 0 ? '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">No forecasters yet.</td></tr>' : ''}
+                                            </td>
+                                            <td class="px-3 sm:px-4 py-3 text-right hidden sm:table-cell">
+                                                ${isBrier
+                                                    ? `<span class="text-sm ${brierColor}">${brierVal}</span>`
+                                                    : `<span class="text-sm">${Math.round((p.accuracy || 0) * 100)}%</span>`}
+                                            </td>
+                                            <td class="px-3 sm:px-4 py-3 text-right hidden sm:table-cell"><span class="text-sm text-gray-600">${p.trades || 0}</span></td>
+                                            <td class="px-3 sm:px-4 py-3 text-right"><span class="text-sm font-bold">${p.points.toLocaleString()}</span></td>
+                                        </tr>`;
+                                    }).join('');
+                                })()}
                             </tbody>
                         </table>
                     </div>
@@ -1611,7 +1635,7 @@ Background: [Provide relevant context for traders]"
                             <button onclick="handleSetAvatar('${initials(p.name)}')" class="w-10 h-10 rounded-full bg-shark-600 text-white border-2 ${!AVATAR_PRESETS.includes(p.avatar) ? 'border-shark-500 ring-2 ring-shark-200' : 'border-transparent'} flex items-center justify-center text-xs font-bold">${initials(p.name)}</button>
                         </div>
                     </div>` : ''}
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-5">
                         <div class="text-center p-2.5 bg-gray-50 rounded-lg">
                             <div class="text-xl sm:text-2xl font-bold text-gray-900">${rank > 0 ? '#' + rank : '—'}</div>
                             <div class="text-xs text-gray-500">Rank</div>
@@ -1622,7 +1646,13 @@ Background: [Provide relevant context for traders]"
                         </div>
                         <div class="text-center p-2.5 bg-gray-50 rounded-lg">
                             <div class="text-xl sm:text-2xl font-bold text-gray-900">${Math.round((p.accuracy || 0) * 100)}%</div>
-                            <div class="text-xs text-gray-500">Accuracy</div>
+                            <div class="text-xs text-gray-500">Win Rate</div>
+                        </div>
+                        <div class="text-center p-2.5 ${p.brier_score != null && (p.brier_n || 0) >= 5 ? 'bg-teal-50' : 'bg-gray-50'} rounded-lg" title="Brier Score — lower is better (0=perfect, 0.25=random). Requires ≥5 resolved bets.">
+                            <div class="text-xl sm:text-2xl font-bold ${p.brier_score != null && (p.brier_n || 0) >= 5 ? (p.brier_score < 0.15 ? 'text-green-600' : p.brier_score < 0.25 ? 'text-blue-600' : 'text-gray-700') : 'text-gray-400'}">
+                                ${p.brier_score != null && (p.brier_n || 0) >= 5 ? p.brier_score.toFixed(3) : '—'}
+                            </div>
+                            <div class="text-xs text-gray-500">Brier Score</div>
                         </div>
                         <div class="text-center p-2.5 bg-gray-50 rounded-lg">
                             <div class="text-xl sm:text-2xl font-bold text-gray-900">${p.trades || 0}</div>
@@ -1797,19 +1827,31 @@ Background: [Provide relevant context for traders]"
                 <!-- Expired needing resolution -->
                 ${expiredMarkets.length > 0 ? `
                 <div class="bg-white rounded-xl border-2 border-amber-200 p-4 sm:p-6 mb-6">
-                    <h2 class="text-lg font-bold text-amber-700 mb-4">⏰ Needs Resolution (${expiredMarkets.length})</h2>
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold text-amber-700">⏰ Needs Resolution (${expiredMarkets.length})</h2>
+                        <span class="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full font-medium">Sorted by volume</span>
+                    </div>
                     <div class="space-y-3">
-                        ${expiredMarkets.map(m => `
-                            <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-amber-50 rounded-lg gap-3">
-                                <div class="flex-1 min-w-0 cursor-pointer" onclick="AppState.navigate('market', { marketId: ${m.id} })">
-                                    <div class="text-sm font-medium text-gray-900 truncate">${esc(m.title)}</div>
-                                    <div class="text-xs text-gray-500 mt-1">${m.traders} traders · ${m.volume} vol · expired ${formatDate(m.closes_at)}</div>
+                        ${[...expiredMarkets].sort((a, b) => b.volume - a.volume).map(m => `
+                            <div class="p-3 bg-amber-50 rounded-lg">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div class="flex-1 min-w-0 cursor-pointer" onclick="AppState.navigate('market', { marketId: ${m.id} })">
+                                        <div class="text-sm font-semibold text-gray-900">${esc(m.title)}</div>
+                                        <div class="flex items-center gap-3 mt-1 text-xs text-gray-500 flex-wrap">
+                                            <span>${m.traders} traders</span>
+                                            <span class="font-medium text-amber-700">${m.volume} tokens at stake</span>
+                                            <span>closed ${formatDate(m.closes_at)}</span>
+                                            <span>${Math.round((m.probability || 0.5) * 100)}% crowd prob</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        <button onclick="event.stopPropagation(); handleAISuggestResolution(${m.id})" id="ai-suggest-btn-${m.id}" class="px-3 py-1.5 rounded text-xs font-bold bg-teal-100 text-teal-700 hover:bg-teal-200 border border-teal-200">⚡ AI Suggest</button>
+                                        <button onclick="event.stopPropagation(); handleResolveMarket(${m.id}, 'yes')" class="px-3 py-1.5 rounded text-xs font-bold bg-green-500 text-white hover:bg-green-600">YES</button>
+                                        <button onclick="event.stopPropagation(); handleResolveMarket(${m.id}, 'no')" class="px-3 py-1.5 rounded text-xs font-bold bg-red-500 text-white hover:bg-red-600">NO</button>
+                                        <button onclick="event.stopPropagation(); handleResolveMarket(${m.id}, 'void')" class="px-3 py-1.5 rounded text-xs font-bold bg-gray-400 text-white hover:bg-gray-500">VOID</button>
+                                    </div>
                                 </div>
-                                <div class="flex items-center gap-2 shrink-0">
-                                    <button onclick="event.stopPropagation(); handleResolveMarket(${m.id}, 'yes')" class="px-3 py-1.5 rounded text-xs font-bold bg-green-500 text-white hover:bg-green-600">YES</button>
-                                    <button onclick="event.stopPropagation(); handleResolveMarket(${m.id}, 'no')" class="px-3 py-1.5 rounded text-xs font-bold bg-red-500 text-white hover:bg-red-600">NO</button>
-                                    <button onclick="event.stopPropagation(); handleResolveMarket(${m.id}, 'void')" class="px-3 py-1.5 rounded text-xs font-bold bg-gray-400 text-white hover:bg-gray-500">VOID</button>
-                                </div>
+                                <div id="ai-suggest-result-${m.id}" class="hidden"></div>
                             </div>
                         `).join('')}
                     </div>

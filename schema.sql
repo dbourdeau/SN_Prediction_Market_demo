@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS profiles (
     balance          INTEGER NOT NULL DEFAULT 500 CHECK (balance >= 0),
     points           INTEGER NOT NULL DEFAULT 0,
     accuracy         REAL NOT NULL DEFAULT 0,
+    brier_score      REAL,   -- rolling mean Brier score (lower = better, NULL = no resolved bets yet)
+    brier_n          INTEGER NOT NULL DEFAULT 0,  -- count of resolved predictions used in brier_score
     trades           INTEGER NOT NULL DEFAULT 0,
     is_admin         BOOLEAN NOT NULL DEFAULT false,
     last_daily_bonus DATE,
@@ -490,6 +492,9 @@ DECLARE
     v_payout       REAL;
     v_market       RECORD;
     v_new_balance  INTEGER;
+    v_outcome      REAL;   -- 1.0 = yes resolved, 0.0 = no resolved
+    v_brier_sq     REAL;   -- per-prediction Brier score contribution
+    v_short_title  TEXT;
 BEGIN
     SELECT * INTO v_market FROM markets WHERE id = p_market_id AND resolution IS NULL;
     IF NOT FOUND THEN RAISE EXCEPTION 'Market not found or already resolved'; END IF;
@@ -499,6 +504,9 @@ BEGIN
     ) THEN
         RAISE EXCEPTION 'Only the market creator or an admin can resolve this market';
     END IF;
+
+    v_short_title := LEFT(v_market.title, 70);
+    v_outcome := CASE p_resolution WHEN 'yes' THEN 1.0 WHEN 'no' THEN 0.0 ELSE NULL END;
 
     UPDATE markets SET resolution = p_resolution, resolved_at = now(),
         resolved_by = p_resolved_by, status = 'closed'
@@ -515,38 +523,58 @@ BEGIN
                     'Market voided — refund of ' || ROUND(v_payout::numeric, 1) || ' tokens', p_market_id, pred.id);
             INSERT INTO notifications (user_id, type, title, message, market_id)
             VALUES (pred.user_id, 'payout', 'Market Voided',
-                    'Market was voided. You received ' || v_payout || ' tokens back.', p_market_id);
+                    '"' || v_short_title || '" was voided. Your ' || pred.amount || ' tokens were refunded.', p_market_id);
 
         ELSIF pred.direction = p_resolution THEN
             v_payout := pred.shares;
+            -- Brier score: forecast = entry_prob (probability of YES at time of bet), outcome = 1.0
+            v_brier_sq := POWER(CASE pred.direction WHEN 'yes' THEN pred.entry_prob ELSE 1.0 - pred.entry_prob END - 1.0, 2);
             UPDATE predictions SET status = 'won', payout = v_payout WHERE id = pred.id;
             UPDATE profiles SET
-                balance = balance + v_payout,
-                points  = points + GREATEST(10, ROUND(v_payout - pred.amount)),
-                accuracy = CASE WHEN trades > 0 THEN (accuracy * trades + 1) / (trades + 1) ELSE 1 END
+                balance     = balance + v_payout,
+                points      = points + GREATEST(10, ROUND(v_payout - pred.amount)),
+                accuracy    = CASE WHEN trades > 0 THEN (accuracy * trades + 1) / (trades + 1) ELSE 1 END,
+                brier_score = CASE WHEN brier_n > 0 THEN (COALESCE(brier_score, 0) * brier_n + v_brier_sq) / (brier_n + 1) ELSE v_brier_sq END,
+                brier_n     = brier_n + 1
             WHERE id = pred.user_id;
             SELECT balance INTO v_new_balance FROM profiles WHERE id = pred.user_id;
             INSERT INTO transactions (user_id, type, amount, balance_after, description, market_id, prediction_id)
             VALUES (pred.user_id, 'payout', ROUND(v_payout), v_new_balance,
-                    'Won ' || ROUND(v_payout::numeric, 1) || ' tokens on ' || UPPER(pred.direction), p_market_id, pred.id);
+                    'Won ' || ROUND(v_payout::numeric, 1) || ' tokens — "' || v_short_title || '"', p_market_id, pred.id);
             INSERT INTO notifications (user_id, type, title, message, market_id)
-            VALUES (pred.user_id, 'payout', 'You Won!',
-                    'Your prediction was correct! You earned ' || ROUND(v_payout::numeric, 1) || ' tokens.', p_market_id);
+            VALUES (pred.user_id, 'payout', 'You Won! 🎉',
+                    'Resolved ' || UPPER(p_resolution) || ': "' || v_short_title || '". You earned ' || ROUND(v_payout::numeric, 1) || ' tokens!', p_market_id);
         ELSE
+            -- Brier score: forecast = probability in the direction bet, outcome = 0.0 (wrong)
+            v_brier_sq := POWER(CASE pred.direction WHEN 'yes' THEN pred.entry_prob ELSE 1.0 - pred.entry_prob END - 0.0, 2);
             UPDATE predictions SET status = 'lost', payout = 0 WHERE id = pred.id;
             UPDATE profiles SET
-                accuracy = CASE WHEN trades > 0 THEN (accuracy * trades) / (trades + 1) ELSE 0 END
+                accuracy    = CASE WHEN trades > 0 THEN (accuracy * trades) / (trades + 1) ELSE 0 END,
+                brier_score = CASE WHEN brier_n > 0 THEN (COALESCE(brier_score, 0) * brier_n + v_brier_sq) / (brier_n + 1) ELSE v_brier_sq END,
+                brier_n     = brier_n + 1
             WHERE id = pred.user_id;
             INSERT INTO notifications (user_id, type, title, message, market_id)
             VALUES (pred.user_id, 'resolution', 'Market Resolved',
-                    'Your prediction was incorrect. Better luck next time!', p_market_id);
+                    'Resolved ' || UPPER(p_resolution) || ': "' || v_short_title || '". Your prediction was incorrect.', p_market_id);
         END IF;
     END LOOP;
 
+    -- Notify market creator
     INSERT INTO notifications (user_id, type, title, message, market_id)
     SELECT created_by, 'resolution', 'Your Market Was Resolved',
-           'Your market has been resolved as ' || UPPER(p_resolution) || '.', p_market_id
-    FROM markets WHERE id = p_market_id AND created_by IS NOT NULL;
+           '"' || v_short_title || '" resolved ' || UPPER(p_resolution) || '.', p_market_id
+    FROM markets WHERE id = p_market_id AND created_by IS NOT NULL
+        AND created_by NOT IN (SELECT user_id FROM predictions WHERE market_id = p_market_id AND status != 'active');
+
+    -- Notify watchlist users who didn't trade (digest-style)
+    INSERT INTO notifications (user_id, type, title, message, market_id)
+    SELECT w.user_id, 'resolution', 'Watched Market Resolved',
+           '"' || v_short_title || '" resolved ' || UPPER(p_resolution) || '. ' ||
+           (SELECT COUNT(*) FROM predictions WHERE market_id = p_market_id AND status IN ('won','lost','voided'))::TEXT || ' predictions settled.'
+           , p_market_id
+    FROM watchlist w
+    WHERE w.market_id = p_market_id
+      AND w.user_id NOT IN (SELECT user_id FROM predictions WHERE market_id = p_market_id);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -589,38 +617,54 @@ BEGIN
                     'Market voided — refund of ' || ROUND(v_payout::numeric, 1) || ' tokens', p_market_id, pred.id);
             INSERT INTO notifications (user_id, type, title, message, market_id)
             VALUES (pred.user_id, 'payout', 'Market Voided',
-                    'Market was voided. You received ' || v_payout || ' tokens back.', p_market_id);
+                    '"' || LEFT(v_market.title, 70) || '" was voided. Your ' || pred.amount || ' tokens were refunded.', p_market_id);
 
         ELSIF pred.option_index = p_winning_index THEN
             v_payout := pred.shares;
+            -- Brier: entry_prob is the probability of the chosen option at bet time; outcome = 1.0 (correct)
             UPDATE predictions SET status = 'won', payout = v_payout WHERE id = pred.id;
             UPDATE profiles SET
-                balance = balance + v_payout,
-                points  = points + GREATEST(10, ROUND(v_payout - pred.amount)),
-                accuracy = CASE WHEN trades > 0 THEN (accuracy * trades + 1) / (trades + 1) ELSE 1 END
+                balance     = balance + v_payout,
+                points      = points + GREATEST(10, ROUND(v_payout - pred.amount)),
+                accuracy    = CASE WHEN trades > 0 THEN (accuracy * trades + 1) / (trades + 1) ELSE 1 END,
+                brier_score = CASE WHEN brier_n > 0 THEN (COALESCE(brier_score, 0) * brier_n + POWER(pred.entry_prob - 1.0, 2)) / (brier_n + 1) ELSE POWER(pred.entry_prob - 1.0, 2) END,
+                brier_n     = brier_n + 1
             WHERE id = pred.user_id;
             SELECT balance INTO v_new_balance FROM profiles WHERE id = pred.user_id;
             INSERT INTO transactions (user_id, type, amount, balance_after, description, market_id, prediction_id)
             VALUES (pred.user_id, 'payout', ROUND(v_payout), v_new_balance,
                     'Won ' || ROUND(v_payout::numeric, 1) || ' tokens on "' || LEFT(v_resolution, 40) || '"', p_market_id, pred.id);
             INSERT INTO notifications (user_id, type, title, message, market_id)
-            VALUES (pred.user_id, 'payout', 'You Won!',
-                    'Your prediction was correct! You earned ' || ROUND(v_payout::numeric, 1) || ' tokens.', p_market_id);
+            VALUES (pred.user_id, 'payout', 'You Won! 🎉',
+                    'Resolved "' || LEFT(v_resolution, 40) || '": "' || LEFT(v_market.title, 60) || '". You earned ' || ROUND(v_payout::numeric, 1) || ' tokens!', p_market_id);
         ELSE
             UPDATE predictions SET status = 'lost', payout = 0 WHERE id = pred.id;
             UPDATE profiles SET
-                accuracy = CASE WHEN trades > 0 THEN (accuracy * trades) / (trades + 1) ELSE 0 END
+                accuracy    = CASE WHEN trades > 0 THEN (accuracy * trades) / (trades + 1) ELSE 0 END,
+                brier_score = CASE WHEN brier_n > 0 THEN (COALESCE(brier_score, 0) * brier_n + POWER(pred.entry_prob - 0.0, 2)) / (brier_n + 1) ELSE POWER(pred.entry_prob - 0.0, 2) END,
+                brier_n     = brier_n + 1
             WHERE id = pred.user_id;
             INSERT INTO notifications (user_id, type, title, message, market_id)
             VALUES (pred.user_id, 'resolution', 'Market Resolved',
-                    'Market resolved as "' || v_resolution || '". Your prediction was incorrect.', p_market_id);
+                    'Resolved "' || LEFT(v_resolution, 40) || '": "' || LEFT(v_market.title, 60) || '". Your prediction was incorrect.', p_market_id);
         END IF;
     END LOOP;
 
+    -- Notify market creator
     INSERT INTO notifications (user_id, type, title, message, market_id)
     SELECT created_by, 'resolution', 'Your Market Was Resolved',
-           'Your market has been resolved as "' || v_resolution || '".', p_market_id
-    FROM markets WHERE id = p_market_id AND created_by IS NOT NULL;
+           '"' || LEFT(v_market.title, 70) || '" resolved as "' || v_resolution || '".', p_market_id
+    FROM markets WHERE id = p_market_id AND created_by IS NOT NULL
+        AND created_by NOT IN (SELECT user_id FROM predictions WHERE market_id = p_market_id AND status != 'active');
+
+    -- Notify watchlist users who didn't trade
+    INSERT INTO notifications (user_id, type, title, message, market_id)
+    SELECT w.user_id, 'resolution', 'Watched Market Resolved',
+           '"' || LEFT(v_market.title, 70) || '" resolved as "' || v_resolution || '".',
+           p_market_id
+    FROM watchlist w
+    WHERE w.market_id = p_market_id
+      AND w.user_id NOT IN (SELECT user_id FROM predictions WHERE market_id = p_market_id);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

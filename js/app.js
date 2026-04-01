@@ -970,6 +970,52 @@ async function handleAISuggestCriteria() {
     }
 }
 
+// Admin: AI resolution suggestion for expired markets
+async function handleAISuggestResolution(marketId) {
+    const market = AppState.markets.find(m => m.id === marketId);
+    if (!market) return;
+
+    const btn = document.getElementById(`ai-suggest-btn-${marketId}`);
+    const result = document.getElementById(`ai-suggest-result-${marketId}`);
+    if (!btn || !result) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Searching…';
+    result.className = 'mt-2 p-3 rounded-lg border text-xs bg-gray-50 border-gray-200';
+    result.innerHTML = `<div class="flex items-center gap-2 text-gray-400"><div class="w-3 h-3 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin"></div>Running web research…</div>`;
+    result.classList.remove('hidden');
+
+    try {
+        const s = await AI.suggestResolution(market);
+        const cfg = {
+            yes:  { label: 'YES', color: 'text-green-700 bg-green-50 border-green-200', badge: 'bg-green-100 text-green-700' },
+            no:   { label: 'NO',  color: 'text-red-700 bg-red-50 border-red-200',       badge: 'bg-red-100 text-red-600' },
+            void: { label: 'VOID', color: 'text-gray-700 bg-gray-50 border-gray-200',   badge: 'bg-gray-100 text-gray-600' },
+        };
+        const confColor = { low: 'text-amber-500', medium: 'text-blue-500', high: 'text-green-600' };
+        const c = cfg[s.verdict] || cfg.void;
+        result.className = `mt-2 p-3 rounded-lg border text-xs ${c.color}`;
+        result.innerHTML = `
+            <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+                <span class="font-bold text-sm px-2 py-0.5 rounded ${c.badge}">${c.label}</span>
+                <span class="${confColor[s.confidence] || 'text-gray-400'} font-medium">Confidence: ${s.confidence}</span>
+                <div class="ml-auto flex gap-1.5">
+                    <button onclick="handleResolveMarket(${marketId}, 'yes')" class="px-2.5 py-1 rounded text-xs font-bold bg-green-500 text-white hover:bg-green-600">Resolve YES</button>
+                    <button onclick="handleResolveMarket(${marketId}, 'no')" class="px-2.5 py-1 rounded text-xs font-bold bg-red-500 text-white hover:bg-red-600">Resolve NO</button>
+                    <button onclick="handleResolveMarket(${marketId}, 'void')" class="px-2.5 py-1 rounded text-xs font-bold bg-gray-400 text-white hover:bg-gray-500">VOID</button>
+                </div>
+            </div>
+            <p class="leading-relaxed mb-1">${esc(s.reasoning)}</p>
+            ${s.caveat ? `<p class="opacity-60 italic">${esc(s.caveat)}</p>` : ''}`;
+    } catch (e) {
+        result.className = 'mt-2 p-3 rounded-lg border text-xs bg-red-50 border-red-200 text-red-600';
+        result.innerHTML = esc(e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '⚡ Re-suggest';
+    }
+}
+
 // Admin: AI quality review for a pending market
 async function handleAIReviewMarket(marketId) {
     const market = (AppState.markets || []).find(m => m.id === marketId);
