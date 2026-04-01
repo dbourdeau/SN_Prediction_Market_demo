@@ -2741,6 +2741,241 @@ Background: [Provide relevant context for traders]"
             </div>
         </div>`;
     },
+
+    tournaments() {
+        const isAdmin = AppState.user?.is_admin;
+        const tournaments = AppState.tournaments || [];
+
+        const statusBadge = (t) => {
+            if (t.status === 'active')   return `<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">Active</span>`;
+            if (t.status === 'upcoming') return `<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700">Upcoming</span>`;
+            return `<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-500">Closed</span>`;
+        };
+
+        const fmt = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+
+        return `<div class="max-w-4xl mx-auto px-4 py-8 space-y-6">
+            <div class="flex items-start justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Tournaments</h1>
+                    <p class="text-gray-500 text-sm mt-1">Compete on curated sets of markets. Score by net SharkBucks earned on resolved trades.</p>
+                </div>
+                ${isAdmin ? `<button onclick="document.getElementById('new-tournament-form').classList.toggle('hidden')" class="shrink-0 bg-shark-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-shark-700 transition-colors flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>New
+                </button>` : ''}
+            </div>
+
+            ${isAdmin ? `
+            <div id="new-tournament-form" class="hidden bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                <h3 class="font-semibold text-gray-900 mb-4">Create Tournament</h3>
+                <div class="grid sm:grid-cols-2 gap-4">
+                    <div class="sm:col-span-2 flex gap-3">
+                        <div class="w-20 shrink-0">
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Emoji</label>
+                            <input type="text" id="t-emoji" value="🏆" maxlength="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-shark-500"/>
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Title</label>
+                            <input type="text" id="t-title" placeholder="Q3 2026 Forecasting Championship" maxlength="200" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500"/>
+                        </div>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Description</label>
+                        <textarea id="t-description" rows="2" placeholder="What is this tournament about? Who should participate?" maxlength="2000" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500 resize-none"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Start Date</label>
+                        <input type="date" id="t-start" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500"/>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">End Date</label>
+                        <input type="date" id="t-end" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500"/>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Prize / Recognition (optional)</label>
+                        <input type="text" id="t-prize" placeholder="e.g. Top 3 winners announced at All-Hands" maxlength="300" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500"/>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Status</label>
+                        <select id="t-status" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500">
+                            <option value="upcoming">Upcoming</option>
+                            <option value="active">Active</option>
+                            <option value="closed">Closed</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex gap-2 mt-4">
+                    <button onclick="handleCreateTournament()" class="bg-shark-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-shark-700 transition-colors">Create</button>
+                    <button onclick="document.getElementById('new-tournament-form').classList.add('hidden')" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">Cancel</button>
+                </div>
+            </div>` : ''}
+
+            ${tournaments.length === 0 ? `
+            <div class="text-center py-24">
+                <div class="text-5xl mb-4">🏆</div>
+                <h3 class="text-lg font-semibold text-gray-700 mb-2">No tournaments yet</h3>
+                <p class="text-gray-400 text-sm">Admins can create tournaments to group markets into focused competitions.</p>
+            </div>` : `
+            <div class="grid sm:grid-cols-2 gap-4">
+                ${tournaments.map(t => `
+                <div class="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-md transition-all cursor-pointer group" onclick="AppState.navigate('tournament', { tournamentId: ${t.id} })">
+                    <div class="flex items-start gap-3 mb-3">
+                        <span class="text-3xl shrink-0">${esc(t.emoji || '🏆')}</span>
+                        <div class="min-w-0">
+                            <h3 class="font-bold text-gray-900 group-hover:text-shark-600 transition-colors truncate">${esc(t.title)}</h3>
+                            <div class="mt-1">${statusBadge(t)}</div>
+                        </div>
+                    </div>
+                    ${t.description ? `<p class="text-sm text-gray-500 mb-3 line-clamp-2">${esc(t.description)}</p>` : ''}
+                    <div class="flex items-center justify-between text-xs text-gray-400 pt-3 border-t border-gray-100">
+                        <span>${fmt(t.start_date)} → ${fmt(t.end_date)}</span>
+                        ${t.prize_description ? `<span class="text-amber-500 font-medium truncate ml-2 max-w-[140px]">🎁 ${esc(t.prize_description.slice(0, 40))}${t.prize_description.length > 40 ? '…' : ''}</span>` : ''}
+                    </div>
+                </div>`).join('')}
+            </div>`}
+        </div>`;
+    },
+
+    tournament() {
+        const t = AppState.selectedTournament;
+        const markets = AppState.selectedTournamentMarkets || [];
+        const leaderboard = AppState.selectedTournamentLeaderboard || [];
+        const isAdmin = AppState.user?.is_admin;
+
+        if (!t) return `<div class="max-w-2xl mx-auto px-4 py-16 text-center"><p class="text-gray-500">Tournament not found.</p></div>`;
+
+        const statusBadge = t.status === 'active'
+            ? `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">Active</span>`
+            : t.status === 'upcoming'
+            ? `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">Upcoming</span>`
+            : `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-400">Closed</span>`;
+
+        const fmt = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+        const participants = new Set(leaderboard.map(e => e.user_id)).size;
+        const totalVolume = markets.reduce((s, m) => s + (m.volume || 0), 0);
+        const inTournamentIds = new Set(markets.map(m => m.id));
+        const availableMarkets = (AppState.markets || []).filter(m => !inTournamentIds.has(m.id) && m.status === 'active');
+        const myEntry = leaderboard.find(e => e.user_id === AppState.session?.user?.id);
+        const myRank = myEntry ? leaderboard.indexOf(myEntry) + 1 : null;
+
+        return `<div class="max-w-4xl mx-auto px-4 py-8 space-y-6">
+            <button onclick="AppState.navigate('tournaments')" class="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                All Tournaments
+            </button>
+
+            <!-- Hero -->
+            <div class="bg-gradient-to-br from-gray-900 to-shark-900 rounded-2xl p-8 text-white">
+                <div class="flex items-start justify-between flex-wrap gap-4">
+                    <div>
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="text-4xl">${esc(t.emoji || '🏆')}</span>
+                            ${statusBadge}
+                        </div>
+                        <h1 class="text-2xl font-bold mb-2">${esc(t.title)}</h1>
+                        ${t.description ? `<p class="text-white/60 text-sm max-w-xl leading-relaxed">${esc(t.description)}</p>` : ''}
+                        ${t.prize_description ? `<div class="mt-3 inline-flex items-center gap-2 bg-amber-500/20 text-amber-300 text-xs font-semibold px-3 py-1.5 rounded-full">🎁 ${esc(t.prize_description)}</div>` : ''}
+                    </div>
+                    ${isAdmin ? `<div class="flex gap-2 flex-wrap items-center">
+                        <select onchange="handleUpdateTournamentStatus(this.value)" class="bg-white/10 text-white text-sm px-3 py-1.5 rounded-lg border border-white/20 focus:outline-none cursor-pointer">
+                            <option value="upcoming" ${t.status === 'upcoming' ? 'selected' : ''}>Upcoming</option>
+                            <option value="active"   ${t.status === 'active'   ? 'selected' : ''}>Active</option>
+                            <option value="closed"   ${t.status === 'closed'   ? 'selected' : ''}>Closed</option>
+                        </select>
+                        <button onclick="handleDeleteTournament()" class="bg-red-500/20 text-red-300 text-sm px-3 py-1.5 rounded-lg hover:bg-red-500/30 transition-colors">Delete</button>
+                    </div>` : ''}
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-white/10">
+                    <div><div class="text-2xl font-bold">${markets.length}</div><div class="text-white/50 text-xs mt-0.5">Markets</div></div>
+                    <div><div class="text-2xl font-bold">${participants}</div><div class="text-white/50 text-xs mt-0.5">Participants</div></div>
+                    <div><div class="text-2xl font-bold">${totalVolume.toLocaleString()}</div><div class="text-white/50 text-xs mt-0.5">SB Volume</div></div>
+                    <div><div class="text-sm font-bold leading-tight">${fmt(t.start_date)}<br><span class="text-white/40 text-xs">→ ${fmt(t.end_date)}</span></div><div class="text-white/50 text-xs mt-0.5">Duration</div></div>
+                </div>
+                ${myEntry ? `<div class="mt-4 inline-flex items-center gap-2 bg-white/10 rounded-lg px-4 py-2 text-sm">
+                    <span class="text-white/60">Your rank:</span>
+                    <span class="font-bold">#${myRank}</span>
+                    <span class="text-white/30">·</span>
+                    <span class="font-semibold ${Number(myEntry.realized_pnl) >= 0 ? 'text-green-400' : 'text-red-400'}">${Number(myEntry.realized_pnl) >= 0 ? '+' : ''}${Number(myEntry.realized_pnl).toLocaleString()} SB</span>
+                    <span class="text-white/40 text-xs">realized</span>
+                </div>` : ''}
+            </div>
+
+            <!-- Markets -->
+            <div>
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-bold text-gray-900">Markets (${markets.length})</h2>
+                    ${isAdmin && availableMarkets.length > 0 ? `<div class="flex gap-2">
+                        <select id="add-market-select" class="text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-shark-500 max-w-[220px]">
+                            <option value="">Add a market…</option>
+                            ${availableMarkets.map(m => `<option value="${m.id}">${esc(m.title.slice(0, 55))}${m.title.length > 55 ? '…' : ''}</option>`).join('')}
+                        </select>
+                        <button onclick="handleAddMarketToTournament()" class="bg-shark-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-shark-700 transition-colors">Add</button>
+                    </div>` : ''}
+                </div>
+                ${markets.length === 0 ? `<div class="bg-white border border-dashed border-gray-200 rounded-2xl p-10 text-center text-gray-400 text-sm">
+                    ${isAdmin ? 'Use the selector above to add markets to this tournament.' : 'No markets have been added yet.'}
+                </div>` : `
+                <div class="space-y-2">
+                    ${markets.map(m => {
+                        const pct = Math.round((m.probability || 0.5) * 100);
+                        const isResolved = !!m.resolution;
+                        return `<div class="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-3 hover:shadow-sm transition-shadow cursor-pointer group" onclick="AppState.navigate('market', { marketId: ${m.id} })">
+                            <div class="flex-1 min-w-0">
+                                <div class="font-medium text-gray-900 text-sm truncate group-hover:text-shark-600 transition-colors">${esc(m.title)}</div>
+                                <div class="text-xs text-gray-400 mt-0.5">${esc(m.category)} · closes ${m.closes_at}</div>
+                            </div>
+                            ${isResolved
+                                ? `<span class="px-2 py-0.5 rounded-full text-xs font-bold ${m.resolution === 'yes' ? 'bg-green-100 text-green-700' : m.resolution === 'no' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'} shrink-0">${m.resolution.toUpperCase()}</span>`
+                                : `<div class="flex items-center gap-2 shrink-0">
+                                    <div class="w-20 bg-gray-100 rounded-full h-1.5 hidden sm:block"><div class="bg-shark-500 h-1.5 rounded-full" style="width:${pct}%"></div></div>
+                                    <span class="text-sm font-bold text-gray-700 w-9 text-right">${pct}%</span>
+                                </div>`}
+                            ${isAdmin ? `<button onclick="event.stopPropagation();handleRemoveMarketFromTournament(${m.id})" class="text-gray-300 hover:text-red-400 transition-colors shrink-0 ml-1 font-bold text-sm">✕</button>` : ''}
+                        </div>`;
+                    }).join('')}
+                </div>`}
+            </div>
+
+            <!-- Leaderboard -->
+            <div>
+                <h2 class="text-lg font-bold text-gray-900 mb-4">Leaderboard</h2>
+                ${leaderboard.length === 0 ? `<div class="bg-white border border-dashed border-gray-200 rounded-2xl p-10 text-center text-gray-400 text-sm">
+                    No trades yet on these markets — be the first to participate!
+                </div>` : `
+                <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                    <table class="w-full">
+                        <thead><tr class="border-b border-gray-100 bg-gray-50/50 text-xs text-gray-400 font-semibold uppercase tracking-wide">
+                            <th class="text-left px-4 py-3 w-12">Rank</th>
+                            <th class="text-left px-4 py-3">Trader</th>
+                            <th class="text-right px-4 py-3 hidden sm:table-cell">Trades</th>
+                            <th class="text-right px-4 py-3 hidden sm:table-cell">Active</th>
+                            <th class="text-right px-4 py-3">Net P&L</th>
+                        </tr></thead>
+                        <tbody>${leaderboard.map((entry, idx) => {
+                            const isMe = entry.user_id === AppState.session?.user?.id;
+                            const pnl = Number(entry.realized_pnl);
+                            const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`;
+                            return `<tr class="border-b border-gray-50 last:border-0 ${isMe ? 'bg-shark-50' : idx % 2 === 1 ? 'bg-gray-50/30' : ''} hover:bg-gray-50 transition-colors">
+                                <td class="px-4 py-3 text-sm font-bold ${idx < 3 ? 'text-lg' : 'text-gray-400'}">${medal}</td>
+                                <td class="px-4 py-3">
+                                    <div class="flex items-center gap-2">
+                                        ${Components.avatar(entry.avatar || entry.name || 'XX', 'sm')}
+                                        <div>
+                                            <div class="font-medium text-gray-900 text-sm">${esc(entry.name || 'Unknown')}${isMe ? ' <span class="text-xs text-shark-500 font-normal">(you)</span>' : ''}</div>
+                                            <div class="text-xs text-gray-400">${esc(entry.department || '')}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 text-sm text-gray-500 text-right hidden sm:table-cell">${entry.trades}</td>
+                                <td class="px-4 py-3 text-sm text-gray-500 text-right hidden sm:table-cell">${entry.active_trades}</td>
+                                <td class="px-4 py-3 text-right font-bold text-sm ${pnl >= 0 ? 'text-green-600' : 'text-red-500'}">${pnl >= 0 ? '+' : ''}${pnl.toLocaleString()} SB</td>
+                            </tr>`;
+                        }).join('')}</tbody>
+                    </table>
+                </div>`}
+            </div>
+        </div>`;
+    },
 };
 
 // Helper for trade estimates

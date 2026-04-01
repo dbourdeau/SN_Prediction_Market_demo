@@ -914,3 +914,83 @@ BEGIN
         ON CONFLICT (key) DO UPDATE SET value = p_cached_at;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- ============================================================
+-- TOURNAMENTS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS tournaments (
+    id                SERIAL PRIMARY KEY,
+    title             TEXT NOT NULL CHECK (char_length(title) <= 200),
+    description       TEXT NOT NULL DEFAULT '' CHECK (char_length(description) <= 2000),
+    emoji             TEXT NOT NULL DEFAULT '🏆',
+    status            TEXT NOT NULL DEFAULT 'upcoming' CHECK (status IN ('upcoming', 'active', 'closed')),
+    start_date        DATE,
+    end_date          DATE,
+    prize_description TEXT,
+    created_by        UUID REFERENCES profiles(id),
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS tournament_markets (
+    id             SERIAL PRIMARY KEY,
+    tournament_id  INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+    market_id      INTEGER NOT NULL REFERENCES markets(id) ON DELETE CASCADE,
+    added_by       UUID REFERENCES profiles(id),
+    added_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE(tournament_id, market_id)
+);
+
+ALTER TABLE tournaments        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tournament_markets ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Tournaments readable by authenticated" ON tournaments
+    FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Admins can create tournaments" ON tournaments
+    FOR INSERT TO authenticated
+    WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true));
+CREATE POLICY "Admins can update tournaments" ON tournaments
+    FOR UPDATE TO authenticated
+    USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true));
+CREATE POLICY "Admins can delete tournaments" ON tournaments
+    FOR DELETE TO authenticated
+    USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true));
+
+CREATE POLICY "Tournament markets readable by authenticated" ON tournament_markets
+    FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Admins can insert tournament markets" ON tournament_markets
+    FOR INSERT TO authenticated
+    WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true));
+CREATE POLICY "Admins can delete tournament markets" ON tournament_markets
+    FOR DELETE TO authenticated
+    USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true));
+
+-- Tournament leaderboard: net SharkBucks P&L on resolved predictions in this tournament
+CREATE OR REPLACE FUNCTION get_tournament_leaderboard(p_tournament_id INTEGER)
+RETURNS TABLE(
+    user_id       UUID,
+    name          TEXT,
+    avatar        TEXT,
+    department    TEXT,
+    trades        BIGINT,
+    realized_pnl  BIGINT,
+    active_trades BIGINT
+) LANGUAGE sql SECURITY DEFINER AS $$
+    SELECT
+        pr.id,
+        pr.name,
+        pr.avatar,
+        pr.department,
+        COUNT(p.id),
+        COALESCE(SUM(CASE WHEN p.status IN ('won','lost','voided')
+                     THEN p.payout::BIGINT - p.amount ELSE 0 END), 0),
+        COUNT(CASE WHEN p.status = 'active' THEN 1 END)
+    FROM predictions p
+    JOIN profiles pr ON pr.id = p.user_id
+    WHERE p.market_id IN (
+        SELECT market_id FROM tournament_markets WHERE tournament_id = p_tournament_id
+    )
+    GROUP BY pr.id, pr.name, pr.avatar, pr.department
+    ORDER BY COALESCE(SUM(CASE WHEN p.status IN ('won','lost','voided')
+                         THEN p.payout::BIGINT - p.amount ELSE 0 END), 0) DESC;
+$$;

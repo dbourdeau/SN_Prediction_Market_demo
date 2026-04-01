@@ -446,6 +446,65 @@ const DB = {
             .eq('user_id', userId).eq('is_read', false);
     },
 
+    // ---- Tournaments ----
+    async getTournaments() {
+        const { data, error } = await supabaseClient.from('tournaments')
+            .select('*').order('created_at', { ascending: false });
+        if (error) throw error;
+        return data || [];
+    },
+
+    async getTournament(id) {
+        const { data, error } = await supabaseClient.from('tournaments')
+            .select('*').eq('id', id).single();
+        if (error) throw error;
+        return data;
+    },
+
+    async createTournament(t) {
+        const { data, error } = await supabaseClient.from('tournaments').insert([t]).select().single();
+        if (error) throw error;
+        return data;
+    },
+
+    async updateTournament(id, updates) {
+        const { error } = await supabaseClient.from('tournaments').update(updates).eq('id', id);
+        if (error) throw error;
+    },
+
+    async deleteTournament(id) {
+        const { error } = await supabaseClient.from('tournaments').delete().eq('id', id);
+        if (error) throw error;
+    },
+
+    async getTournamentMarkets(tournamentId) {
+        const { data, error } = await supabaseClient.from('tournament_markets')
+            .select('market_id, added_at, markets(*)')
+            .eq('tournament_id', tournamentId)
+            .order('added_at', { ascending: true });
+        if (error) throw error;
+        return (data || []).map(row => row.markets).filter(Boolean);
+    },
+
+    async addMarketToTournament(tournamentId, marketId, addedBy) {
+        const { error } = await supabaseClient.from('tournament_markets')
+            .insert([{ tournament_id: tournamentId, market_id: marketId, added_by: addedBy }]);
+        if (error) throw error;
+    },
+
+    async removeMarketFromTournament(tournamentId, marketId) {
+        const { error } = await supabaseClient.from('tournament_markets')
+            .delete().eq('tournament_id', tournamentId).eq('market_id', marketId);
+        if (error) throw error;
+    },
+
+    async getTournamentLeaderboard(tournamentId) {
+        const { data, error } = await supabaseClient.rpc('get_tournament_leaderboard',
+            { p_tournament_id: tournamentId });
+        if (error) throw error;
+        return data || [];
+    },
+
     // ---- Realtime ----
     subscribeToMarkets(callback) {
         return supabaseClient.channel('markets-changes')

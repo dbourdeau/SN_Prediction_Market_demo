@@ -38,6 +38,10 @@ const AppState = {
     leaderboardTab: 'individual', // 'individual' or 'departments'
     leaderboardSort: 'points', // 'points' or 'brier'
     hasSeenOnboarding: localStorage.getItem('sn_onboarded') === 'true',
+    tournaments: [],
+    selectedTournament: null,
+    selectedTournamentMarkets: [],
+    selectedTournamentLeaderboard: [],
 
     _marketsChannel: null,
     _notificationsChannel: null,
@@ -280,6 +284,27 @@ const AppState = {
 
         if (page === 'transactions') {
             try { this.transactions = await DB.getTransactions(this.session.user.id); } catch (e) { this.transactions = []; }
+        }
+
+        if (page === 'tournaments') {
+            try { this.tournaments = await DB.getTournaments(); } catch (e) { this.tournaments = []; }
+        }
+
+        if (page === 'tournament' && data?.tournamentId) {
+            const tid = data.tournamentId;
+            this.selectedTournament = this.tournaments.find(t => t.id === tid) || null;
+            this.selectedTournamentMarkets = [];
+            this.selectedTournamentLeaderboard = [];
+            try {
+                const [tournament, markets, leaderboard] = await Promise.all([
+                    DB.getTournament(tid),
+                    DB.getTournamentMarkets(tid),
+                    DB.getTournamentLeaderboard(tid),
+                ]);
+                this.selectedTournament = tournament;
+                this.selectedTournamentMarkets = markets || [];
+                this.selectedTournamentLeaderboard = leaderboard || [];
+            } catch (e) { console.error('Failed to load tournament:', e); }
         }
 
         if (page === 'briefing') {

@@ -29,6 +29,8 @@ function render() {
             case 'analytics': pageContent = Pages.analytics(); break;
             case 'briefing': pageContent = Pages.briefing(); break;
             case 'guide': pageContent = Pages.guide(); break;
+            case 'tournaments': pageContent = Pages.tournaments(); break;
+            case 'tournament': pageContent = Pages.tournament(); break;
             default: pageContent = Pages.dashboard();
         }
 
@@ -1574,6 +1576,83 @@ async function handleGenerateBriefing() {
     } finally {
         AppState._renderLocked = false;
         if (btn) { btn.disabled = false; btn.textContent = 'Regenerate'; }
+    }
+}
+
+// ==================== TOURNAMENTS ====================
+
+async function handleCreateTournament() {
+    const title = document.getElementById('t-title')?.value?.trim();
+    const emoji = document.getElementById('t-emoji')?.value?.trim() || '🏆';
+    const description = document.getElementById('t-description')?.value?.trim() || '';
+    const startDate = document.getElementById('t-start')?.value || null;
+    const endDate = document.getElementById('t-end')?.value || null;
+    const prize = document.getElementById('t-prize')?.value?.trim() || null;
+    const status = document.getElementById('t-status')?.value || 'upcoming';
+
+    if (!title) { showToast('Title is required', 'error'); return; }
+
+    try {
+        const t = await DB.createTournament({
+            title, emoji, description, start_date: startDate, end_date: endDate,
+            prize_description: prize || null, status, created_by: AppState.session.user.id,
+        });
+        AppState.tournaments = await DB.getTournaments();
+        AppState.navigate('tournament', { tournamentId: t.id });
+    } catch (e) {
+        showToast(e.message || 'Failed to create tournament', 'error');
+    }
+}
+
+async function handleUpdateTournamentStatus(status) {
+    const t = AppState.selectedTournament;
+    if (!t) return;
+    try {
+        await DB.updateTournament(t.id, { status });
+        AppState.selectedTournament = { ...t, status };
+        AppState.notify();
+    } catch (e) {
+        showToast(e.message || 'Failed to update status', 'error');
+    }
+}
+
+async function handleAddMarketToTournament() {
+    const select = document.getElementById('add-market-select');
+    const marketId = parseInt(select?.value);
+    if (!marketId) { showToast('Select a market to add', 'info'); return; }
+    const t = AppState.selectedTournament;
+    if (!t) return;
+    try {
+        await DB.addMarketToTournament(t.id, marketId, AppState.session.user.id);
+        AppState.selectedTournamentMarkets = await DB.getTournamentMarkets(t.id);
+        AppState.selectedTournamentLeaderboard = await DB.getTournamentLeaderboard(t.id);
+        AppState.notify();
+    } catch (e) {
+        showToast(e.message || 'Failed to add market', 'error');
+    }
+}
+
+async function handleRemoveMarketFromTournament(marketId) {
+    const t = AppState.selectedTournament;
+    if (!t) return;
+    try {
+        await DB.removeMarketFromTournament(t.id, marketId);
+        AppState.selectedTournamentMarkets = AppState.selectedTournamentMarkets.filter(m => m.id !== marketId);
+        AppState.notify();
+    } catch (e) {
+        showToast(e.message || 'Failed to remove market', 'error');
+    }
+}
+
+async function handleDeleteTournament() {
+    const t = AppState.selectedTournament;
+    if (!t || !confirm(`Delete "${t.title}"? This cannot be undone.`)) return;
+    try {
+        await DB.deleteTournament(t.id);
+        AppState.tournaments = AppState.tournaments.filter(x => x.id !== t.id);
+        AppState.navigate('tournaments');
+    } catch (e) {
+        showToast(e.message || 'Failed to delete tournament', 'error');
     }
 }
 
