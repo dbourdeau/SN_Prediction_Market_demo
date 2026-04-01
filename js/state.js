@@ -45,6 +45,7 @@ const AppState = {
     _predictionsChannel: null,
 
     _renderLocked: false, // set true during long AI calls to prevent re-render wiping the panel
+    _activeAITab: 'analysis', // persists across re-renders so research results survive realtime updates
     listeners: [],
     subscribe(fn) { this.listeners.push(fn); },
     notify() { if (!this._renderLocked) this.listeners.forEach(fn => fn()); },
@@ -183,6 +184,7 @@ const AppState = {
         this.selectedMarketPredictions = [];
         this._commentsShown = 10;
         if (!data?.profileId) { this.viewingProfile = null; this.viewingProfilePredictions = []; }
+        if (!data?.marketId || data.marketId !== this.selectedMarket?.id) this._activeAITab = 'analysis';
 
         if (data?.marketId) {
             const mid = data.marketId;

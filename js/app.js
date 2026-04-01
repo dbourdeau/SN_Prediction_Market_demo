@@ -1243,6 +1243,7 @@ function buildResearchHTML(r, cachedAt) {
 }
 
 function switchAITab(tab) {
+    AppState._activeAITab = tab; // persist so re-renders restore the right pane
     const isAnalysis = tab === 'analysis';
     document.getElementById('ai-pane-analysis')?.classList.toggle('hidden', !isAnalysis);
     document.getElementById('ai-pane-research')?.classList.toggle('hidden', isAnalysis);
@@ -1320,9 +1321,14 @@ async function handleDeepResearch() {
         const r = await AI.deepResearch(market, onProgress);
         const cachedAt = new Date().toISOString();
 
+        // Cache in-memory immediately so any re-render triggered after unlock shows the results
+        if (AppState.selectedMarket?.id === market.id) {
+            AppState.selectedMarket.research_cache = r;
+            AppState.selectedMarket.research_cached_at = cachedAt;
+        }
+
         // Save to DB (fire-and-forget, don't block UI)
         DB.updateMarket(market.id, { research_cache: r, research_cached_at: cachedAt })
-            .then(updated => { if (AppState.selectedMarket?.id === market.id) Object.assign(AppState.selectedMarket, updated); })
             .catch(e => console.warn('Research cache save failed:', e));
 
         container.innerHTML = buildResearchHTML(r, cachedAt);
