@@ -46,9 +46,21 @@ const AppState = {
 
     _renderLocked: false, // set true during long AI calls to prevent re-render wiping the panel
     _activeAITab: 'analysis', // persists across re-renders so research results survive realtime updates
+    _notifyTimer: null,   // debounce handle — coalesces rapid notify() calls into one render
+    _suppressRealtimeUntil: 0, // epoch ms — ignore realtime market UPDATEs until this time
     listeners: [],
     subscribe(fn) { this.listeners.push(fn); },
-    notify() { if (!this._renderLocked) this.listeners.forEach(fn => fn()); },
+    notify() {
+        if (this._renderLocked) return;
+        clearTimeout(this._notifyTimer);
+        this._notifyTimer = setTimeout(() => this.listeners.forEach(fn => fn()), 16);
+    },
+    // Immediate notify — used for navigations where we need the render now, not on next tick
+    notifyNow() {
+        if (this._renderLocked) return;
+        clearTimeout(this._notifyTimer);
+        this.listeners.forEach(fn => fn());
+    },
 
     // ==================== AUTH ====================
 
@@ -86,7 +98,7 @@ const AppState = {
             console.error('Init error:', e);
         }
         this.loading = false;
-        this.notify();
+        this.notifyNow();
 
         Auth.onAuthChange(async (event, session) => {
             if (event === 'SIGNED_IN' && session) {
@@ -94,7 +106,7 @@ const AppState = {
                 await this.loadUserData(session.user.id);
                 this.currentPage = 'dashboard';
                 this._setupRealtime();
-                this.notify();
+                this.notifyNow();
             } else if (event === 'SIGNED_OUT') {
                 this._teardownRealtime();
                 Object.assign(this, {
@@ -102,7 +114,7 @@ const AppState = {
                     leaderboard: [], notifications: [], unreadCount: 0, currentPage: 'login',
                     transactions: [], watchlist: [],
                 });
-                this.notify();
+                this.notifyNow();
             }
         });
     },
@@ -144,6 +156,9 @@ const AppState = {
                 const idx = this.markets.findIndex(m => m.id === payload.new.id);
                 if (idx >= 0) this.markets[idx] = payload.new;
                 if (this.selectedMarket?.id === payload.new.id) this.selectedMarket = payload.new;
+                // Skip the re-render if this echo arrived within the suppression window
+                // (i.e. it's the server confirming our own just-placed trade)
+                if (Date.now() < this._suppressRealtimeUntil) return;
                 this.notify();
             } else if (payload.eventType === 'INSERT') {
                 this.markets.unshift(payload.new);
@@ -193,7 +208,7 @@ const AppState = {
             const cached = this.markets.find(m => m.id === mid) || null;
             this.selectedMarket = cached;
             this.navigating = !cached; // only show skeleton if we have nothing cached
-            this.notify();
+            this.notifyNow();
 
             const withTimeout = (promise, ms = 8000) =>
                 Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
@@ -286,7 +301,7 @@ const AppState = {
         }
 
         this.navigating = false;
-        this.notify();
+        this.notifyNow();
         window.scrollTo(0, 0);
     },
 
@@ -366,6 +381,9 @@ const AppState = {
         if (this.selectedMarket?.id === marketId) this.selectedMarket = market;
         if (onOptimistic) onOptimistic(); // patch DOM surgically, no full re-render
 
+        // Suppress realtime market UPDATE echo for 3s — it's our own trade coming back
+        this._suppressRealtimeUntil = Date.now() + 3000;
+
         try {
             // Use server-side RPC to atomically place prediction + update market + deduct balance
             const rpcParams = {
@@ -388,13 +406,15 @@ const AppState = {
 
             await DB.placePrediction(rpcParams);
 
-            // Refresh predictions in background — don't block the return
+            // Refresh user predictions silently in background — no re-render needed
+            // (positions panel will update on the next natural notify, e.g. realtime prediction INSERT)
             Promise.all([
                 DB.getPredictions(this.session.user.id).then(p => { this.userPredictions = p; }),
                 this.selectedMarket?.id === marketId
                     ? DB.getMarketPredictions(marketId).then(p => { this.selectedMarketPredictions = p; })
                     : Promise.resolve(),
-            ]).then(() => this.notify()).catch(e => console.error('Failed to refresh predictions:', e));
+            ]).then(() => { this._suppressRealtimeUntil = 0; this.notify(); })
+              .catch(e => { this._suppressRealtimeUntil = 0; console.error('Failed to refresh predictions:', e); });
 
             return { shares, priceImpact };
         } catch (e) {
@@ -477,6 +497,9 @@ const AppState = {
         if (this.selectedMarket?.id === market.id) this.selectedMarket = market;
         _patchMarketDOM(market, this.user.balance);
 
+        // Suppress realtime market UPDATE echo for 3s — it's our own sell coming back
+        this._suppressRealtimeUntil = Date.now() + 3000;
+
         try {
             // Use server-side RPC to atomically sell position + update market + credit balance
             const rpcParams = {
@@ -495,13 +518,14 @@ const AppState = {
 
             await DB.sellPositionRPC(rpcParams);
 
-            // Refresh predictions in background — don't block the return
+            // Refresh predictions silently — lift suppression and do one clean re-render
             Promise.all([
                 DB.getPredictions(this.session.user.id).then(p => { this.userPredictions = p; }),
                 this.selectedMarket?.id === market.id
                     ? DB.getMarketPredictions(market.id).then(p => { this.selectedMarketPredictions = p; })
                     : Promise.resolve(),
-            ]).then(() => this.notify()).catch(e => console.error('Failed to refresh predictions:', e));
+            ]).then(() => { this._suppressRealtimeUntil = 0; this.notify(); })
+              .catch(e => { this._suppressRealtimeUntil = 0; console.error('Failed to refresh predictions:', e); });
 
             return { revenue: roundedRevenue, profit: roundedRevenue - prevPred.amount };
         } catch (e) {
