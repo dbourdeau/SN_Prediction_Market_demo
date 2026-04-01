@@ -16,6 +16,7 @@ const AppState = {
     viewingProfilePredictions: [],
     allUsers: [],
     categoryFilter: 'all',
+    departmentFilter: 'all',
     statusFilter: 'active',
     searchQuery: '',
     sortBy: 'trending',
@@ -260,6 +261,24 @@ const AppState = {
 
         if (page === 'transactions') {
             try { this.transactions = await DB.getTransactions(this.session.user.id); } catch (e) { this.transactions = []; }
+        }
+
+        if (page === 'briefing') {
+            try {
+                const cached = await DB.getBriefingCache();
+                this.briefingCache = cached?.cache || null;
+                this.briefingCachedAt = cached?.cached_at || null;
+            } catch (e) { this.briefingCache = null; this.briefingCachedAt = null; }
+
+            // Auto-regenerate on Monday if admin and briefing is stale (>6 days) or missing
+            if (this.user?.is_admin) {
+                const isMonday = new Date().getDay() === 1;
+                const isStale = !this.briefingCachedAt ||
+                    (Date.now() - new Date(this.briefingCachedAt).getTime()) > 6 * 24 * 60 * 60 * 1000;
+                if (isMonday && isStale) {
+                    setTimeout(() => handleGenerateBriefing(), 500);
+                }
+            }
         }
 
         this.navigating = false;
@@ -757,8 +776,7 @@ const AppState = {
             }
         });
 
-        // Inactive users (no trades in last 30 days)
-        const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
+        // Inactive users (no trades)
         const allUsers = this.allUsers || [];
         const inactiveUsers = allUsers.filter(u =>
             !u.is_admin && (u.trades || 0) === 0
@@ -1269,6 +1287,10 @@ const AppState = {
         } else if (this.categoryFilter !== 'all') {
             filtered = filtered.filter(m => m.category === this.categoryFilter);
         }
+        // Department filter
+        if (this.departmentFilter !== 'all') {
+            filtered = filtered.filter(m => m.target_dept === this.departmentFilter);
+        }
         // Search
         if (this.searchQuery) {
             const q = this.searchQuery.toLowerCase();
@@ -1281,10 +1303,13 @@ const AppState = {
             case 'volume': filtered.sort((a, b) => b.volume - a.volume); break;
             case 'closing': filtered.sort((a, b) => new Date(a.closes_at) - new Date(b.closes_at)); break;
         }
+        // Priority markets always float to top (stable, preserves relative order)
+        filtered.sort((a, b) => (b.is_priority ? 1 : 0) - (a.is_priority ? 1 : 0));
         return filtered;
     },
 
     setFilter(category) { this.categoryFilter = category; this.notify(); },
+    setDeptFilter(dept) { this.departmentFilter = dept; this.notify(); },
     setSearch(query) {
         this.searchQuery = query;
         clearTimeout(this._searchDebounce);

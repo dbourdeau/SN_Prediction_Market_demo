@@ -250,12 +250,14 @@ const Components = {
         }
 
         return `
-            <div class="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 card-hover cursor-pointer fade-in ${accentClass} ${isResolved ? 'opacity-70' : ''}"
+            <div class="bg-white rounded-xl border ${market.is_priority && !isResolved ? 'border-amber-300 ring-1 ring-amber-200' : 'border-gray-200'} p-4 sm:p-5 card-hover cursor-pointer fade-in ${accentClass} ${isResolved ? 'opacity-70' : ''}"
                  onclick="AppState.navigate('market', { marketId: ${market.id} })">
                 <div class="flex items-start justify-between gap-3 mb-2.5">
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                            ${market.is_priority && !isResolved ? '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">📌 Priority</span>' : ''}
                             ${this.categoryTag(market.category)}
+                            ${market.target_dept ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-600">${esc(market.target_dept)}</span>` : ''}
                             ${isMulti ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-600">Multi</span>' : ''}
                             ${market.trending && !isResolved ? '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-600">🔥 Trending</span>' : ''}
                             ${this.statusBadge(market)}
@@ -682,10 +684,10 @@ const Components = {
             { id: 'create', label: 'Create', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>' },
         ];
 
+        navItems.push({ id: 'briefing', label: 'Intel', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>' });
         if (AppState.user?.is_admin) {
             const pendingCount = (AppState.pendingMarkets || []).length;
             navItems.push({ id: 'admin', label: 'Admin' + (pendingCount > 0 ? ` (${pendingCount})` : ''), icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>' });
-            navItems.push({ id: 'briefing', label: 'Intel', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>' });
         }
 
         const unread = AppState.unreadCount;

@@ -352,6 +352,21 @@ const DB = {
         if (error) throw error;
     },
 
+    // ---- Briefing Cache ----
+    async getBriefingCache() {
+        const { data, error } = await supabaseClient.rpc('get_briefing_cache');
+        if (error) throw error;
+        return data; // { cache: {...}, cached_at: '...' } or null
+    },
+
+    async setBriefingCache(cache, cachedAt) {
+        const { error } = await supabaseClient.rpc('set_briefing_cache', {
+            p_cache: JSON.stringify(cache),
+            p_cached_at: cachedAt,
+        });
+        if (error) throw error;
+    },
+
     // ---- Referral ----
     async claimReferral(userId, referrerId) {
         const { data, error } = await supabaseClient.rpc('claim_referral', {

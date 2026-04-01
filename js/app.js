@@ -319,6 +319,8 @@ async function handleCreateMarket() {
     const category = document.getElementById('create-category')?.value;
     const closesAt = document.getElementById('create-closes')?.value;
     const sourceUrl = document.getElementById('create-source-url')?.value?.trim() || null;
+    const targetDept = document.getElementById('create-target-dept')?.value || null;
+    const isPriority = document.getElementById('create-is-priority')?.checked || false;
     const btn = document.getElementById('create-market-btn');
     const isMulti = document.getElementById('type-multi')?.classList.contains('border-shark-600');
 
@@ -326,7 +328,7 @@ async function handleCreateMarket() {
     if (!desc) { showToast('Please enter a description', 'error'); return; }
     if (!closesAt) { showToast('Please set a closing date', 'error'); return; }
 
-    let marketData = { title, description: desc, category, closesAt, source_url: sourceUrl };
+    let marketData = { title, description: desc, category, closesAt, source_url: sourceUrl, target_dept: targetDept, is_priority: isPriority };
 
     if (isMulti) {
         const inputs = document.querySelectorAll('.multi-option-input');
@@ -367,13 +369,15 @@ async function handleEditMarket(marketId) {
     const desc = document.getElementById('edit-desc')?.value?.trim();
     const closesAt = document.getElementById('edit-closes')?.value;
     const sourceUrl = document.getElementById('edit-source-url')?.value?.trim() || null;
+    const targetDept = document.getElementById('edit-target-dept')?.value || null;
+    const isPriority = document.getElementById('edit-is-priority')?.checked ?? false;
     const btn = document.getElementById('save-edit-btn');
 
     if (!title) { showToast('Title cannot be empty', 'error'); return; }
 
     if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
     try {
-        await AppState.editMarket(marketId, { title, description: desc, closes_at: closesAt || undefined, source_url: sourceUrl });
+        await AppState.editMarket(marketId, { title, description: desc, closes_at: closesAt || undefined, source_url: sourceUrl, target_dept: targetDept, is_priority: isPriority });
         showToast('Market updated!', 'success');
         toggleEditMarket();
     } catch (e) {
@@ -1086,6 +1090,108 @@ async function handleAISummarize(marketId) {
     }
 }
 
+function buildResearchHTML(r, cachedAt) {
+    const verdictCfg = {
+        likely_yes: { label: 'Likely YES', color: 'bg-green-100 text-green-700 border-green-200', bar: 'bg-green-500' },
+        likely_no:  { label: 'Likely NO',  color: 'bg-red-100 text-red-600 border-red-200',       bar: 'bg-red-500'   },
+        uncertain:  { label: 'Uncertain',  color: 'bg-gray-100 text-gray-600 border-gray-200',    bar: 'bg-gray-400'  },
+    };
+    const confColor = { low: 'text-amber-500', medium: 'text-blue-500', high: 'text-green-600' };
+    const freshnessColor = { recent: 'text-green-500', mixed: 'text-amber-500', stale: 'text-red-400' };
+    const market = AppState.selectedMarket;
+    const v = verdictCfg[r.verdict] || verdictCfg.uncertain;
+    const prob = Math.min(100, Math.max(0, r.estimated_probability || 0));
+    const crowdProb = r._crowdProb ?? Math.round((market?.probability || 0.5) * 100);
+    const divergence = Math.abs(prob - crowdProb);
+    const divergenceDir = prob > crowdProb ? 'higher' : 'lower';
+
+    const divergenceHTML = divergence >= 15 ? `
+        <div class="flex items-start gap-2.5 p-3 rounded-lg border ${divergence >= 30 ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'}">
+            <span class="text-lg shrink-0">${divergence >= 30 ? '⚡' : '↕'}</span>
+            <div>
+                <div class="text-xs font-bold ${divergence >= 30 ? 'text-amber-700' : 'text-blue-700'} mb-0.5">
+                    ${divergence >= 30 ? 'Strong' : 'Moderate'} Divergence from Crowd
+                </div>
+                <p class="text-xs ${divergence >= 30 ? 'text-amber-700' : 'text-blue-600'}">
+                    Web research estimates <strong>${prob}%</strong> vs crowd's <strong>${crowdProb}%</strong> — research is <strong>${divergence}pts ${divergenceDir}</strong>. This gap may represent a ${divergenceDir === 'higher' ? 'buying' : 'selling'} opportunity if you trust the external data.
+                </p>
+            </div>
+        </div>` : `
+        <div class="flex items-center gap-2 text-xs text-gray-400 py-1">
+            <span>Research aligns with crowd:</span>
+            <span class="font-semibold text-gray-600">Web ${prob}% · Crowd ${crowdProb}%</span>
+            <span class="text-gray-300">(${divergence}pt gap)</span>
+        </div>`;
+
+    const cachedBadge = cachedAt ? (() => {
+        const ago = Math.round((Date.now() - new Date(cachedAt).getTime()) / 60000);
+        const label = ago < 1 ? 'just now' : ago < 60 ? `${ago}m ago` : ago < 1440 ? `${Math.round(ago/60)}h ago` : `${Math.round(ago/1440)}d ago`;
+        return `<div class="flex items-center gap-1.5 text-xs text-gray-400 border-t border-gray-100 pt-3 mt-1">
+            <svg class="w-3 h-3 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span>Cached ${esc(label)} — click <strong>Re-run</strong> to refresh</span>
+        </div>`;
+    })() : '';
+
+    return `
+        <!-- Probability bar -->
+        <div class="flex items-center gap-3 flex-wrap">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-bold ${v.color}">${v.label}</span>
+            <span class="text-xs ${confColor[r.confidence] || 'text-gray-400'} font-medium">Confidence: ${r.confidence || '—'}</span>
+            ${r.data_freshness ? `<span class="text-xs ${freshnessColor[r.data_freshness] || 'text-gray-400'}">Data: ${r.data_freshness}</span>` : ''}
+            <span class="ml-auto">
+                <span class="text-lg font-black text-gray-800">${prob}%</span>
+                ${r.probability_range ? `<span class="text-xs text-gray-400 ml-1">range ${esc(r.probability_range)}</span>` : ''}
+            </span>
+        </div>
+        <div class="w-full bg-gray-100 rounded-full h-2">
+            <div class="${v.bar} h-2 rounded-full" style="width:${prob}%"></div>
+        </div>
+
+        <!-- Divergence alert -->
+        ${divergenceHTML}
+
+        <!-- Bull / Bear cases -->
+        ${(r.bull_case || r.bear_case) ? `
+        <div class="grid grid-cols-2 gap-2">
+            ${r.bull_case ? `<div class="bg-green-50 border border-green-100 rounded-lg p-2.5">
+                <div class="text-xs font-bold text-green-600 mb-1">Bull Case</div>
+                <p class="text-xs text-gray-700 leading-relaxed">${esc(r.bull_case)}</p>
+            </div>` : ''}
+            ${r.bear_case ? `<div class="bg-red-50 border border-red-100 rounded-lg p-2.5">
+                <div class="text-xs font-bold text-red-500 mb-1">Bear Case</div>
+                <p class="text-xs text-gray-700 leading-relaxed">${esc(r.bear_case)}</p>
+            </div>` : ''}
+        </div>` : ''}
+
+        <!-- Key Findings -->
+        ${r.key_findings?.length ? `
+        <div>
+            <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Key Findings</div>
+            <ul class="space-y-1.5">
+                ${r.key_findings.map(f => `<li class="flex gap-2 text-sm text-gray-700 leading-snug"><span class="text-teal-400 shrink-0 mt-0.5">•</span><span>${esc(f)}</span></li>`).join('')}
+            </ul>
+        </div>` : ''}
+
+        <!-- Reasoning -->
+        <div class="bg-teal-50/60 rounded-lg px-3 py-2.5">
+            <div class="text-xs font-semibold text-teal-600 uppercase tracking-wide mb-1">Research Synthesis</div>
+            <p class="text-sm text-gray-700 leading-relaxed">${esc(r.reasoning)}</p>
+        </div>
+
+        <!-- Searches performed -->
+        ${r.searches_performed?.length ? `
+        <div class="text-xs text-gray-400">
+            <span class="font-medium">Queries run:</span>
+            <ol class="mt-1 space-y-0.5 list-decimal list-inside text-gray-300">
+                ${r.searches_performed.map(s => `<li>${esc(s)}</li>`).join('')}
+            </ol>
+        </div>` : ''}
+
+        <!-- Caveat -->
+        <p class="text-xs text-gray-300 border-t border-gray-100 pt-3">${esc(r.caveat || 'External research may not reflect internal SharkNinja data.')}</p>
+        ${cachedBadge}`;
+}
+
 function switchAITab(tab) {
     const isAnalysis = tab === 'analysis';
     document.getElementById('ai-pane-analysis')?.classList.toggle('hidden', !isAnalysis);
@@ -1110,6 +1216,20 @@ function switchAITab(tab) {
         btnR.classList.toggle('text-gray-400', isAnalysis);
         btnR.classList.remove('bg-teal-50/60');
         if (!isAnalysis) btnR.classList.add('bg-teal-50/60');
+    }
+
+    // Auto-load cached research when switching to the research tab
+    if (!isAnalysis) {
+        const market = AppState.selectedMarket;
+        const container = document.getElementById('deep-research-content');
+        const placeholder = document.getElementById('deep-research-placeholder');
+        const btn = document.getElementById('deep-research-btn');
+        if (market?.research_cache && container && container.children.length === 0) {
+            container.classList.remove('hidden');
+            if (placeholder) placeholder.classList.add('hidden');
+            container.innerHTML = buildResearchHTML(market.research_cache, market.research_cached_at);
+            if (btn) btn.textContent = 'Re-run';
+        }
     }
 }
 
@@ -1148,95 +1268,14 @@ async function handleDeepResearch() {
 
     try {
         const r = await AI.deepResearch(market, onProgress);
+        const cachedAt = new Date().toISOString();
 
-        const verdictCfg = {
-            likely_yes: { label: 'Likely YES', color: 'bg-green-100 text-green-700 border-green-200', bar: 'bg-green-500' },
-            likely_no:  { label: 'Likely NO',  color: 'bg-red-100 text-red-600 border-red-200',       bar: 'bg-red-500'   },
-            uncertain:  { label: 'Uncertain',  color: 'bg-gray-100 text-gray-600 border-gray-200',    bar: 'bg-gray-400'  },
-        };
-        const confColor = { low: 'text-amber-500', medium: 'text-blue-500', high: 'text-green-600' };
-        const freshnessColor = { recent: 'text-green-500', mixed: 'text-amber-500', stale: 'text-red-400' };
-        const v = verdictCfg[r.verdict] || verdictCfg.uncertain;
-        const prob = Math.min(100, Math.max(0, r.estimated_probability || 0));
-        const crowdProb = r._crowdProb ?? Math.round((market.probability || 0.5) * 100);
-        const divergence = Math.abs(prob - crowdProb);
-        const divergenceDir = prob > crowdProb ? 'higher' : 'lower';
+        // Save to DB (fire-and-forget, don't block UI)
+        DB.updateMarket(market.id, { research_cache: r, research_cached_at: cachedAt })
+            .then(updated => { if (AppState.selectedMarket?.id === market.id) Object.assign(AppState.selectedMarket, updated); })
+            .catch(e => console.warn('Research cache save failed:', e));
 
-        const divergenceHTML = divergence >= 15 ? `
-            <div class="flex items-start gap-2.5 p-3 rounded-lg border ${divergence >= 30 ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'}">
-                <span class="text-lg shrink-0">${divergence >= 30 ? '⚡' : '↕'}</span>
-                <div>
-                    <div class="text-xs font-bold ${divergence >= 30 ? 'text-amber-700' : 'text-blue-700'} mb-0.5">
-                        ${divergence >= 30 ? 'Strong' : 'Moderate'} Divergence from Crowd
-                    </div>
-                    <p class="text-xs ${divergence >= 30 ? 'text-amber-700' : 'text-blue-600'}">
-                        Web research estimates <strong>${prob}%</strong> vs crowd's <strong>${crowdProb}%</strong> — research is <strong>${divergence}pts ${divergenceDir}</strong>. This gap may represent a ${divergenceDir === 'higher' ? 'buying' : 'selling'} opportunity if you trust the external data.
-                    </p>
-                </div>
-            </div>` : `
-            <div class="flex items-center gap-2 text-xs text-gray-400 py-1">
-                <span>Research aligns with crowd:</span>
-                <span class="font-semibold text-gray-600">Web ${prob}% · Crowd ${crowdProb}%</span>
-                <span class="text-gray-300">(${divergence}pt gap)</span>
-            </div>`;
-
-        container.innerHTML = `
-            <!-- Probability bar -->
-            <div class="flex items-center gap-3 flex-wrap">
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-bold ${v.color}">${v.label}</span>
-                <span class="text-xs ${confColor[r.confidence] || 'text-gray-400'} font-medium">Confidence: ${r.confidence || '—'}</span>
-                ${r.data_freshness ? `<span class="text-xs ${freshnessColor[r.data_freshness] || 'text-gray-400'}">Data: ${r.data_freshness}</span>` : ''}
-                <span class="ml-auto">
-                    <span class="text-lg font-black text-gray-800">${prob}%</span>
-                    ${r.probability_range ? `<span class="text-xs text-gray-400 ml-1">range ${esc(r.probability_range)}</span>` : ''}
-                </span>
-            </div>
-            <div class="w-full bg-gray-100 rounded-full h-2">
-                <div class="${v.bar} h-2 rounded-full" style="width:${prob}%"></div>
-            </div>
-
-            <!-- Divergence alert -->
-            ${divergenceHTML}
-
-            <!-- Bull / Bear cases -->
-            ${(r.bull_case || r.bear_case) ? `
-            <div class="grid grid-cols-2 gap-2">
-                ${r.bull_case ? `<div class="bg-green-50 border border-green-100 rounded-lg p-2.5">
-                    <div class="text-xs font-bold text-green-600 mb-1">Bull Case</div>
-                    <p class="text-xs text-gray-700 leading-relaxed">${esc(r.bull_case)}</p>
-                </div>` : ''}
-                ${r.bear_case ? `<div class="bg-red-50 border border-red-100 rounded-lg p-2.5">
-                    <div class="text-xs font-bold text-red-500 mb-1">Bear Case</div>
-                    <p class="text-xs text-gray-700 leading-relaxed">${esc(r.bear_case)}</p>
-                </div>` : ''}
-            </div>` : ''}
-
-            <!-- Key Findings -->
-            ${r.key_findings?.length ? `
-            <div>
-                <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Key Findings</div>
-                <ul class="space-y-1.5">
-                    ${r.key_findings.map(f => `<li class="flex gap-2 text-sm text-gray-700 leading-snug"><span class="text-teal-400 shrink-0 mt-0.5">•</span><span>${esc(f)}</span></li>`).join('')}
-                </ul>
-            </div>` : ''}
-
-            <!-- Reasoning -->
-            <div class="bg-teal-50/60 rounded-lg px-3 py-2.5">
-                <div class="text-xs font-semibold text-teal-600 uppercase tracking-wide mb-1">Research Synthesis</div>
-                <p class="text-sm text-gray-700 leading-relaxed">${esc(r.reasoning)}</p>
-            </div>
-
-            <!-- Searches performed -->
-            ${r.searches_performed?.length ? `
-            <div class="text-xs text-gray-400">
-                <span class="font-medium">Queries run:</span>
-                <ol class="mt-1 space-y-0.5 list-decimal list-inside text-gray-300">
-                    ${r.searches_performed.map(s => `<li>${esc(s)}</li>`).join('')}
-                </ol>
-            </div>` : ''}
-
-            <!-- Caveat -->
-            <p class="text-xs text-gray-300 border-t border-gray-100 pt-3">${esc(r.caveat || 'External research may not reflect internal SharkNinja data.')}</p>`;
+        container.innerHTML = buildResearchHTML(r, cachedAt);
 
     } catch (e) {
         console.error('Deep research error:', e);
@@ -1249,6 +1288,129 @@ async function handleDeepResearch() {
 }
 
 // ==================== INTEL BRIEFING ====================
+
+function buildBriefingHTML(r, cachedAt) {
+    const sentimentCfg = {
+        optimistic: { label: 'Optimistic', color: 'bg-green-100 text-green-700 border-green-200', dot: 'bg-green-500' },
+        cautious:   { label: 'Cautious',   color: 'bg-amber-100 text-amber-700 border-amber-200', dot: 'bg-amber-500' },
+        mixed:      { label: 'Mixed',       color: 'bg-blue-100 text-blue-700 border-blue-200',   dot: 'bg-blue-500' },
+        uncertain:  { label: 'Uncertain',   color: 'bg-gray-100 text-gray-600 border-gray-200',   dot: 'bg-gray-400' },
+    };
+    const signalColor = { bullish: 'text-green-600', bearish: 'text-red-500', neutral: 'text-gray-500' };
+    const signalIcon  = { bullish: '↑', bearish: '↓', neutral: '→' };
+    const s = sentimentCfg[r.overall_sentiment] || sentimentCfg.mixed;
+
+    const categoriesHTML = (r.categories || []).map(cat => `
+        <div class="border border-gray-100 rounded-xl overflow-hidden">
+            <div class="bg-gray-50 px-4 py-2.5 flex items-center justify-between">
+                <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">${esc(cat.name)}</span>
+                <span class="text-xs text-gray-400">${cat.markets?.length || 0} market${cat.markets?.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div class="px-4 py-3">
+                <p class="text-sm text-gray-600 mb-3">${esc(cat.summary)}</p>
+                <div class="space-y-2">
+                    ${(cat.markets || []).map(m => `
+                        <div class="flex items-start gap-3 py-2 border-t border-gray-50">
+                            <div class="shrink-0 w-10 text-center">
+                                <span class="text-lg font-black ${m.probability >= 60 ? 'text-green-600' : m.probability <= 40 ? 'text-red-500' : 'text-gray-500'}">${m.probability}%</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-medium text-gray-800 leading-tight mb-0.5">${esc(m.title)}</div>
+                                <div class="text-xs text-gray-400">${esc(m.notable)}</div>
+                            </div>
+                            <span class="shrink-0 text-sm font-bold ${signalColor[m.signal] || 'text-gray-400'}">${signalIcon[m.signal] || '→'}</span>
+                        </div>`).join('')}
+                </div>
+            </div>
+        </div>`).join('');
+
+    const highConvictionHTML = (r.high_conviction || []).map(m => `
+        <div class="flex items-start gap-3 p-3 bg-white rounded-lg border border-gray-100">
+            <div class="shrink-0 px-2 py-1 rounded-lg text-xs font-black ${m.direction === 'YES' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}">${m.direction} ${m.probability}%</div>
+            <div class="min-w-0">
+                <div class="text-sm font-semibold text-gray-800 leading-tight">${esc(m.title)}</div>
+                <div class="text-xs text-gray-500 mt-0.5">${esc(m.reason)}</div>
+            </div>
+        </div>`).join('');
+
+    const watchListHTML = (r.watch_list || []).map(m => `
+        <div class="flex items-start gap-2.5 p-3 bg-amber-50 rounded-lg border border-amber-100">
+            <span class="text-amber-500 shrink-0 mt-0.5">⚑</span>
+            <div>
+                <div class="text-sm font-semibold text-gray-800">${esc(m.title)}</div>
+                <div class="text-xs text-amber-700 mt-0.5">${esc(m.reason)}</div>
+            </div>
+        </div>`).join('');
+
+    const activeCount = (AppState.markets || []).filter(m => m.status === 'active' && !m.resolution && m.traders > 0).length;
+    const totalVol = (AppState.markets || []).reduce((s, m) => s + (m.volume || 0), 0);
+    const dateLabel = cachedAt
+        ? new Date(cachedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+    window._briefingCopyText = `SharkPool Intel Briefing — ${dateLabel}\n\n${r.headline}\n\nKey Takeaways:\n${(r.key_takeaways || []).map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\nHigh Conviction Calls:\n${(r.high_conviction || []).map(m => `• ${m.title} — ${m.direction} at ${m.probability}%`).join('\n')}\n\nWatch List:\n${(r.watch_list || []).map(m => `• ${m.title}: ${m.reason}`).join('\n')}\n\nGenerated by SharkPool`;
+
+    const cachedBadge = cachedAt ? (() => {
+        const ago = Math.round((Date.now() - new Date(cachedAt).getTime()) / 60000);
+        const label = ago < 1 ? 'just now' : ago < 60 ? `${ago}m ago` : ago < 1440 ? `${Math.round(ago/60)}h ago` : `${Math.round(ago/1440)}d ago`;
+        return `<div class="flex items-center gap-1.5 text-xs text-gray-400 mt-3 pt-3 border-t border-gray-100">
+            <svg class="w-3 h-3 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span>Generated ${esc(label)} · visible to all SharkPool users</span>
+        </div>`;
+    })() : '';
+
+    return `
+        <!-- Header -->
+        <div class="flex items-start justify-between gap-4 mb-6">
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-2 flex-wrap">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-bold ${s.color}">
+                        <span class="w-1.5 h-1.5 rounded-full ${s.dot}"></span>${s.label} Outlook
+                    </span>
+                    <span class="text-xs text-gray-400">${activeCount} markets · ${totalVol.toLocaleString()}t volume</span>
+                    <span class="text-xs text-gray-300 ml-auto">${dateLabel}</span>
+                </div>
+                <p class="text-base font-semibold text-gray-900 leading-snug">${esc(r.headline)}</p>
+            </div>
+            <button onclick="navigator.clipboard.writeText(window._briefingCopyText).then(()=>showToast('Copied to clipboard','success'))"
+                class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                Copy
+            </button>
+        </div>
+
+        <!-- Key Takeaways -->
+        <div class="rounded-xl p-4 mb-6" style="background:linear-gradient(135deg,#1e1b4b,#312e81);">
+            <div class="text-xs font-bold text-indigo-300 uppercase tracking-wider mb-3">Key Takeaways for Leadership</div>
+            <ol class="space-y-2">
+                ${(r.key_takeaways || []).map((t, i) => `
+                    <li class="flex gap-3 text-sm text-white/90 leading-relaxed">
+                        <span class="shrink-0 w-5 h-5 rounded-full bg-indigo-500/50 flex items-center justify-center text-xs font-bold text-indigo-200">${i + 1}</span>
+                        <span>${esc(t)}</span>
+                    </li>`).join('')}
+            </ol>
+        </div>
+
+        <!-- High Conviction + Watch List side by side -->
+        <div class="grid sm:grid-cols-2 gap-4 mb-6">
+            <div>
+                <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">High Conviction Calls</div>
+                <div class="space-y-2">${highConvictionHTML || '<p class="text-xs text-gray-400 p-3">No high-conviction markets yet.</p>'}</div>
+            </div>
+            <div>
+                <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Watch List</div>
+                <div class="space-y-2">${watchListHTML || '<p class="text-xs text-gray-400 p-3">Nothing flagged.</p>'}</div>
+            </div>
+        </div>
+
+        <!-- Category breakdown -->
+        <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">By Category</div>
+        <div class="space-y-3">${categoriesHTML}</div>
+
+        <!-- Footer -->
+        <p class="text-xs text-gray-300 border-t border-gray-100 pt-4 mt-4">Generated by SharkPool AI · Based on platform data only</p>
+        ${cachedBadge}`;
+}
 
 async function handleGenerateBriefing() {
     const btn = document.getElementById('briefing-btn');
@@ -1268,115 +1430,14 @@ async function handleGenerateBriefing() {
 
     try {
         const r = await AI.generateBriefing(AppState.markets || []);
+        const cachedAt = new Date().toISOString();
 
-        const sentimentCfg = {
-            optimistic: { label: 'Optimistic', color: 'bg-green-100 text-green-700 border-green-200', dot: 'bg-green-500' },
-            cautious:   { label: 'Cautious',   color: 'bg-amber-100 text-amber-700 border-amber-200', dot: 'bg-amber-500' },
-            mixed:      { label: 'Mixed',       color: 'bg-blue-100 text-blue-700 border-blue-200',   dot: 'bg-blue-500' },
-            uncertain:  { label: 'Uncertain',   color: 'bg-gray-100 text-gray-600 border-gray-200',   dot: 'bg-gray-400' },
-        };
-        const signalColor = { bullish: 'text-green-600', bearish: 'text-red-500', neutral: 'text-gray-500' };
-        const signalIcon  = { bullish: '↑', bearish: '↓', neutral: '→' };
-        const s = sentimentCfg[r.overall_sentiment] || sentimentCfg.mixed;
+        // Persist so all users can see it (fire-and-forget)
+        DB.setBriefingCache(r, cachedAt)
+            .then(() => { AppState.briefingCache = r; AppState.briefingCachedAt = cachedAt; })
+            .catch(e => console.warn('Briefing cache save failed:', e));
 
-        const categoriesHTML = (r.categories || []).map(cat => `
-            <div class="border border-gray-100 rounded-xl overflow-hidden">
-                <div class="bg-gray-50 px-4 py-2.5 flex items-center justify-between">
-                    <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">${esc(cat.name)}</span>
-                    <span class="text-xs text-gray-400">${cat.markets?.length || 0} market${cat.markets?.length !== 1 ? 's' : ''}</span>
-                </div>
-                <div class="px-4 py-3">
-                    <p class="text-sm text-gray-600 mb-3">${esc(cat.summary)}</p>
-                    <div class="space-y-2">
-                        ${(cat.markets || []).map(m => `
-                            <div class="flex items-start gap-3 py-2 border-t border-gray-50">
-                                <div class="shrink-0 w-10 text-center">
-                                    <span class="text-lg font-black ${m.probability >= 60 ? 'text-green-600' : m.probability <= 40 ? 'text-red-500' : 'text-gray-500'}">${m.probability}%</span>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="text-sm font-medium text-gray-800 leading-tight mb-0.5">${esc(m.title)}</div>
-                                    <div class="text-xs text-gray-400">${esc(m.notable)}</div>
-                                </div>
-                                <span class="shrink-0 text-sm font-bold ${signalColor[m.signal] || 'text-gray-400'}">${signalIcon[m.signal] || '→'}</span>
-                            </div>`).join('')}
-                    </div>
-                </div>
-            </div>`).join('');
-
-        const highConvictionHTML = (r.high_conviction || []).map(m => `
-            <div class="flex items-start gap-3 p-3 bg-white rounded-lg border border-gray-100">
-                <div class="shrink-0 px-2 py-1 rounded-lg text-xs font-black ${m.direction === 'YES' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}">${m.direction} ${m.probability}%</div>
-                <div class="min-w-0">
-                    <div class="text-sm font-semibold text-gray-800 leading-tight">${esc(m.title)}</div>
-                    <div class="text-xs text-gray-500 mt-0.5">${esc(m.reason)}</div>
-                </div>
-            </div>`).join('');
-
-        const watchListHTML = (r.watch_list || []).map(m => `
-            <div class="flex items-start gap-2.5 p-3 bg-amber-50 rounded-lg border border-amber-100">
-                <span class="text-amber-500 shrink-0 mt-0.5">⚑</span>
-                <div>
-                    <div class="text-sm font-semibold text-gray-800">${esc(m.title)}</div>
-                    <div class="text-xs text-amber-700 mt-0.5">${esc(m.reason)}</div>
-                </div>
-            </div>`).join('');
-
-        // Store copy text on window so inline onclick doesn't need to embed it
-        window._briefingCopyText = `SharkPool Intel Briefing — ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}\n\n${r.headline}\n\nKey Takeaways:\n${(r.key_takeaways || []).map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\nHigh Conviction Calls:\n${(r.high_conviction || []).map(m => `• ${m.title} — ${m.direction} at ${m.probability}%`).join('\n')}\n\nWatch List:\n${(r.watch_list || []).map(m => `• ${m.title}: ${m.reason}`).join('\n')}\n\nGenerated by SharkPool`;
-
-        const activeCount = (AppState.markets || []).filter(m => m.status === 'active' && !m.resolution && m.traders > 0).length;
-        const totalVol = (AppState.markets || []).reduce((s, m) => s + (m.volume || 0), 0);
-
-        container.innerHTML = `
-            <!-- Header -->
-            <div class="flex items-start justify-between gap-4 mb-6">
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 mb-2 flex-wrap">
-                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-bold ${s.color}">
-                            <span class="w-1.5 h-1.5 rounded-full ${s.dot}"></span>${s.label} Outlook
-                        </span>
-                        <span class="text-xs text-gray-400">${activeCount} markets · ${totalVol.toLocaleString()}t volume</span>
-                        <span class="text-xs text-gray-300 ml-auto">${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                    </div>
-                    <p class="text-base font-semibold text-gray-900 leading-snug">${esc(r.headline)}</p>
-                </div>
-                <button onclick="navigator.clipboard.writeText(window._briefingCopyText).then(()=>showToast('Copied to clipboard','success'))"
-                    class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors flex items-center gap-1.5">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                    Copy
-                </button>
-            </div>
-
-            <!-- Key Takeaways -->
-            <div class="rounded-xl p-4 mb-6" style="background:linear-gradient(135deg,#1e1b4b,#312e81);">
-                <div class="text-xs font-bold text-indigo-300 uppercase tracking-wider mb-3">Key Takeaways for Leadership</div>
-                <ol class="space-y-2">
-                    ${(r.key_takeaways || []).map((t, i) => `
-                        <li class="flex gap-3 text-sm text-white/90 leading-relaxed">
-                            <span class="shrink-0 w-5 h-5 rounded-full bg-indigo-500/50 flex items-center justify-center text-xs font-bold text-indigo-200">${i + 1}</span>
-                            <span>${esc(t)}</span>
-                        </li>`).join('')}
-                </ol>
-            </div>
-
-            <!-- High Conviction + Watch List side by side -->
-            <div class="grid sm:grid-cols-2 gap-4 mb-6">
-                <div>
-                    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">High Conviction Calls</div>
-                    <div class="space-y-2">${highConvictionHTML || '<p class="text-xs text-gray-400 p-3">No high-conviction markets yet.</p>'}</div>
-                </div>
-                <div>
-                    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Watch List</div>
-                    <div class="space-y-2">${watchListHTML || '<p class="text-xs text-gray-400 p-3">Nothing flagged.</p>'}</div>
-                </div>
-            </div>
-
-            <!-- Category breakdown -->
-            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">By Category</div>
-            <div class="space-y-3">${categoriesHTML}</div>
-
-            <!-- Footer -->
-            <p class="text-xs text-gray-300 border-t border-gray-100 pt-4 mt-4">Generated by SharkPool AI · ${new Date().toLocaleString()} · Based on platform data only</p>`;
+        container.innerHTML = buildBriefingHTML(r, cachedAt);
 
     } catch (e) {
         console.error('Briefing error:', e);

@@ -557,13 +557,26 @@ const Pages = {
                         <button onclick="AppState.setStatusFilter('all')" class="flex-1 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors ${sf === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}">All <span class="text-gray-400">${AppState.markets.length}</span></button>
                     </div>
                     <!-- Category filters -->
-                    <div class="flex gap-1.5 flex-wrap">
+                    <div class="flex gap-1.5 flex-wrap mb-2">
                         <button onclick="AppState.setFilter('all')" class="px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium ${AppState.categoryFilter === 'all' ? 'bg-shark-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">All Categories</button>
                         <button onclick="AppState.setFilter('watchlist')" class="px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium ${AppState.categoryFilter === 'watchlist' ? 'bg-shark-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">★ <span class="hidden sm:inline">Watchlist</span></button>
                         ${Object.values(CATEGORIES).map(cat => `
                             <button onclick="AppState.setFilter('${cat.id}')" class="px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium ${AppState.categoryFilter === cat.id ? 'bg-shark-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">${cat.icon} <span class="hidden sm:inline">${esc(cat.label)}</span></button>
                         `).join('')}
                     </div>
+                    <!-- Department filters -->
+                    ${(() => {
+                        const activeDepts = [...new Set(
+                            AppState.markets.filter(m => m.status === 'active' && !m.resolution && m.target_dept)
+                                .map(m => m.target_dept)
+                        )].sort();
+                        if (activeDepts.length === 0) return '';
+                        return `<div class="flex gap-1.5 flex-wrap items-center">
+                            <span class="text-xs text-gray-400 font-medium shrink-0">Dept:</span>
+                            <button onclick="AppState.setDeptFilter('all')" class="px-2.5 py-1 rounded-lg text-xs font-medium ${AppState.departmentFilter === 'all' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">All</button>
+                            ${activeDepts.map(d => `<button onclick="AppState.setDeptFilter('${escAttr(d)}')" class="px-2.5 py-1 rounded-lg text-xs font-medium ${AppState.departmentFilter === d ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">${esc(d)}</button>`).join('')}
+                        </div>`;
+                    })()}
                     <!-- Sort -->
                     <div class="flex items-center gap-2 mt-3">
                         <span class="text-xs text-gray-500">Sort:</span>
@@ -578,7 +591,7 @@ const Pages = {
                         <div class="text-3xl mb-2">🔍</div>
                         <div class="text-gray-500 text-sm mb-3">${AppState.searchQuery ? 'No markets match your search.' : AppState.categoryFilter === 'watchlist' ? 'Your watchlist is empty. Star markets to track them here.' : 'No markets match these filters.'}</div>
                         <div class="flex gap-2 justify-center">
-                            ${AppState.searchQuery || AppState.categoryFilter !== 'all' || AppState.statusFilter !== 'active' ? `<button onclick="document.getElementById('market-search').value=''; AppState.searchQuery=''; AppState.statusFilter='active'; AppState.setFilter('all')" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200">Clear filters</button>` : ''}
+                            ${AppState.searchQuery || AppState.categoryFilter !== 'all' || AppState.departmentFilter !== 'all' || AppState.statusFilter !== 'active' ? `<button onclick="document.getElementById('market-search').value=''; AppState.searchQuery=''; AppState.statusFilter='active'; AppState.setFilter('all'); AppState.setDeptFilter('all')" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200">Clear filters</button>` : ''}
                             <button onclick="AppState.navigate('create')" class="bg-shark-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-shark-700">+ Create Market</button>
                         </div>
                     </div>`}
@@ -685,6 +698,18 @@ const Pages = {
                                 <textarea id="edit-desc" rows="3" maxlength="5000" class="w-full px-3 py-2 border rounded-lg text-sm">${esc(m.description)}</textarea>
                                 <input type="date" id="edit-closes" value="${(m.closes_at || '').split('T')[0]}" class="px-3 py-2 border rounded-lg text-sm"/>
                                 <input type="url" id="edit-source-url" value="${esc(m.source_url || '')}" placeholder="Source of truth URL (optional)" class="w-full px-3 py-2 border rounded-lg text-sm"/>
+                                <select id="edit-target-dept" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                                    <option value="">All departments</option>
+                                    ${DEPARTMENTS.map(d => `<option value="${escAttr(d)}" ${m.target_dept === d ? 'selected' : ''}>${esc(d)}</option>`).join('')}
+                                </select>
+                                <label class="flex items-center gap-2 cursor-pointer select-none">
+                                    <div class="relative">
+                                        <input type="checkbox" id="edit-is-priority" class="sr-only peer" ${m.is_priority ? 'checked' : ''}>
+                                        <div class="w-9 h-5 rounded-full bg-gray-200 peer-checked:bg-amber-500 transition-colors"></div>
+                                        <div class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4"></div>
+                                    </div>
+                                    <span class="text-xs font-medium text-gray-600">Priority market</span>
+                                </label>
                                 <div class="flex gap-2">
                                     <button onclick="handleEditMarket(${m.id})" id="save-edit-btn" class="bg-shark-600 text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
                                     <button onclick="toggleEditMarket()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm">Cancel</button>
@@ -747,8 +772,15 @@ const Pages = {
                             <!-- Research pane -->
                             <div id="ai-pane-research" class="hidden px-4 py-4">
                                 <div class="flex items-center justify-between mb-3">
-                                    <p class="text-xs text-teal-500">Searches the <strong>live web</strong> for news, data, and context — forms an independent probability estimate.</p>
-                                    <button onclick="handleDeepResearch()" id="deep-research-btn" class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-teal-600 text-white hover:bg-teal-700 transition-colors shadow-sm">Research</button>
+                                    <div>
+                                        <p class="text-xs text-teal-500">Searches the <strong>live web</strong> for news, data, and context — forms an independent probability estimate.</p>
+                                        ${m.research_cached_at ? (() => {
+                                            const ago = Math.round((Date.now() - new Date(m.research_cached_at).getTime()) / 60000);
+                                            const label = ago < 1 ? 'just now' : ago < 60 ? `${ago}m ago` : ago < 1440 ? `${Math.round(ago/60)}h ago` : `${Math.round(ago/1440)}d ago`;
+                                            return `<p class="text-xs text-gray-400 mt-0.5">Last run: <span class="font-medium text-gray-500">${esc(label)}</span></p>`;
+                                        })() : ''}
+                                    </div>
+                                    <button onclick="handleDeepResearch()" id="deep-research-btn" class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-teal-600 text-white hover:bg-teal-700 transition-colors shadow-sm">${m.research_cache ? 'Re-run' : 'Research'}</button>
                                 </div>
                                 <div id="deep-research-content" class="hidden space-y-4"></div>
                                 <div id="deep-research-placeholder"></div>
@@ -1458,6 +1490,29 @@ Background: [Provide relevant context for traders]"
                         </div>
                         <p class="text-xs text-gray-400 mt-1">Link a SharePoint doc, dashboard, or data source that traders can reference for this question.</p>
                     </div>
+                    <!-- Department targeting -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Target Department <span class="font-normal text-gray-400">(optional)</span></label>
+                        <select id="create-target-dept" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-shark-500 focus:border-transparent bg-white">
+                            <option value="">All departments</option>
+                            ${DEPARTMENTS.map(d => `<option value="${escAttr(d)}">${esc(d)}</option>`).join('')}
+                        </select>
+                        <p class="text-xs text-gray-400 mt-1">Tag this market so it shows up when users filter by department.</p>
+                    </div>
+                    ${AppState.user?.is_admin ? `
+                    <!-- Priority toggle (admin only) -->
+                    <label class="flex items-center gap-3 cursor-pointer select-none">
+                        <div class="relative">
+                            <input type="checkbox" id="create-is-priority" class="sr-only peer">
+                            <div class="w-10 h-6 rounded-full bg-gray-200 peer-checked:bg-amber-500 transition-colors"></div>
+                            <div class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4"></div>
+                        </div>
+                        <div>
+                            <div class="text-sm font-semibold text-gray-700">Priority market</div>
+                            <div class="text-xs text-gray-400">Pins to the top of the markets list and shows a priority badge</div>
+                        </div>
+                    </label>
+                    ` : ''}
                     ${AppState.user?.is_admin ? '' : `
                     <div class="flex items-center gap-2 text-xs text-gray-400">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -2247,12 +2302,7 @@ Background: [Provide relevant context for traders]"
 
     // ==================== INTEL BRIEFING ====================
     briefing() {
-        if (!AppState.user?.is_admin) return `
-            <div class="max-w-2xl mx-auto px-4 py-16 text-center">
-                <div class="text-4xl mb-4">🔒</div>
-                <h2 class="text-lg font-semibold text-gray-700 mb-2">Admin Only</h2>
-                <p class="text-sm text-gray-400">The Intel Briefing is only available to SharkPool admins.</p>
-            </div>`;
+        const isAdmin = AppState.user?.is_admin;
         const activeCount = (AppState.markets || []).filter(m => m.status === 'active' && !m.resolution).length;
         const totalVolume = (AppState.markets || []).reduce((s, m) => s + (m.volume || 0), 0);
 
@@ -2269,12 +2319,12 @@ Background: [Provide relevant context for traders]"
                         </div>
                         <p class="text-sm text-gray-500">AI-synthesized snapshot of what the SharkNinja crowd currently believes</p>
                     </div>
-                    <button id="briefing-btn" onclick="handleGenerateBriefing()"
+                    ${isAdmin ? `<button id="briefing-btn" onclick="handleGenerateBriefing()"
                         class="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white shadow-sm transition-colors"
                         style="background:linear-gradient(135deg,#1e1b4b,#4338ca);">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                         Generate Briefing
-                    </button>
+                    </button>` : ''}
                 </div>
 
                 <!-- Stats bar -->
@@ -2295,6 +2345,10 @@ Background: [Provide relevant context for traders]"
 
                 <!-- Output area -->
                 <div class="bg-white rounded-xl border border-gray-200 p-5 sm:p-6">
+                    ${AppState.briefingCache ? `
+                    <div id="briefing-output">${buildBriefingHTML(AppState.briefingCache, AppState.briefingCachedAt)}</div>
+                    <div id="briefing-placeholder" class="hidden"></div>
+                    ` : `
                     <div id="briefing-output" class="hidden"></div>
                     <div id="briefing-placeholder" class="py-12 text-center">
                         <div class="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center" style="background:linear-gradient(135deg,#e0e7ff,#c7d2fe);">
@@ -2302,13 +2356,14 @@ Background: [Provide relevant context for traders]"
                         </div>
                         <h3 class="text-base font-semibold text-gray-700 mb-1">Ready to generate</h3>
                         <p class="text-sm text-gray-400 max-w-sm mx-auto mb-5">Claude will analyze all ${activeCount} active markets and produce a leadership-ready intelligence report with key signals, high-conviction calls, and strategic takeaways.</p>
-                        <button onclick="handleGenerateBriefing()"
+                        ${isAdmin ? `<button onclick="handleGenerateBriefing()"
                             class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white shadow-sm"
                             style="background:linear-gradient(135deg,#1e1b4b,#4338ca);">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                             Generate Now
-                        </button>
+                        </button>` : `<p class="text-xs text-gray-400">An admin will generate the weekly briefing — check back soon.</p>`}
                     </div>
+                    `}
                 </div>
             </div>`;
     },

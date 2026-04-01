@@ -17,6 +17,31 @@ const AI = {
     },
 
     // Call Claude API directly
+    async _callHaiku(systemPrompt, userPrompt, maxTokens = 1024) {
+        const apiKey = await this._getKey();
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true',
+            },
+            body: JSON.stringify({
+                model: 'claude-haiku-4-5-20251001',
+                max_tokens: maxTokens,
+                system: systemPrompt,
+                messages: [{ role: 'user', content: userPrompt }],
+            }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error?.message || `Claude API error (${res.status})`);
+        }
+        const data = await res.json();
+        return data.content?.[0]?.text || '';
+    },
+
     async _call(systemPrompt, userPrompt, maxTokens = 1024) {
         const apiKey = await this._getKey();
 
@@ -96,7 +121,7 @@ Criteria: ${(market.description || '').slice(0, 300)}`;
             iterations++;
 
             const res = await _fetchWithRetry({
-                model: 'claude-haiku-4-5-20251001',
+                model: 'claude-sonnet-4-20250514',
                 max_tokens: 1500,
                 system: systemPrompt,
                 tools: [{ type: 'web_search_20250305', name: 'web_search' }],
@@ -218,7 +243,7 @@ Respond ONLY with the JSON array, no other text.`;
 
             const userPrompt = `Topic: ${topic}${category ? `\nPreferred category: ${category}` : ''}`;
 
-            const raw = await this._call(systemPrompt, userPrompt);
+            const raw = await this._callHaiku(systemPrompt, userPrompt);
             const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
             const suggestions = JSON.parse(cleaned);
             if (!Array.isArray(suggestions)) throw new Error('Invalid response format');
@@ -237,7 +262,7 @@ Given a market question title, write clear resolution criteria and background co
 2. "Background:" — 1-2 sentences of relevant context for traders.
 
 Keep the total under 400 characters. Plain text only, no markdown.`;
-        return await this._call(systemPrompt, `Title: ${title}\nCategory: ${category || 'general'}`, 300);
+        return await this._callHaiku(systemPrompt, `Title: ${title}\nCategory: ${category || 'general'}`, 300);
     },
 
     // Feature D: AI quality review for a pending market (admin use)
@@ -264,7 +289,7 @@ Category: ${market.category}
 Closes: ${market.closes_at}
 Description/Criteria: ${market.description || '(none provided)'}`;
 
-        const raw = await this._call(systemPrompt, userPrompt, 300);
+        const raw = await this._callHaiku(systemPrompt, userPrompt, 300);
         const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
         return JSON.parse(cleaned);
     },

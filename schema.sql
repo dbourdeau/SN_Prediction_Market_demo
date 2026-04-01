@@ -62,8 +62,14 @@ CREATE TABLE IF NOT EXISTS markets (
     probabilities    JSONB,       -- [0.33, 0.33, 0.34]
     -- Concurrency
     version          INTEGER NOT NULL DEFAULT 0,
+    -- Priority / audience
+    is_priority      BOOLEAN NOT NULL DEFAULT false,
+    target_dept      TEXT,   -- optional dept tag (e.g. 'Sales') set by market creator
     -- Source of truth
-    source_url       TEXT
+    source_url       TEXT,
+    -- AI research cache
+    research_cache   JSONB,
+    research_cached_at TIMESTAMPTZ
 );
 
 CREATE TABLE IF NOT EXISTS predictions (
@@ -833,5 +839,34 @@ BEGIN
     IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
     SELECT value INTO result FROM public.app_config WHERE key = 'anthropic_api_key';
     RETURN result;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- ============================================================
+-- RPCS — BRIEFING CACHE (readable by all authed users, writable by admins only)
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION get_briefing_cache()
+RETURNS JSONB AS $$
+DECLARE cache_val TEXT; cached_at TEXT;
+BEGIN
+    IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
+    SELECT value INTO cache_val FROM public.app_config WHERE key = 'briefing_cache';
+    SELECT value INTO cached_at FROM public.app_config WHERE key = 'briefing_cached_at';
+    IF cache_val IS NULL THEN RETURN NULL; END IF;
+    RETURN jsonb_build_object('cache', cache_val::jsonb, 'cached_at', cached_at);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE FUNCTION set_briefing_cache(p_cache TEXT, p_cached_at TEXT)
+RETURNS VOID AS $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_admin = true) THEN
+        RAISE EXCEPTION 'Admin only';
+    END IF;
+    INSERT INTO public.app_config (key, value) VALUES ('briefing_cache', p_cache)
+        ON CONFLICT (key) DO UPDATE SET value = p_cache;
+    INSERT INTO public.app_config (key, value) VALUES ('briefing_cached_at', p_cached_at)
+        ON CONFLICT (key) DO UPDATE SET value = p_cached_at;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
