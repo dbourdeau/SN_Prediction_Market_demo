@@ -709,7 +709,7 @@ const Components = {
                 <div class="max-w-7xl mx-auto px-4 sm:px-6">
                     <div class="flex items-center justify-between h-14 sm:h-16">
                         <!-- Logo -->
-                        <div class="flex items-center gap-2 cursor-pointer shrink-0" onclick="AppState.navigate('dashboard')">
+                        <div class="flex items-center gap-2 cursor-pointer shrink-0" onmousedown="if(event.button===0)AppState.navigate('dashboard')">
                             <svg class="w-7 h-7 sm:w-8 sm:h-8" viewBox="0 0 32 32" fill="none">
                                 <rect width="32" height="32" rx="7" fill="white" fill-opacity="0.15"/>
                                 <polyline points="4,26 10,22 15,18 19,10 23,14 28,6" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -721,7 +721,7 @@ const Components = {
                         <!-- Desktop primary nav -->
                         <nav class="hidden md:flex items-center gap-0.5">
                             ${primaryNav.map(item => `
-                                <button id="nav-${item.id}" onclick="AppState.navigate('${item.id}')"
+                                <button id="nav-${item.id}" onmousedown="if(event.button===0)AppState.navigate('${item.id}')"
                                     class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors
                                     ${AppState.currentPage === item.id ? 'bg-white/20 text-white shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/10'}">
                                     ${item.icon} ${item.label}
@@ -739,7 +739,7 @@ const Components = {
                                 </button>
                                 <div id="more-menu" class="hidden absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50">
                                     ${moreNav.map(item => `
-                                        <button onclick="AppState.navigate('${item.id}');closeMoreMenu()"
+                                        <button onmousedown="if(event.button===0){AppState.navigate('${item.id}');closeMoreMenu()}"
                                             class="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-left transition-colors
                                             ${AppState.currentPage === item.id ? 'bg-shark-50 text-shark-700' : 'text-gray-700 hover:bg-gray-50'}">
                                             <span class="${AppState.currentPage === item.id ? 'text-shark-600' : 'text-gray-400'}">${item.icon}</span>
@@ -759,7 +759,7 @@ const Components = {
                                     : '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>'
                                 }
                             </button>
-                            <button id="nav-notifications" onclick="AppState.navigate('notifications')" class="relative text-white/70 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10">
+                            <button id="nav-notifications" onmousedown="if(event.button===0)AppState.navigate('notifications')" class="relative text-white/70 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
                                 ${unread > 0 ? `<span class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold leading-none">${unread > 9 ? '9+' : unread}</span>` : ''}
                             </button>
@@ -779,7 +779,7 @@ const Components = {
                     <!-- Mobile nav -->
                     <div class="flex md:hidden gap-1 pb-2 overflow-x-auto scrollbar-hide -mx-1 px-1">
                         ${allMobileNav.map(item => `
-                            <button onclick="AppState.navigate('${item.id}')"
+                            <button onmousedown="if(event.button===0)AppState.navigate('${item.id}')"
                                 class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors
                                 ${AppState.currentPage === item.id ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'}">
                                 ${item.label}${item.badge ? ` <span class="bg-red-500 text-white text-xs px-1 rounded-full">${item.badge}</span>` : ''}

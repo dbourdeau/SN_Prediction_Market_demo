@@ -57,7 +57,10 @@ const AppState = {
     notify() {
         if (this._renderLocked) return;
         clearTimeout(this._notifyTimer);
-        this._notifyTimer = setTimeout(() => this.listeners.forEach(fn => fn()), 16);
+        // Delay render if the user has a mouse button held — prevents re-render from racing
+        // with a click gesture and swapping out the DOM between mousedown and mouseup.
+        const delay = window._mouseButtonDown ? 120 : 16;
+        this._notifyTimer = setTimeout(() => this.listeners.forEach(fn => fn()), delay);
     },
     // Immediate notify — used for navigations where we need the render now, not on next tick
     notifyNow() {

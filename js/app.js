@@ -1579,6 +1579,14 @@ async function handleGenerateBriefing() {
     }
 }
 
+// ==================== CLICK RACE GUARD ====================
+// Tracks whether a mouse button is currently held. notify() uses this to delay
+// background re-renders so they don't swap the DOM between mousedown and mouseup.
+window._mouseButtonDown = false;
+document.addEventListener('mousedown', () => { window._mouseButtonDown = true; });
+document.addEventListener('mouseup',   () => { window._mouseButtonDown = false; });
+document.addEventListener('mouseleave',() => { window._mouseButtonDown = false; });
+
 // ==================== MORE MENU ====================
 
 function toggleMoreMenu() {
