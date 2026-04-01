@@ -417,7 +417,7 @@ Be direct and insightful. Base everything only on the data provided. Respond ONL
             }
 
             const tradesSummary = predictions.slice(0, 20).map(p =>
-                `${p.profiles?.name || 'User'}: ${p.amount}t on ${(p.direction || '?').toUpperCase()} (${p.shares?.toFixed(1) || '?'} shares)`
+                `Anonymous: ${p.amount}t on ${(p.direction || '?').toUpperCase()} (${p.shares?.toFixed(1) || '?'} shares)`
             ).join('; ') || 'No trades yet';
 
             const commentsSummary = comments.slice(0, 10).map(c =>

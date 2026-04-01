@@ -491,14 +491,15 @@ const Pages = {
                                 <h3 class="text-sm font-semibold text-gray-900">Recent Activity</h3>
                             </div>
                             ${AppState.activityFeed.slice(0, 6).map(a => {
-                                const name = a.profiles?.name?.split(' ')[0] || 'Someone';
                                 const title = a.markets?.title || 'a market';
                                 const verb = a.status === 'sold' ? 'sold' : 'bought';
                                 return `<div class="flex items-center gap-2 px-4 py-2 border-b border-gray-50 last:border-0 hover:bg-gray-50 cursor-pointer" onclick="AppState.navigate('market', { marketId: ${a.market_id} })">
-                                    ${Components.avatar(a.profiles?.avatar || name, 'sm')}
+                                    <div class="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
+                                        <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+                                    </div>
                                     <div class="flex-1 min-w-0">
-                                        <div class="text-xs text-gray-700 truncate"><span class="font-medium">${esc(name)}</span> ${verb} <span class="${a.direction === 'yes' ? 'text-green-600' : 'text-red-500'} font-medium">${(a.direction || '?').toUpperCase()}</span></div>
-                                        <div class="text-xs text-gray-400">${esc(title.length > 35 ? title.slice(0, 35) + '…' : title)}</div>
+                                        <div class="text-xs text-gray-700 truncate"><span class="text-gray-400 italic">Anonymous</span> ${verb} <span class="${a.direction === 'yes' ? 'text-green-600' : 'text-red-500'} font-medium">${(a.direction || '?').toUpperCase()}</span></div>
+                                        <div class="text-xs text-gray-400">${esc(title.length > 40 ? title.slice(0, 40) + '…' : title)}</div>
                                     </div>
                                     <span class="text-xs text-gray-300 shrink-0">${getTimeAgo(a.created_at)}</span>
                                 </div>`;
