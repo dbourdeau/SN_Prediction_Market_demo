@@ -701,8 +701,9 @@ const Components = {
                     <div class="flex items-center justify-between h-14 sm:h-16">
                         <div class="flex items-center gap-2 cursor-pointer shrink-0" onclick="AppState.navigate('dashboard')">
                             <svg class="w-7 h-7 sm:w-8 sm:h-8" viewBox="0 0 32 32" fill="none">
-                                <rect width="32" height="32" rx="8" fill="white" fill-opacity="0.15"/>
-                                <path d="M16 6 L18 18 L26 22 L6 22 L14 18 Z" fill="white" opacity="0.9"/>
+                                <rect width="32" height="32" rx="7" fill="white" fill-opacity="0.15"/>
+                                <polyline points="4,26 10,22 15,18 19,10 23,14 28,6" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <polygon points="19,10 28,6 23,14" fill="white" opacity="0.4"/>
                             </svg>
                             <span class="hidden sm:block font-bold text-lg tracking-tight">SharkPool</span>
                         </div>
