@@ -182,6 +182,7 @@ const AppState = {
         this.selectedMarketComments = [];
         this.selectedMarketPredictions = [];
         this._commentsShown = 10;
+        if (!data?.profileId) { this.viewingProfile = null; this.viewingProfilePredictions = []; }
 
         if (data?.marketId) {
             const mid = data.marketId;

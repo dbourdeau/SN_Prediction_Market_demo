@@ -132,6 +132,8 @@ function switchAuthTab(tab) {
     const tabSignin = document.getElementById('tab-signin');
     const tabSignup = document.getElementById('tab-signup');
 
+    if (!signinForm || !signupForm || !tabSignin || !tabSignup) return;
+
     document.getElementById('auth-error')?.classList.add('hidden');
     document.getElementById('auth-success')?.classList.add('hidden');
 
@@ -154,6 +156,7 @@ async function handleLogin() {
     const btn = document.getElementById('login-btn');
 
     if (!email || !password) { showAuthError('Please enter email and password'); return; }
+    if (!btn) return;
 
     btn.disabled = true;
     btn.textContent = 'Signing in...';
@@ -176,6 +179,7 @@ async function handleSignup() {
     if (!name) { showAuthError('Please enter your name'); return; }
     if (!email) { showAuthError('Please enter your email'); return; }
     if (!password || password.length < 8) { showAuthError('Password must be at least 8 characters'); return; }
+    if (!btn) return;
 
     btn.disabled = true;
     btn.textContent = 'Creating account...';
@@ -234,7 +238,7 @@ async function handlePrediction(marketId, direction, optionIndex) {
     if (!AppState.user) { showToast('You must be logged in to trade', 'error'); return; }
     if (amount > AppState.user.balance) { showToast(`Insufficient tokens (you have ${AppState.user.balance})`, 'error'); return; }
 
-    if (btn) { btn.disabled = true; btn.textContent = 'Buying...'; }
+    if (btn) { btn.dataset.origText = btn.textContent; btn.disabled = true; btn.textContent = 'Buying...'; }
     try {
         const result = await AppState.placePrediction(marketId, direction, amount, isMulti ? optionIndex : null);
         if (result && result.error) {
@@ -248,7 +252,7 @@ async function handlePrediction(marketId, direction, optionIndex) {
         console.error('Prediction error:', e);
         showToast(e.message || 'Trade failed — please try again', 'error');
     } finally {
-        if (btn) { btn.disabled = false; btn.textContent = btn.dataset.label || (direction === 'yes' ? 'Buy YES' : direction === 'no' ? 'Buy NO' : 'Buy'); }
+        if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText || (direction === 'yes' ? 'Buy YES' : direction === 'no' ? 'Buy NO' : 'Buy'); }
     }
 }
 
@@ -951,7 +955,7 @@ async function handleAISuggestCriteria() {
     const category = document.getElementById('create-category')?.value;
     const desc = document.getElementById('create-desc');
     const btn = document.getElementById('ai-desc-btn');
-    if (!title || !desc) return;
+    if (!title || !desc || !btn) return;
 
     const originalLabel = btn.innerHTML;
     btn.disabled = true;
