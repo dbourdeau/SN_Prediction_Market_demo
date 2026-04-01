@@ -2524,7 +2524,7 @@ Background: [Provide relevant context for traders]"
         ];
 
         const betaSteps = [
-            { title: 'Identify your question', body: 'Pick one high-stakes decision your team faces in the next 30–90 days. Good questions have clear, verifiable outcomes — not vibes.' },
+            { title: 'Identify your question(s)', body: 'Pick one or more high-stakes decisions your team faces in the next 30–90 days. Good questions have clear, verifiable outcomes — not vibes.' },
             { title: 'Draft 2–4 markets', body: 'Frame them as specific YES/NO questions with a concrete closing date. The AI drafting tool in SharkPool will help sharpen the resolution criteria.' },
             { title: 'Invite your team', body: 'Share the market links and ask colleagues to trade. Aim for 10–15 participants minimum. More domain experts = sharper signal.' },
             { title: 'Read the signal', body: 'A price that stabilizes at 80%+ is strong consensus. One that hovers at 50% means genuine uncertainty — that\'s valuable information too.' },
