@@ -1070,9 +1070,7 @@ const Pages = {
                         </div>
                     </div>
                     <div class="flex flex-wrap gap-4 mt-3 text-xs text-shark-200">
-                        <span>🥉 10 predictions = $20 gift card</span>
-                        <span>🥈 25 predictions = $30 gift card</span>
-                        <span>💎 50 predictions = $50 gift card</span>
+                        <span>🎖️ 10+ predictions = share of $500 milestone pool</span>
                         <span>🔥 Weekly streak = $75 bonus</span>
                         <span>🎟️ 5+ predictions = raffle entry ($200)</span>
                     </div>
@@ -1225,7 +1223,7 @@ const Pages = {
             return '<div class="text-center py-12 text-gray-400">No predictions this quarter yet. Start trading to compete for awards!</div>';
         }
 
-        const { quarter, awards, milestones, streaks, raffleEligible, stats, leaderboard: qLb } = data;
+        const { quarter, awards, milestones, milestonePool, milestoneShare, streaks, raffleEligible, stats, leaderboard: qLb } = data;
 
         return `
             <div class="space-y-6">
@@ -1337,8 +1335,12 @@ const Pages = {
                 <div class="grid sm:grid-cols-3 gap-4">
                     <!-- Milestones -->
                     <div class="bg-white rounded-xl border border-gray-200 p-4">
-                        <h3 class="font-bold text-gray-900 text-sm mb-3">🎖️ Milestones</h3>
-                        <p class="text-xs text-gray-400 mb-3">Reach prediction counts for gift cards — highest tier only</p>
+                        <h3 class="font-bold text-gray-900 text-sm mb-1">🎖️ Milestones</h3>
+                        <div class="flex items-baseline gap-1.5 mb-1">
+                            <span class="text-lg font-bold text-shark-600">$${milestonePool}</span>
+                            <span class="text-xs text-gray-500">fixed pool · split equally among all qualifiers</span>
+                        </div>
+                        <p class="text-xs text-gray-400 mb-3">${milestones.length > 0 ? `${milestones.length} qualifier${milestones.length !== 1 ? 's' : ''} so far — <span class="font-medium text-gray-600">~$${milestoneShare} each</span>` : 'Make 10+ predictions to qualify'}</p>
                         ${milestones.length > 0 ? `
                             <div class="space-y-2">
                                 ${milestones.slice(0, 8).map(m => `
@@ -1407,7 +1409,7 @@ const Pages = {
                         <div>• Department Champion requires 3+ members</div>
                         <div>• Biggest Upset: correct calls when market odds were against you</div>
                         <div>• Weekly Streak requires 4+ consecutive weeks active</div>
-                        <div>• Same person can win multiple awards</div>
+                        <div>• Milestone pool ($500) is split equally among all 10+ prediction earners</div>
                         <div>• Market Maker winner's market is featured on the homepage</div>
                     </div>
                     <div class="border-t border-blue-200 pt-3">
@@ -2027,7 +2029,8 @@ Background: [Provide relevant context for traders]"
                                 <!-- Milestone Rewards -->
                                 <div class="border border-green-100 rounded-xl p-4 bg-gradient-to-br from-green-50 to-white">
                                     <div class="text-sm font-bold text-green-800 mb-1">🎖️ Milestone Rewards</div>
-                                    <div class="text-xs text-gray-500 mb-3">Earned by reaching prediction thresholds this quarter.</div>
+                                    <div class="text-xs text-gray-500 mb-1">$500 fixed pool · split equally among all qualifiers (10+ predictions).</div>
+                                    ${r.milestones.length > 0 ? `<div class="text-xs font-medium text-green-700 mb-3">${r.milestones.length} qualifiers · ~$${r.milestoneShare} each</div>` : '<div class="mb-3"></div>'}
                                     ${r.milestones.length > 0 ? `
                                         <div class="space-y-2 max-h-48 overflow-y-auto">
                                             ${r.milestones.map(m => `

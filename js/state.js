@@ -1184,10 +1184,11 @@ const AppState = {
 
         // --- MILESTONES (participation rewards) ---
         const milestones = [];
+        const MILESTONE_POOL = 500;
         const milestoneTiers = [
-            { threshold: 50, label: '50 Predictions', emoji: '💎', prize: '$50 gift card' },
-            { threshold: 25, label: '25 Predictions', emoji: '🥈', prize: '$30 gift card' },
-            { threshold: 10, label: '10 Predictions', emoji: '🥉', prize: '$20 gift card' },
+            { threshold: 50, label: '50 Predictions', emoji: '💎' },
+            { threshold: 25, label: '25 Predictions', emoji: '🥈' },
+            { threshold: 10, label: '10 Predictions', emoji: '🥉' },
         ];
         Object.entries(allPredsByUser).forEach(([userId, userPreds]) => {
             const count = userPreds.length;
@@ -1208,6 +1209,9 @@ const AppState = {
             }
         });
         milestones.sort((a, b) => b.count - a.count);
+        // Calculate each earner's share of the fixed pool
+        const milestoneShare = milestones.length > 0 ? Math.round(MILESTONE_POOL / milestones.length) : 0;
+        milestones.forEach(m => { m.prize = `~$${milestoneShare} gift card`; });
 
         // --- STREAKS (traded every week of the quarter) ---
         const streaks = [];
@@ -1265,6 +1269,8 @@ const AppState = {
             dateRange: { start, end },
             awards,
             milestones,
+            milestonePool: MILESTONE_POOL,
+            milestoneShare,
             streaks,
             raffleEligible,
             bestMarket,
