@@ -28,6 +28,7 @@ function render() {
             case 'transactions': pageContent = Pages.transactions(); break;
             case 'analytics': pageContent = Pages.analytics(); break;
             case 'briefing': pageContent = Pages.briefing(); break;
+            case 'guide': pageContent = Pages.guide(); break;
             default: pageContent = Pages.dashboard();
         }
 

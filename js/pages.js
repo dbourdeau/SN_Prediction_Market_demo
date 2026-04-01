@@ -2416,6 +2416,251 @@ Background: [Provide relevant context for traders]"
                 </div>
             </div>`;
     },
+
+    // ==================== GUIDE ====================
+    guide() {
+        const useCases = [
+            {
+                dept: 'Sales & Revenue',
+                color: 'from-blue-600 to-blue-800',
+                badge: 'bg-blue-100 text-blue-700',
+                icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+                questions: [
+                    'Will the Americas region hit Q3 revenue targets?',
+                    'Will a key retail partner expand floor space by >20% this year?',
+                    'Will EMEA close 3+ enterprise deals before end of H1?',
+                    'Will the new rep cohort hit 80% quota attainment in their first 90 days?',
+                ],
+            },
+            {
+                dept: 'Product & Innovation',
+                color: 'from-violet-600 to-violet-800',
+                badge: 'bg-violet-100 text-violet-700',
+                icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>',
+                questions: [
+                    'Will the new floor care SKU hit 4+ stars on Amazon within 60 days of launch?',
+                    'Will the cordless vacuum line outsell the corded line by Q4?',
+                    'Will the kitchen appliance expansion launch on schedule?',
+                    'Will the new feature set score >8/10 in consumer testing?',
+                ],
+            },
+            {
+                dept: 'Marketing & Brand',
+                color: 'from-pink-600 to-rose-700',
+                badge: 'bg-pink-100 text-pink-700',
+                icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>',
+                questions: [
+                    'Will the brand awareness campaign lift unaided recall by >5pts?',
+                    'Will the influencer partnership generate >2M organic impressions?',
+                    'Will the holiday campaign ROAS exceed last year\'s benchmark?',
+                    'Will the new brand positioning resonate with Gen Z (NPS >40)?',
+                ],
+            },
+            {
+                dept: 'Supply Chain & Ops',
+                color: 'from-amber-600 to-orange-700',
+                badge: 'bg-amber-100 text-amber-700',
+                icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>',
+                questions: [
+                    'Will the factory transition meet the Q2 production milestone?',
+                    'Will inbound freight costs drop below the target threshold by H2?',
+                    'Will the new 3PL partner reduce fulfillment errors by >30%?',
+                    'Will the materials shortage resolve before the product launch date?',
+                ],
+            },
+            {
+                dept: 'Competitive Intel',
+                color: 'from-teal-600 to-cyan-700',
+                badge: 'bg-teal-100 text-teal-700',
+                icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>',
+                questions: [
+                    'Will Dyson launch a new robot vacuum at CES this year?',
+                    'Will a key competitor cut price on their flagship SKU before Q3?',
+                    'Will iRobot regain market share in the premium segment this year?',
+                    'Will a major competitor enter the air purifier category by year-end?',
+                ],
+            },
+            {
+                dept: 'People & Culture',
+                color: 'from-green-600 to-emerald-700',
+                badge: 'bg-green-100 text-green-700',
+                icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>',
+                questions: [
+                    'Will voluntary attrition stay below 10% through year-end?',
+                    'Will the new onboarding program improve 90-day retention by >15%?',
+                    'Will the engagement survey score exceed last year\'s by >5pts?',
+                    'Will the leadership development cohort have an internal promotion rate >60%?',
+                ],
+            },
+        ];
+
+        const steps = [
+            { n: '1', title: 'Browse or Create a Market', body: 'Anyone can browse active markets and trade on outcomes they have a view on. If your team has a specific question, hit <strong>Create</strong> and draft it — an admin will approve it within 24 hours.', icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>' },
+            { n: '2', title: 'Trade with SharkBucks', body: 'Every employee starts with <strong>500 SharkBucks</strong>. Spend them buying YES or NO shares on markets you have an opinion on. The more you trade, the more the market price reflects real collective belief.', icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' },
+            { n: '3', title: 'Price = Collective Confidence', body: 'Prices move using the <strong>LMSR algorithm</strong> — the same mechanism used by professional prediction markets. A market at 72% means the crowd believes there\'s a 72% chance of YES. No one person controls the price.', icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>' },
+            { n: '4', title: 'Markets Resolve — Winners Earn', body: 'When the outcome is known, an admin resolves the market. Correct predictions pay out <strong>1 SharkBuck per winning share</strong>. The leaderboard tracks who\'s calling it right over time.', icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' },
+        ];
+
+        const betaSteps = [
+            { title: 'Identify your question', body: 'Pick one high-stakes decision your team faces in the next 30–90 days where you genuinely want to know what people think. Good questions have clear, verifiable outcomes.' },
+            { title: 'Draft 2–4 markets', body: 'Frame them as specific YES/NO questions with a concrete closing date. Submit them through SharkPool — the AI drafting tool will help sharpen the resolution criteria.' },
+            { title: 'Invite your team', body: 'Share the market links with your team and ask them to trade. Aim for at least 10–15 participants to get a signal worth reading. The more domain experts, the better.' },
+            { title: 'Read the signal', body: 'Watch the probability move as more people trade. A price that quickly stabilizes at 80%+ is strong consensus. A price that hovers near 50% means genuine uncertainty — that\'s valuable information too.' },
+            { title: 'Close and resolve', body: 'When the outcome is known, resolve the market. Your team gets paid out, learns who called it right, and you have a calibration record to use next time.' },
+        ];
+
+        return `
+        <div class="max-w-4xl mx-auto px-4 py-8 space-y-16">
+
+            <!-- Hero -->
+            <div class="text-center space-y-4">
+                <div class="inline-flex items-center gap-2 bg-shark-50 border border-shark-200 rounded-full px-4 py-1.5 text-xs font-semibold text-shark-700 mb-2">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    SharkPool Guide
+                </div>
+                <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">Collective intelligence,<br class="hidden sm:block"> built into your workflow.</h1>
+                <p class="text-lg text-gray-500 max-w-2xl mx-auto">SharkPool turns the knowledge spread across SharkNinja into a real-time signal. Every trade is a vote. Every price is a forecast.</p>
+                <div class="flex items-center justify-center gap-3 pt-2">
+                    <button onclick="AppState.navigate('markets')" class="bg-shark-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-shark-700 transition-colors">Browse Markets</button>
+                    <button onclick="AppState.navigate('create')" class="bg-white border border-gray-200 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-colors">Create a Market</button>
+                </div>
+            </div>
+
+            <!-- How it works -->
+            <div>
+                <h2 class="text-xl font-bold text-gray-900 mb-6">How it works</h2>
+                <div class="grid sm:grid-cols-2 gap-4">
+                    ${steps.map(s => `
+                    <div class="bg-white border border-gray-200 rounded-xl p-5 flex gap-4">
+                        <div class="shrink-0 w-10 h-10 rounded-full bg-shark-50 border border-shark-100 flex items-center justify-center text-shark-600">
+                            ${s.icon}
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold text-shark-500 uppercase tracking-wide mb-0.5">Step ${s.n}</div>
+                            <div class="font-semibold text-gray-900 mb-1">${s.title}</div>
+                            <p class="text-sm text-gray-500 leading-relaxed">${s.body}</p>
+                        </div>
+                    </div>`).join('')}
+                </div>
+            </div>
+
+            <!-- Why prediction markets work -->
+            <div class="bg-gradient-to-br from-shark-700 to-shark-900 rounded-2xl p-6 sm:p-8 text-white">
+                <h2 class="text-xl font-bold mb-3">Why prediction markets outperform surveys and meetings</h2>
+                <p class="text-white/70 text-sm leading-relaxed mb-6">Traditional forecasting tools ask people what they think. Prediction markets ask people to put skin in the game. That changes everything.</p>
+                <div class="grid sm:grid-cols-3 gap-4">
+                    ${[
+                        { title: 'Incentivized honesty', body: 'People trade their own SharkBucks. When there\'s something at stake — even virtual — forecasts become more considered and less political.' },
+                        { title: 'Aggregates private knowledge', body: 'The person who knows a supplier is struggling or a launch is off-track will signal it through their trades, even if they\'d never say it in a meeting.' },
+                        { title: 'Continuous & self-correcting', body: 'Unlike a survey taken once, prices update in real time as new information surfaces. The market is always reflecting the latest collective view.' },
+                    ].map(c => `
+                    <div class="bg-white/10 rounded-xl p-4">
+                        <div class="font-semibold text-sm mb-1">${c.title}</div>
+                        <p class="text-white/65 text-xs leading-relaxed">${c.body}</p>
+                    </div>`).join('')}
+                </div>
+            </div>
+
+            <!-- Department beta guide -->
+            <div>
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold text-gray-900">Run a department beta</h2>
+                    <p class="text-gray-500 text-sm mt-1">Any team can run a focused 30-day pilot to test SharkPool on their hardest questions. Here's how.</p>
+                </div>
+                <div class="relative">
+                    <div class="absolute left-5 top-0 bottom-0 w-px bg-gray-200 hidden sm:block"></div>
+                    <div class="space-y-4">
+                        ${betaSteps.map((s, i) => `
+                        <div class="flex gap-4">
+                            <div class="shrink-0 w-10 h-10 rounded-full bg-white border-2 border-shark-200 flex items-center justify-center text-sm font-bold text-shark-600 relative z-10">${i + 1}</div>
+                            <div class="bg-white border border-gray-200 rounded-xl p-4 flex-1 -mt-0.5">
+                                <div class="font-semibold text-gray-900 text-sm mb-1">${s.title}</div>
+                                <p class="text-sm text-gray-500 leading-relaxed">${s.body}</p>
+                            </div>
+                        </div>`).join('')}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Use cases by department -->
+            <div>
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold text-gray-900">Use cases across SharkNinja</h2>
+                    <p class="text-gray-500 text-sm mt-1">Example markets that have worked in similar organizations. Click any to use as inspiration for a new market.</p>
+                </div>
+                <div class="space-y-4">
+                    ${useCases.map(uc => `
+                    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                        <div class="bg-gradient-to-r ${uc.color} px-5 py-3 flex items-center gap-2.5">
+                            <div class="text-white/80">${uc.icon}</div>
+                            <span class="font-semibold text-white text-sm">${uc.dept}</span>
+                        </div>
+                        <div class="divide-y divide-gray-100">
+                            ${uc.questions.map(q => `
+                            <div class="flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors group">
+                                <span class="text-sm text-gray-700 group-hover:text-gray-900">${q}</span>
+                                <button onclick="AppState.navigate('create')" class="shrink-0 ml-4 text-xs font-medium text-shark-600 hover:text-shark-800 opacity-0 group-hover:opacity-100 transition-opacity">Use this →</button>
+                            </div>`).join('')}
+                        </div>
+                    </div>`).join('')}
+                </div>
+            </div>
+
+            <!-- Tips for good markets -->
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-6 sm:p-8">
+                <h2 class="text-lg font-bold text-amber-900 mb-4">What makes a good market</h2>
+                <div class="grid sm:grid-cols-2 gap-x-8 gap-y-3">
+                    ${[
+                        ['✓', 'Has a clear, verifiable outcome', 'text-green-700'],
+                        ['✓', 'Closes on a specific date', 'text-green-700'],
+                        ['✓', 'Resolves to YES, NO, or a named winner', 'text-green-700'],
+                        ['✓', 'Asks something people genuinely disagree on', 'text-green-700'],
+                        ['✗', 'Vague ("Will things go well?")', 'text-red-600'],
+                        ['✗', 'No resolution criteria defined', 'text-red-600'],
+                        ['✗', 'Already obvious to everyone (>95% likely)', 'text-red-600'],
+                        ['✗', 'Depends on private info only one person has', 'text-red-600'],
+                    ].map(([mark, text, color]) => `
+                    <div class="flex items-start gap-2 text-sm">
+                        <span class="font-bold ${color} shrink-0">${mark}</span>
+                        <span class="text-amber-800">${text}</span>
+                    </div>`).join('')}
+                </div>
+            </div>
+
+            <!-- FAQ -->
+            <div>
+                <h2 class="text-xl font-bold text-gray-900 mb-6">Frequently asked questions</h2>
+                <div class="space-y-3">
+                    ${[
+                        ['Are SharkBucks real money?', 'No. SharkBucks are entirely virtual — they exist only within SharkPool. Winning and losing has no financial consequence. The point is the signal, not the reward.'],
+                        ['Who can see my trades?', 'All trades are visible to all authenticated SharkNinja employees. Transparency is intentional — it keeps people honest and lets others learn from strong traders.'],
+                        ['What happens if a market is voided?', 'If a market is voided (e.g. the event was cancelled or the question became unanswerable), all positions are fully refunded at cost. No one loses SharkBucks on a void.'],
+                        ['How do I get more SharkBucks?', 'Win trades, claim your daily login bonus (+50 SharkBucks), or refer a colleague to SharkPool (+100 SharkBucks each). Balances reset if leadership chooses to run a fresh season.'],
+                        ['Who approves new markets?', 'SharkPool admins review all submitted markets for clarity and appropriateness before they go live. Usually approved within 24 hours. Admins can also create markets directly without review.'],
+                        ['How do I run a team beta?', 'Follow the beta guide above — no special access needed. Create 2–4 markets relevant to your team, share the links, and invite your colleagues to trade. Reach out to the SharkPool admin team if you want support.'],
+                    ].map(([q, a]) => `
+                    <details class="bg-white border border-gray-200 rounded-xl group" open="">
+                        <summary class="flex items-center justify-between px-5 py-4 cursor-pointer list-none">
+                            <span class="font-semibold text-gray-900 text-sm">${q}</span>
+                            <svg class="w-4 h-4 text-gray-400 shrink-0 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </summary>
+                        <div class="px-5 pb-4 text-sm text-gray-500 leading-relaxed border-t border-gray-100 pt-3">${a}</div>
+                    </details>`).join('')}
+                </div>
+            </div>
+
+            <!-- CTA -->
+            <div class="text-center bg-gradient-to-br from-shark-700 to-shark-900 rounded-2xl p-8 text-white">
+                <h2 class="text-2xl font-bold mb-2">Ready to start forecasting?</h2>
+                <p class="text-white/70 text-sm mb-6">Join your colleagues on SharkPool and start putting your predictions on the line.</p>
+                <div class="flex items-center justify-center gap-3">
+                    <button onclick="AppState.navigate('markets')" class="bg-white text-shark-800 px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-gray-100 transition-colors">Browse Markets</button>
+                    <button onclick="AppState.navigate('create')" class="bg-white/15 border border-white/25 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-white/25 transition-colors">Create a Market</button>
+                </div>
+            </div>
+
+        </div>`;
+    },
 };
 
 // Helper for trade estimates
