@@ -800,15 +800,16 @@ const Pages = {
                             <h3 class="font-semibold text-gray-900 mb-4">Recent Trades (${allPreds.length})</h3>
                             <div class="space-y-2 max-h-60 overflow-y-auto">
                                 ${allPreds.slice(0, 20).map(p => {
-                                    const profile = p.profiles || {};
                                     return `<div class="flex items-center justify-between text-sm py-1">
                                         <div class="flex items-center gap-2 min-w-0">
-                                            ${Components.avatar(profile.avatar || profile.name || 'XX', 'sm')}
-                                            <span class="font-medium text-gray-900 truncate">${esc(profile.name || 'Unknown')}</span>
+                                            <div class="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
+                                                <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+                                            </div>
+                                            <span class="text-gray-400 text-xs italic">Anonymous</span>
                                         </div>
                                         <div class="flex items-center gap-2 shrink-0">
                                             <span class="px-2 py-0.5 rounded-full text-xs font-bold ${p.direction === 'yes' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${(p.direction || '?').toUpperCase()}</span>
-                                            <span class="text-gray-500 text-xs">${p.amount}t</span>
+                                            <span class="text-gray-500 text-xs">${p.amount} SB</span>
                                             <span class="text-gray-400 text-xs hidden sm:inline">${getTimeAgo(p.created_at)}</span>
                                         </div>
                                     </div>`;
@@ -2697,7 +2698,7 @@ Background: [Provide relevant context for traders]"
                 <div class="space-y-2">
                     ${[
                         ['Are SharkBucks real money?', 'No. SharkBucks are entirely virtual — they exist only within SharkPool. Winning and losing has no financial consequence. The point is the signal, not the reward.'],
-                        ['Who can see my trades?', 'All trades are visible to all authenticated SharkNinja employees. Transparency is intentional — it keeps people honest and lets others learn from strong traders.'],
+                        ['Who can see my trades?', 'Trades are anonymous — no one can see which direction you bet on a specific market. Overall leaderboard scores are public, but individual trade positions are never attributed to you.'],
                         ['What happens if a market is voided?', 'If a market is voided (e.g. the event was cancelled or the question became unanswerable), all positions are fully refunded at cost. No one loses SharkBucks on a void.'],
                         ['How do I get more SharkBucks?', 'Win trades, claim your daily login bonus (+50 SharkBucks), or refer a colleague (+100 SharkBucks each). Admins can also run seasonal resets to keep competition fresh.'],
                         ['Who approves new markets?', 'SharkPool admins review submitted markets for clarity before they go live — usually within 24 hours. Admins can create markets directly without review.'],
