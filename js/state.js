@@ -1056,7 +1056,7 @@ const AppState = {
                 title: 'Top Forecaster',
                 emoji: '🏆',
                 description: 'Most points earned this quarter',
-                prize: '$150-200 gift card',
+                prize: '$400 Visa gift card',
                 winner: topForecaster,
                 metric: `${topForecaster.points} pts`,
             });
@@ -1070,7 +1070,7 @@ const AppState = {
                 title: 'Sharpest Mind',
                 emoji: '🎯',
                 description: 'Best accuracy (min 10 predictions)',
-                prize: '$100-150 gift card',
+                prize: '$300 Visa gift card',
                 winner: sharpest,
                 metric: `${Math.round(sharpest.accuracy * 100)}% (${sharpest.wins}/${sharpest.total})`,
             });
@@ -1084,23 +1084,53 @@ const AppState = {
                 title: 'Best ROI',
                 emoji: '📈',
                 description: 'Highest return on investment (min 5 trades)',
-                prize: '$75-100 gift card',
+                prize: '$200 Visa gift card',
                 winner: bestROI,
                 metric: `${bestROI.roi >= 0 ? '+' : ''}${Math.round(bestROI.roi * 100)}% (${bestROI.profit >= 0 ? '+' : ''}${Math.round(bestROI.profit)}t)`,
             });
         }
 
-        // 4. Volume King
-        const volumeKing = [...userList].sort((a, b) => b.total - a.total || b.points - a.points)[0];
-        if (volumeKing && volumeKing.total >= 3) {
-            awards.push({
-                title: 'Volume King',
-                emoji: '⚡',
-                description: 'Most predictions resolved this quarter',
-                prize: '$50 gift card',
-                winner: volumeKing,
-                metric: `${volumeKing.total} predictions`,
-            });
+        // 4. Biggest Upset: correctly called the most against-the-odds markets
+        // Score = (1 - initial_prob) for correct YES when prob < 0.4, or initial_prob for correct NO when prob > 0.6
+        const marketInitialProbs = {};
+        markets.forEach(m => {
+            if (m.history && m.history.length > 0) {
+                const first = m.history[0];
+                const prob = (first && typeof first === 'object' && first.p !== undefined) ? first.p : first;
+                if (typeof prob === 'number') marketInitialProbs[m.id] = prob;
+            }
+        });
+        const upsetScores = {};
+        preds.forEach(p => {
+            const market = markets.find(m => m.id === p.market_id);
+            if (!market || !market.resolution || market.market_type === 'multi') return;
+            const isCorrect = (p.direction === 'yes' && market.resolution === 'yes') || (p.direction === 'no' && market.resolution === 'no');
+            if (!isCorrect) return;
+            const initProb = marketInitialProbs[p.market_id];
+            if (initProb === undefined) return;
+            let score = 0;
+            if (p.direction === 'yes' && initProb < 0.4) score = 1 - initProb;
+            if (p.direction === 'no' && initProb > 0.6) score = initProb;
+            if (score > 0) {
+                if (!upsetScores[p.user_id]) upsetScores[p.user_id] = { total: 0, count: 0 };
+                upsetScores[p.user_id].total += score;
+                upsetScores[p.user_id].count += 1;
+            }
+        });
+        const upsetEntries = Object.entries(upsetScores).sort(([, a], [, b]) => b.total - a.total || b.count - a.count);
+        if (upsetEntries.length > 0) {
+            const [upsetUserId, upsetStats] = upsetEntries[0];
+            const upsetWinner = userList.find(u => u.userId === upsetUserId);
+            if (upsetWinner) {
+                awards.push({
+                    title: 'Biggest Upset',
+                    emoji: '🌊',
+                    description: 'Most correct contrarian calls (against market odds)',
+                    prize: '$150 Visa gift card',
+                    winner: upsetWinner,
+                    metric: `${upsetStats.count} upset call${upsetStats.count > 1 ? 's' : ''}`,
+                });
+            }
         }
 
         // 5. Department Champion
@@ -1119,7 +1149,7 @@ const AppState = {
                 title: 'Department Champion',
                 emoji: '🏅',
                 description: 'Best avg points per member (min 3)',
-                prize: 'Team lunch ($100-150)',
+                prize: '$300 team lunch or experience',
                 winner: { name: topDept.department, department: `${topDept.members.length} members`, avatar: '🏢' },
                 metric: `${avgPts} avg pts · Star: ${star.name}`,
             });
@@ -1142,10 +1172,10 @@ const AppState = {
                     creatorId: top.created_by,
                 };
                 awards.push({
-                    title: 'Best Question',
+                    title: 'Market Maker',
                     emoji: '💡',
                     description: 'Most engaging market created this quarter',
-                    prize: '$50 gift card',
+                    prize: '$200 Visa gift card · featured on homepage',
                     winner: { name: bestMarket.creatorName, department: bestMarket.creatorDept, avatar: bestMarket.creatorAvatar },
                     metric: `"${top.title.length > 40 ? top.title.slice(0, 40) + '…' : top.title}" · ${bestMarket.traders} traders`,
                 });
@@ -1155,9 +1185,9 @@ const AppState = {
         // --- MILESTONES (participation rewards) ---
         const milestones = [];
         const milestoneTiers = [
-            { threshold: 50, label: '50 Predictions', emoji: '💎', prize: '$15 coffee card' },
-            { threshold: 25, label: '25 Predictions', emoji: '🥈', prize: '$15 coffee card' },
-            { threshold: 10, label: '10 Predictions', emoji: '🥉', prize: '$10 coffee card' },
+            { threshold: 50, label: '50 Predictions', emoji: '💎', prize: '$50 gift card' },
+            { threshold: 25, label: '25 Predictions', emoji: '🥈', prize: '$30 gift card' },
+            { threshold: 10, label: '10 Predictions', emoji: '🥉', prize: '$20 gift card' },
         ];
         Object.entries(allPredsByUser).forEach(([userId, userPreds]) => {
             const count = userPreds.length;

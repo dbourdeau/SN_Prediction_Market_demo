@@ -1039,42 +1039,42 @@ const Pages = {
                             <p class="text-shark-200 text-sm">Win real prizes for accurate forecasting. Awards reset each quarter.</p>
                         </div>
                         <div class="text-right">
-                            <div class="text-2xl sm:text-3xl font-bold">~$500+</div>
+                            <div class="text-2xl sm:text-3xl font-bold">~$1,500+</div>
                             <div class="text-shark-200 text-xs">in prizes per quarter</div>
                         </div>
                     </div>
                     <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-4">
                         <div class="bg-white/10 rounded-lg px-3 py-2">
                             <div class="text-sm font-semibold">🏆 Top Forecaster</div>
-                            <div class="text-xs text-shark-200">$150-200 gift card</div>
+                            <div class="text-xs text-shark-200">$400 Visa gift card</div>
                         </div>
                         <div class="bg-white/10 rounded-lg px-3 py-2">
                             <div class="text-sm font-semibold">🎯 Sharpest Mind</div>
-                            <div class="text-xs text-shark-200">$100-150 gift card</div>
+                            <div class="text-xs text-shark-200">$300 Visa gift card</div>
                         </div>
                         <div class="bg-white/10 rounded-lg px-3 py-2">
                             <div class="text-sm font-semibold">📈 Best ROI</div>
-                            <div class="text-xs text-shark-200">$75-100 gift card</div>
+                            <div class="text-xs text-shark-200">$200 Visa gift card</div>
                         </div>
                         <div class="bg-white/10 rounded-lg px-3 py-2">
-                            <div class="text-sm font-semibold">⚡ Volume King</div>
-                            <div class="text-xs text-shark-200">$50 gift card</div>
+                            <div class="text-sm font-semibold">🌊 Biggest Upset</div>
+                            <div class="text-xs text-shark-200">$150 Visa gift card</div>
                         </div>
                         <div class="bg-white/10 rounded-lg px-3 py-2">
-                            <div class="text-sm font-semibold">💡 Best Question</div>
-                            <div class="text-xs text-shark-200">$50 gift card</div>
+                            <div class="text-sm font-semibold">💡 Market Maker</div>
+                            <div class="text-xs text-shark-200">$200 gift card + featured</div>
                         </div>
                         <div class="bg-white/10 rounded-lg px-3 py-2">
                             <div class="text-sm font-semibold">🏅 Dept Champion</div>
-                            <div class="text-xs text-shark-200">Team lunch $100-150</div>
+                            <div class="text-xs text-shark-200">$300 team experience</div>
                         </div>
                     </div>
                     <div class="flex flex-wrap gap-4 mt-3 text-xs text-shark-200">
-                        <span>🥉 10 predictions = $10 coffee card</span>
-                        <span>🥈 25 predictions = $15 coffee card</span>
-                        <span>💎 50 predictions = $15 coffee card</span>
-                        <span>🔥 Weekly streak = $25 bonus</span>
-                        <span>🎟️ 5+ predictions = raffle entry ($50)</span>
+                        <span>🥉 10 predictions = $20 gift card</span>
+                        <span>🥈 25 predictions = $30 gift card</span>
+                        <span>💎 50 predictions = $50 gift card</span>
+                        <span>🔥 Weekly streak = $75 bonus</span>
+                        <span>🎟️ 5+ predictions = raffle entry ($200)</span>
                     </div>
                 </div>
 
@@ -1338,7 +1338,7 @@ const Pages = {
                     <!-- Milestones -->
                     <div class="bg-white rounded-xl border border-gray-200 p-4">
                         <h3 class="font-bold text-gray-900 text-sm mb-3">🎖️ Milestones</h3>
-                        <p class="text-xs text-gray-400 mb-3">Reach prediction counts for coffee cards</p>
+                        <p class="text-xs text-gray-400 mb-3">Reach prediction counts for gift cards — highest tier only</p>
                         ${milestones.length > 0 ? `
                             <div class="space-y-2">
                                 ${milestones.slice(0, 8).map(m => `
@@ -1357,7 +1357,7 @@ const Pages = {
                     <!-- Streaks -->
                     <div class="bg-white rounded-xl border border-gray-200 p-4">
                         <h3 class="font-bold text-gray-900 text-sm mb-3">🔥 Weekly Streaks</h3>
-                        <p class="text-xs text-gray-400 mb-3">Trade every week for a $25 bonus</p>
+                        <p class="text-xs text-gray-400 mb-3">Trade every week for a $75 bonus</p>
                         ${streaks.length > 0 ? `
                             <div class="space-y-2">
                                 ${streaks.slice(0, 8).map(s => `
@@ -1377,7 +1377,7 @@ const Pages = {
                     <!-- Raffle -->
                     <div class="bg-white rounded-xl border border-gray-200 p-4">
                         <h3 class="font-bold text-gray-900 text-sm mb-3">🎟️ Raffle Pool</h3>
-                        <p class="text-xs text-gray-400 mb-3">5+ predictions = entry for $50 draw</p>
+                        <p class="text-xs text-gray-400 mb-3">5+ predictions = entry for $200 draw</p>
                         ${raffleEligible.length > 0 ? `
                             <div class="text-center mb-3">
                                 <span class="text-2xl font-bold text-purple-600">${raffleEligible.length}</span>
@@ -1400,13 +1400,24 @@ const Pages = {
                 <!-- How It Works -->
                 <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
                     <h3 class="font-bold text-blue-700 text-sm mb-2">How Quarterly Awards Work</h3>
-                    <div class="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-xs text-blue-700">
+                    <div class="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-xs text-blue-700 mb-3">
                         <div>• Awards are calculated from resolved predictions only</div>
                         <div>• Sharpest Mind requires min 10 resolved predictions</div>
                         <div>• Best ROI requires min 5 resolved predictions</div>
                         <div>• Department Champion requires 3+ members</div>
-                        <div>• Weekly Streak requires 4+ consecutive weeks</div>
+                        <div>• Biggest Upset: correct calls when market odds were against you</div>
+                        <div>• Weekly Streak requires 4+ consecutive weeks active</div>
                         <div>• Same person can win multiple awards</div>
+                        <div>• Market Maker winner's market is featured on the homepage</div>
+                    </div>
+                    <div class="border-t border-blue-200 pt-3">
+                        <div class="text-xs font-semibold text-blue-800 mb-1">🎤 Recognition beyond cash</div>
+                        <div class="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-xs text-blue-600">
+                            <div>• Top 3 winners announced at the quarterly All-Hands</div>
+                            <div>• Top Forecaster earns the "SharkPool Oracle" profile badge</div>
+                            <div>• Department Champion called out in the internal newsletter</div>
+                            <div>• Market Maker's question featured on the homepage next quarter</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2039,7 +2050,7 @@ Background: [Provide relevant context for traders]"
                                 <!-- Consistency Streaks -->
                                 <div class="border border-amber-100 rounded-xl p-4 bg-gradient-to-br from-amber-50 to-white">
                                     <div class="text-sm font-bold text-amber-800 mb-1">🔥 Consistency Streaks</div>
-                                    <div class="text-xs text-gray-500 mb-3">Traded every week of the quarter. Prize: $15 gift card.</div>
+                                    <div class="text-xs text-gray-500 mb-3">Traded every week of the quarter. Prize: $75 bonus.</div>
                                     ${r.streaks.length > 0 ? `
                                         <div class="space-y-2 max-h-48 overflow-y-auto">
                                             ${r.streaks.map(s => `
@@ -2059,7 +2070,7 @@ Background: [Provide relevant context for traders]"
                                 <!-- Raffle Eligible -->
                                 <div class="border border-blue-100 rounded-xl p-4 bg-gradient-to-br from-blue-50 to-white">
                                     <div class="text-sm font-bold text-blue-800 mb-1">🎲 Lucky Draw Eligible</div>
-                                    <div class="text-xs text-gray-500 mb-3">5+ predictions = entered in $50 random draw.</div>
+                                    <div class="text-xs text-gray-500 mb-3">5+ predictions = entered in $200 random draw.</div>
                                     ${r.raffleEligible.length > 0 ? `
                                         <div class="text-xs font-medium text-blue-700 mb-2">${r.raffleEligible.length} participant${r.raffleEligible.length !== 1 ? 's' : ''} eligible</div>
                                         <div class="space-y-1.5 max-h-48 overflow-y-auto">
