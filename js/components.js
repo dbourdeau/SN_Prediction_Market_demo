@@ -144,18 +144,44 @@ const Components = {
         return '';
     },
 
+    // Returns a consistent cheeky anonymous name for a given numeric trade id
+    cheekiName(id) {
+        const names = ['A shark','A ninja','A fin','A wave','A current','A depth','A tide','A gill','A reef','A crest'];
+        return names[(id || 0) % names.length];
+    },
+
+    // Catmull-Rom spline: smooth SVG path through all data points
+    _smoothPath(pts) {
+        if (pts.length < 2) return '';
+        if (pts.length === 2) return `M${pts[0][0].toFixed(2)},${pts[0][1].toFixed(2)} L${pts[1][0].toFixed(2)},${pts[1][1].toFixed(2)}`;
+        let d = `M${pts[0][0].toFixed(2)},${pts[0][1].toFixed(2)}`;
+        for (let i = 0; i < pts.length - 1; i++) {
+            const p0 = pts[Math.max(0, i - 1)];
+            const p1 = pts[i];
+            const p2 = pts[i + 1];
+            const p3 = pts[Math.min(pts.length - 1, i + 2)];
+            const cp1x = p1[0] + (p2[0] - p0[0]) / 6;
+            const cp1y = p1[1] + (p2[1] - p0[1]) / 6;
+            const cp2x = p2[0] - (p3[0] - p1[0]) / 6;
+            const cp2y = p2[1] - (p3[1] - p1[1]) / 6;
+            d += ` C${cp1x.toFixed(2)},${cp1y.toFixed(2)} ${cp2x.toFixed(2)},${cp2y.toFixed(2)} ${p2[0].toFixed(2)},${p2[1].toFixed(2)}`;
+        }
+        return d;
+    },
+
     sparkline(rawData, width = 120, height = 32) {
         if (!rawData || rawData.length < 2) return '';
         // Handle both legacy (number) and new ({t, p}) formats
         const data = rawData.map(v => (v && typeof v === 'object' && v.p !== undefined) ? v.p : v);
         const min = Math.min(...data) - 0.05, max = Math.max(...data) + 0.05;
         const range = max - min || 1, step = width / (data.length - 1);
-        const points = data.map((v, i) => `${i * step},${height - ((v - min) / range) * height}`).join(' ');
+        const pts = data.map((v, i) => [i * step, height - ((v - min) / range) * height]);
+        const linePath = this._smoothPath(pts);
         const lastVal = data[data.length - 1], firstVal = data[0];
         const color = lastVal >= firstVal ? '#22c55e' : '#ef4444';
         return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" class="inline-block">
-            <polyline fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="${points}"/>
-            <circle cx="${(data.length - 1) * step}" cy="${height - ((lastVal - min) / range) * height}" r="3" fill="${color}"/>
+            <path fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="${linePath}"/>
+            <circle cx="${pts[pts.length - 1][0]}" cy="${pts[pts.length - 1][1]}" r="3" fill="${color}"/>
         </svg>`;
     },
 
@@ -189,12 +215,13 @@ const Components = {
 
         const min = Math.min(...data), max = Math.max(...data);
         const range = max - min || 1, step = width / (data.length - 1);
-        const points = data.map((v, i) => `${i * step},${height - ((v - min) / range) * height}`).join(' ');
+        const pts = data.map((v, i) => [i * step, height - ((v - min) / range) * height]);
+        const linePath = this._smoothPath(pts);
         const lastVal = data[data.length - 1];
         const color = lastVal >= cost ? '#22c55e' : '#ef4444';
         return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" class="inline-block align-middle">
-            <polyline fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" points="${points}" opacity="0.8"/>
-            <circle cx="${(data.length - 1) * step}" cy="${height - ((lastVal - min) / range) * height}" r="2" fill="${color}"/>
+            <path fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="${linePath}" opacity="0.8"/>
+            <circle cx="${pts[pts.length - 1][0]}" cy="${pts[pts.length - 1][1]}" r="2" fill="${color}"/>
         </svg>`;
     },
 
@@ -442,8 +469,9 @@ const Components = {
         const toX = (i) => padding.left + (i / (filtered.length - 1)) * chartW;
         const toY = (v) => padding.top + chartH - ((v - min) / range) * chartH;
 
-        const points = filtered.map((h, i) => `${toX(i)},${toY(h.p)}`).join(' ');
-        const areaPoints = `${toX(0)},${toY(min)} ${points} ${toX(filtered.length - 1)},${toY(min)}`;
+        const pts = filtered.map((h, i) => [toX(i), toY(h.p)]);
+        const linePath = this._smoothPath(pts);
+        const areaPath = `M${toX(0)},${toY(min)} ${linePath.slice(1)} L${toX(filtered.length - 1)},${toY(min)} Z`;
 
         const lastVal = filtered[filtered.length - 1].p;
         const firstVal = filtered[0].p;
@@ -478,8 +506,8 @@ const Components = {
 
         const svg = `<svg width="100%" viewBox="0 0 ${width} ${height}" class="block" style="overflow:visible">
             ${yLabels}${xLabels}
-            <polygon fill="${color}" fill-opacity="0.08" points="${areaPoints}"/>
-            <polyline fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="${points}"/>
+            <path fill="${color}" fill-opacity="0.08" d="${areaPath}"/>
+            <path fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="${linePath}"/>
             <circle cx="${toX(filtered.length - 1)}" cy="${toY(lastVal)}" r="4" fill="${color}" stroke="white" stroke-width="2"/>
             <line id="${chartId}-crosshair" x1="0" y1="${padding.top}" x2="0" y2="${padding.top + chartH}" stroke="#9ca3af" stroke-width="1" stroke-dasharray="3,3" style="opacity:0;transition:opacity 0.1s"/>
             <circle id="${chartId}-dot" cx="0" cy="0" r="4" fill="${color}" stroke="white" stroke-width="2" style="opacity:0;transition:opacity 0.1s"/>
@@ -585,13 +613,14 @@ const Components = {
 
         // Lines
         const lines = Array.from({ length: n }, (_, optIdx) => {
-            const points = filtered.map((h, i) => {
+            const pts = filtered.map((h, i) => {
                 const prob = Array.isArray(h.p) ? (h.p[optIdx] || 0) : 0;
-                return `${toX(i)},${toY(prob)}`;
-            }).join(' ');
+                return [toX(i), toY(prob)];
+            });
+            const linePath = this._smoothPath(pts);
             const color = colors[optIdx % colors.length];
             const lastProb = Array.isArray(filtered[filtered.length - 1].p) ? (filtered[filtered.length - 1].p[optIdx] || 0) : 0;
-            return `<polyline fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="${points}" opacity="0.85"/>
+            return `<path fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="${linePath}" opacity="0.85"/>
                     <circle cx="${toX(filtered.length - 1)}" cy="${toY(lastProb)}" r="3.5" fill="${color}" stroke="white" stroke-width="1.5"/>`;
         }).join('');
 
@@ -627,12 +656,13 @@ const Components = {
         const step = width / (history.length - 1);
 
         const lines = Array.from({ length: n }, (_, optIdx) => {
-            const points = history.map((h, i) => {
+            const pts = history.map((h, i) => {
                 const val = (h && typeof h === 'object' && h.p !== undefined) ? h.p : h;
                 const prob = Array.isArray(val) ? (val[optIdx] || 0) : 0;
-                return `${i * step},${height - prob * height}`;
-            }).join(' ');
-            return `<polyline fill="none" stroke="${colors[optIdx % colors.length]}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" points="${points}" opacity="0.8"/>`;
+                return [i * step, height - prob * height];
+            });
+            const linePath = this._smoothPath(pts);
+            return `<path fill="none" stroke="${colors[optIdx % colors.length]}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="${linePath}" opacity="0.8"/>`;
         }).join('');
 
         return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" class="inline-block">${lines}</svg>`;

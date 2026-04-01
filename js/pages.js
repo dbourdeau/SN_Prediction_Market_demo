@@ -498,7 +498,7 @@ const Pages = {
                                         <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
                                     </div>
                                     <div class="flex-1 min-w-0">
-                                        <div class="text-xs text-gray-700 truncate"><span class="text-gray-400 italic">Anonymous</span> ${verb} <span class="${a.direction === 'yes' ? 'text-green-600' : 'text-red-500'} font-medium">${(a.direction || '?').toUpperCase()}</span></div>
+                                        <div class="text-xs text-gray-700 truncate"><span class="text-gray-400 italic">${Components.cheekiName(a.id)}</span> ${verb} <span class="${a.direction === 'yes' ? 'text-green-600' : 'text-red-500'} font-medium">${(a.direction || '?').toUpperCase()}</span></div>
                                         <div class="text-xs text-gray-400">${esc(title.length > 40 ? title.slice(0, 40) + '…' : title)}</div>
                                     </div>
                                     <span class="text-xs text-gray-300 shrink-0">${getTimeAgo(a.created_at)}</span>
@@ -806,7 +806,7 @@ const Pages = {
                                             <div class="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
                                                 <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
                                             </div>
-                                            <span class="text-gray-400 text-xs italic">Anonymous</span>
+                                            <span class="text-gray-400 text-xs italic">${Components.cheekiName(p.id)}</span>
                                         </div>
                                         <div class="flex items-center gap-2 shrink-0">
                                             <span class="px-2 py-0.5 rounded-full text-xs font-bold ${p.direction === 'yes' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${(p.direction || '?').toUpperCase()}</span>
