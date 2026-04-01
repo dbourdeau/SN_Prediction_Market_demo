@@ -303,7 +303,7 @@ const AppState = {
 
     // ==================== PREDICTIONS (AMM) ====================
 
-    async placePrediction(marketId, direction, amount, optionIndex = null) {
+    async placePrediction(marketId, direction, amount, optionIndex = null, onOptimistic = null) {
         if (!this._checkRateLimit()) return { error: 'Please wait a moment between trades' };
 
         const market = this.markets.find(m => m.id === marketId);
@@ -353,6 +353,19 @@ const AppState = {
             };
         }
 
+        // Snapshot previous state for rollback
+        const prevBalance = this.user.balance;
+        const prevTrades = this.user.trades;
+        const prevMarket = { ...market };
+
+        // Apply optimistic state update immediately — before the network call
+        this.user.balance -= amount;
+        this.user.trades += 1;
+        market.version = (market.version || 0) + 1;
+        Object.assign(market, marketUpdates);
+        if (this.selectedMarket?.id === marketId) this.selectedMarket = market;
+        if (onOptimistic) onOptimistic(); // patch DOM surgically, no full re-render
+
         try {
             // Use server-side RPC to atomically place prediction + update market + deduct balance
             const rpcParams = {
@@ -370,18 +383,10 @@ const AppState = {
                 p_new_q_values: isMulti ? marketUpdates.q_values : null,
                 p_new_probabilities: isMulti ? marketUpdates.probabilities : null,
                 p_new_history: marketUpdates.history,
-                p_expected_version: market.version ?? null,
+                p_expected_version: prevMarket.version ?? null,
             };
 
             await DB.placePrediction(rpcParams);
-
-            // Update local state (bump version to match server)
-            this.user.balance -= amount;
-            this.user.trades += 1;
-            market.version = (market.version || 0) + 1;
-            Object.assign(market, marketUpdates);
-            this.selectedMarket = market;
-            this.notify(); // show updated price immediately
 
             // Refresh predictions in background — don't block the return
             Promise.all([
@@ -393,10 +398,16 @@ const AppState = {
 
             return { shares, priceImpact };
         } catch (e) {
+            // Rollback optimistic state
+            this.user.balance = prevBalance;
+            this.user.trades = prevTrades;
+            Object.assign(market, prevMarket);
+            if (this.selectedMarket?.id === marketId) this.selectedMarket = market;
+            if (onOptimistic) onOptimistic(); // restore DOM to pre-trade state
+
             console.error('Prediction error:', e);
             if (e.message?.includes('balance')) return { error: 'Insufficient balance' };
             if (e.message?.includes('updated by another trade')) {
-                // Refresh market data and retry hint
                 await this._refreshMarkets();
                 return { error: 'Price changed — please review and try again' };
             }
@@ -453,6 +464,19 @@ const AppState = {
 
         const roundedRevenue = Math.round(revenue);
 
+        // Snapshot previous state for rollback
+        const prevBalance = this.user.balance;
+        const prevMarket = { ...market };
+        const prevPred = { ...pred };
+
+        // Apply optimistic update immediately
+        this.user.balance += roundedRevenue;
+        market.version = (market.version || 0) + 1;
+        Object.assign(market, marketUpdates);
+        pred.status = 'sold';
+        if (this.selectedMarket?.id === market.id) this.selectedMarket = market;
+        _patchMarketDOM(market, this.user.balance);
+
         try {
             // Use server-side RPC to atomically sell position + update market + credit balance
             const rpcParams = {
@@ -466,16 +490,10 @@ const AppState = {
                 p_new_q_values: isMulti ? marketUpdates.q_values : null,
                 p_new_probabilities: isMulti ? marketUpdates.probabilities : null,
                 p_new_history: marketUpdates.history,
-                p_expected_version: market.version ?? null,
+                p_expected_version: prevMarket.version ?? null,
             };
 
             await DB.sellPositionRPC(rpcParams);
-
-            this.user.balance = this.user.balance + roundedRevenue;
-            market.version = (market.version || 0) + 1;
-            Object.assign(market, marketUpdates);
-            if (this.selectedMarket?.id === market.id) this.selectedMarket = market;
-            this.notify(); // show updated price/balance immediately
 
             // Refresh predictions in background — don't block the return
             Promise.all([
@@ -485,8 +503,15 @@ const AppState = {
                     : Promise.resolve(),
             ]).then(() => this.notify()).catch(e => console.error('Failed to refresh predictions:', e));
 
-            return { revenue: roundedRevenue, profit: roundedRevenue - pred.amount };
+            return { revenue: roundedRevenue, profit: roundedRevenue - prevPred.amount };
         } catch (e) {
+            // Rollback optimistic state
+            this.user.balance = prevBalance;
+            Object.assign(market, prevMarket);
+            Object.assign(pred, prevPred);
+            if (this.selectedMarket?.id === market.id) this.selectedMarket = market;
+            _patchMarketDOM(market, this.user.balance);
+
             console.error('Sell error:', e.message || e);
             if (e.message?.includes('updated by another trade')) {
                 await this._refreshMarkets();

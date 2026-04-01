@@ -32,11 +32,13 @@ function render() {
         }
 
         const progressBar = AppState.navigating ? '<div class="nav-progress"></div>' : '';
+        const savedScroll = AppState.navigating ? 0 : window.scrollY;
         if (AppState.currentPage === 'login') {
             app.innerHTML = pageContent;
         } else {
             app.innerHTML = progressBar + Components.header() + '<main>' + pageContent + '</main>' + Components.footer();
         }
+        if (savedScroll > 0) window.scrollTo(0, savedScroll);
 
         // Restore search input value after re-render (debounced search causes re-render)
         const searchInput = document.getElementById('market-search');
@@ -224,6 +226,73 @@ async function handleLogout() {
     await AppState.logout();
 }
 
+// ==================== SURGICAL DOM PATCHING ====================
+// Updates only the price/balance elements on the market page — no full re-render, no scroll jump.
+
+function _patchMarketDOM(market, balance) {
+    if (!market) return;
+    const isMulti = market.market_type === 'multi';
+
+    // Header balance badge
+    const balEl = document.querySelector('#tour-balance span:first-child');
+    if (balEl) balEl.textContent = (balance || 0).toLocaleString();
+
+    // Trading panel "of Xt" label
+    const ofLabel = document.querySelector('#pred-amount ~ span');
+    if (ofLabel && ofLabel.textContent.includes('t')) ofLabel.textContent = `of ${(balance || 0).toLocaleString()}t`;
+
+    if (isMulti) {
+        const probs = market.probabilities || [];
+        // Probability bar segments
+        const bars = document.querySelectorAll('.prob-bar');
+        bars.forEach((bar, i) => {
+            if (probs[i] !== undefined) bar.style.width = Math.round(probs[i] * 100) + '%';
+        });
+        // Option buy buttons — update the probability badge inside each
+        (market.options || []).forEach((_opt, i) => {
+            const btn = document.getElementById(`btn-opt-${i}-${market.id}`);
+            if (btn) {
+                const badge = btn.querySelector('span:last-child');
+                if (badge) badge.textContent = Math.round((probs[i] || 0) * 100) + '%';
+            }
+        });
+    } else {
+        const pct = Math.round((market.probability || 0.5) * 100);
+        // Big probability counter
+        const counter = document.getElementById('prob-counter');
+        if (counter) {
+            counter.textContent = pct + '%';
+            counter.className = counter.className.replace(/text-(green|red)-\d+/, pct >= 50 ? 'text-green-600' : 'text-red-500');
+        }
+        // Probability bar
+        const bar = document.querySelector('.prob-bar');
+        if (bar) {
+            bar.style.width = pct + '%';
+            bar.className = bar.className.replace(/bg-(green|red)-\d+/, pct >= 50 ? 'bg-green-500' : 'bg-red-400');
+        }
+        // YES/NO labels under buy buttons
+        const yesBtn = document.getElementById(`btn-yes-${market.id}`);
+        const noBtn = document.getElementById(`btn-no-${market.id}`);
+        if (yesBtn) { const sub = yesBtn.querySelector('div'); if (sub) sub.textContent = `at ${pct}%`; }
+        if (noBtn)  { const sub = noBtn.querySelector('div');  if (sub) sub.textContent = `at ${100 - pct}%`; }
+        // Prob bar YES/NO labels below bar
+        const probLabels = document.querySelectorAll('.prob-bar ~ div span');
+        if (probLabels[0]) probLabels[0].textContent = `YES ${pct}%`;
+        if (probLabels[1]) probLabels[1].textContent = `NO ${100 - pct}%`;
+    }
+
+    // Update trade estimate with new AMM state
+    const estimateEl = document.getElementById('trade-estimate');
+    if (estimateEl) {
+        const amount = parseInt(document.getElementById('pred-amount')?.value || '50');
+        if (isMulti) {
+            estimateEl.innerHTML = _tradeEstimateHTMLMulti(market.q_values || [], market.options || [], amount);
+        } else {
+            estimateEl.innerHTML = _tradeEstimateHTML(market.q_yes || 0, market.q_no || 0, amount);
+        }
+    }
+}
+
 // ==================== PREDICTIONS ====================
 
 async function handlePrediction(marketId, direction, optionIndex) {
@@ -240,11 +309,13 @@ async function handlePrediction(marketId, direction, optionIndex) {
 
     if (btn) { btn.dataset.origText = btn.textContent; btn.disabled = true; btn.textContent = 'Buying...'; }
     try {
-        const result = await AppState.placePrediction(marketId, direction, amount, isMulti ? optionIndex : null);
+        const result = await AppState.placePrediction(marketId, direction, amount, isMulti ? optionIndex : null,
+            () => _patchMarketDOM(AppState.selectedMarket, AppState.user.balance)
+        );
         if (result && result.error) {
             showToast(result.error, 'error');
         } else if (result) {
-            showToast(`Bought ${result.shares.toFixed(1)} ${direction.toUpperCase()} shares for ${amount} SharkBucks!`, 'success');
+            showToast(`Bought ${result.shares.toFixed(1)} shares for ${amount} SharkBucks!`, 'success');
         } else {
             showToast('Trade failed — please try again', 'error');
         }
