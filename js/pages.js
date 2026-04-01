@@ -2595,6 +2595,16 @@ Background: [Provide relevant context for traders]"
                             <p class="text-white/60 text-xs leading-relaxed">${c.body}</p>
                         </div>`).join('')}
                     </div>
+                    <div class="relative z-10 mt-6 pt-6 border-t border-white/10 flex items-start gap-3">
+                        <div class="shrink-0 w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-shark-300 mt-0.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.75 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold text-shark-300 uppercase tracking-widest mb-1">Further reading</div>
+                            <a href="https://asteriskmag.com/issues/08/the-death-and-life-of-prediction-markets-at-google" target="_blank" rel="noopener" class="text-sm font-semibold text-white hover:text-shark-300 transition-colors">The Death and Life of Prediction Markets at Google ↗</a>
+                            <p class="text-white/50 text-xs leading-relaxed mt-1">Dan Schwarz · Asterisk Magazine — Google ran internal prediction markets for nearly 20 years, reaching 15,000 participants. The key lesson: markets only move decisions when they're aimed at questions executives actually need answered — not just metrics the crowd already knows.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
