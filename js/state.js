@@ -358,29 +358,37 @@ const AppState = {
         const isMulti = market.market_type === 'multi';
         let shares, marketUpdates, predDirection, entryProb, priceImpact;
 
+        // Bump traders count only on the user's first prediction on this market (matches RPC)
+        const isFirstOnMarket = !(this.userPredictions || []).some(p => p.market_id === marketId);
+        const tradersInc = isFirstOnMarket ? 1 : 0;
+
         if (isMulti) {
             const qValues = [...(market.q_values || [])];
             shares = AMM.sharesForBudgetMulti(qValues, amount, optionIndex);
             if (shares <= 0) return { error: 'Trade too small' };
 
+            // entry_prob = pre-trade probability of the chosen option (user's belief, not slippage-inflated)
+            const preTradeProbs = AMM.multiProbabilities(qValues);
             const newQ = [...qValues];
             newQ[optionIndex] += shares;
             const newProbs = AMM.multiProbabilities(newQ);
             const newHistory = [...(market.history || []), { t: new Date().toISOString(), p: newProbs }];
             priceImpact = Math.abs(newProbs[optionIndex] - (market.probabilities?.[optionIndex] || 0));
             predDirection = market.options[optionIndex].label;
-            entryProb = newProbs[optionIndex];
+            entryProb = preTradeProbs[optionIndex];
 
             marketUpdates = {
                 q_values: newQ, probabilities: newProbs,
                 probability: Math.max(...newProbs), // store max prob for card display
-                volume: market.volume + amount, traders: market.traders + 1, history: newHistory,
+                volume: market.volume + amount, traders: market.traders + tradersInc, history: newHistory,
             };
         } else {
             const qYes = market.q_yes || 0, qNo = market.q_no || 0;
             shares = AMM.sharesForBudget(qYes, qNo, amount, direction);
             if (shares <= 0) return { error: 'Trade too small' };
 
+            // entry_prob = pre-trade probability of the direction bet on (see resolve_market Brier formula)
+            const preTradeProb = AMM.yesPrice(qYes, qNo);
             const newQYes = direction === 'yes' ? qYes + shares : qYes;
             const newQNo = direction === 'no' ? qNo + shares : qNo;
             const newProb = AMM.yesPrice(newQYes, newQNo);
@@ -388,11 +396,11 @@ const AppState = {
             const newHistory = [...(market.history || []), { t: new Date().toISOString(), p: newProb }];
             priceImpact = Math.abs(newProb - market.probability);
             predDirection = direction;
-            entryProb = direction === 'yes' ? newProb : 1 - newProb;
+            entryProb = direction === 'yes' ? preTradeProb : 1 - preTradeProb;
 
             marketUpdates = {
                 probability: newProb, logit: newLogit, q_yes: newQYes, q_no: newQNo,
-                volume: market.volume + amount, traders: market.traders + 1, history: newHistory,
+                volume: market.volume + amount, traders: market.traders + tradersInc, history: newHistory,
             };
         }
 
@@ -498,8 +506,9 @@ const AppState = {
             revenue = AMM.sellRevenue(qYes, qNo, pred.shares, pred.direction);
             if (revenue <= 0) return { error: 'Position has no sell value' };
 
-            const newQYes = pred.direction === 'yes' ? Math.max(0, qYes - pred.shares) : qYes;
-            const newQNo = pred.direction === 'no' ? Math.max(0, qNo - pred.shares) : qNo;
+            const newQYes = pred.direction === 'yes' ? qYes - pred.shares : qYes;
+            const newQNo = pred.direction === 'no' ? qNo - pred.shares : qNo;
+            if (newQYes < 0 || newQNo < 0) return { error: 'Position state is stale — please reload' };
             const newProb = AMM.yesPrice(newQYes, newQNo);
             const newHistory = [...(market.history || []), { t: new Date().toISOString(), p: newProb }];
 

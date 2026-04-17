@@ -173,69 +173,108 @@ ALTER TABLE audit_log     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_config    ENABLE ROW LEVEL SECURITY;
 
 -- Profiles
+DROP POLICY IF EXISTS "Profiles readable by authenticated" ON profiles;
 CREATE POLICY "Profiles readable by authenticated" ON profiles
     FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Users can update own profile or admin" ON profiles;
 CREATE POLICY "Users can update own profile or admin" ON profiles
     FOR UPDATE TO authenticated
     USING (auth.uid() = id OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true));
+DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
 CREATE POLICY "Users can insert own profile" ON profiles
     FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);
 
 -- Markets
+DROP POLICY IF EXISTS "Markets readable by authenticated" ON markets;
 CREATE POLICY "Markets readable by authenticated" ON markets
     FOR SELECT TO authenticated USING (true);
+-- Rate-limit market creation: max 10 per user per hour. Admins exempt.
+DROP POLICY IF EXISTS "Authenticated users can create markets" ON markets;
 CREATE POLICY "Authenticated users can create markets" ON markets
-    FOR INSERT TO authenticated WITH CHECK (true);
+    FOR INSERT TO authenticated
+    WITH CHECK (
+        EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true)
+        OR (
+            created_by = auth.uid()
+            AND (SELECT COUNT(*) FROM markets
+                 WHERE created_by = auth.uid()
+                   AND created_at > now() - interval '1 hour') < 10
+        )
+    );
+DROP POLICY IF EXISTS "Market creator or admin can update" ON markets;
 CREATE POLICY "Market creator or admin can update" ON markets
     FOR UPDATE TO authenticated
     USING (created_by = auth.uid() OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true));
 
 -- Predictions
+DROP POLICY IF EXISTS "Predictions readable by authenticated" ON predictions;
 CREATE POLICY "Predictions readable by authenticated" ON predictions
     FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Users can create own predictions" ON predictions;
 CREATE POLICY "Users can create own predictions" ON predictions
     FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own predictions or admin" ON predictions;
 CREATE POLICY "Users can update own predictions or admin" ON predictions
     FOR UPDATE TO authenticated
     USING (user_id = auth.uid() OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true));
 
 -- Comments
+DROP POLICY IF EXISTS "Comments readable by authenticated" ON comments;
 CREATE POLICY "Comments readable by authenticated" ON comments
     FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Users can create own comments" ON comments;
 CREATE POLICY "Users can create own comments" ON comments
     FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own comments or admin" ON comments;
 CREATE POLICY "Users can update own comments or admin" ON comments
     FOR UPDATE TO authenticated
     USING (auth.uid() = user_id OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true));
 
 -- Notifications
+-- No INSERT policy: only SECURITY DEFINER triggers/RPCs (comment trigger, resolve_market, etc.)
+-- create notifications, and they bypass RLS. An open INSERT policy would let any user forge
+-- fake notifications for any other user ("you won 500 SharkBucks").
+DROP POLICY IF EXISTS "System can create notifications" ON notifications;
+DROP POLICY IF EXISTS "Users can view own notifications" ON notifications;
 CREATE POLICY "Users can view own notifications" ON notifications
     FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "System can create notifications" ON notifications
-    FOR INSERT TO authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS "Users can update own notifications" ON notifications;
 CREATE POLICY "Users can update own notifications" ON notifications
     FOR UPDATE TO authenticated USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own notifications" ON notifications;
 CREATE POLICY "Users can delete own notifications" ON notifications
     FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 -- Transactions
+-- Non-admin inserts go through SECURITY DEFINER RPCs (place_prediction, sell_prediction,
+-- resolve_market, etc.) which bypass RLS. Only admin-only client flows (balance adjustment,
+-- reconciliation) insert directly — restrict those to admins so regular users can't forge rows.
+DROP POLICY IF EXISTS "Authenticated can insert transactions" ON transactions;
+DROP POLICY IF EXISTS "Users can view own transactions" ON transactions;
 CREATE POLICY "Users can view own transactions" ON transactions
     FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Authenticated can insert transactions" ON transactions
-    FOR INSERT TO authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS "Admins can insert transactions" ON transactions;
+CREATE POLICY "Admins can insert transactions" ON transactions
+    FOR INSERT TO authenticated
+    WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true));
 
 -- Watchlist
+DROP POLICY IF EXISTS "Users can view own watchlist" ON watchlist;
 CREATE POLICY "Users can view own watchlist" ON watchlist
     FOR SELECT TO authenticated USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can manage own watchlist" ON watchlist;
 CREATE POLICY "Users can manage own watchlist" ON watchlist
     FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own watchlist" ON watchlist;
 CREATE POLICY "Users can delete own watchlist" ON watchlist
     FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 -- Audit log
+DROP POLICY IF EXISTS "Admins can read audit log" ON audit_log;
 CREATE POLICY "Admins can read audit log" ON audit_log
     FOR SELECT TO authenticated
     USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true));
+DROP POLICY IF EXISTS "Authenticated users can insert audit log" ON audit_log;
 CREATE POLICY "Authenticated users can insert audit log" ON audit_log
     FOR INSERT TO authenticated WITH CHECK (actor_id = auth.uid());
 
@@ -245,11 +284,20 @@ CREATE POLICY "Authenticated users can insert audit log" ON audit_log
 -- REALTIME
 -- ============================================================
 
-ALTER PUBLICATION supabase_realtime ADD TABLE markets;
-ALTER PUBLICATION supabase_realtime ADD TABLE predictions;
-ALTER PUBLICATION supabase_realtime ADD TABLE comments;
-ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
-ALTER PUBLICATION supabase_realtime ADD TABLE transactions;
+-- Add tables to realtime publication idempotently (no IF NOT EXISTS support on ALTER PUBLICATION)
+DO $$
+DECLARE
+    t TEXT;
+BEGIN
+    FOREACH t IN ARRAY ARRAY['markets', 'predictions', 'comments', 'notifications', 'transactions'] LOOP
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_publication_tables
+            WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = t
+        ) THEN
+            EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE %I', t);
+        END IF;
+    END LOOP;
+END $$;
 
 -- ============================================================
 -- HELPER FUNCTIONS
@@ -366,6 +414,7 @@ DECLARE
     v_pred_id      INTEGER;
     v_new_balance  INTEGER;
     v_rows         INTEGER;
+    v_is_first     BOOLEAN;
 BEGIN
     IF p_amount < 10 THEN RAISE EXCEPTION 'Minimum trade is 10 SharkBucks'; END IF;
     IF p_shares <= 0 THEN RAISE EXCEPTION 'Invalid shares value'; END IF;
@@ -382,6 +431,12 @@ BEGIN
     RETURNING balance INTO v_new_balance;
     IF NOT FOUND THEN RAISE EXCEPTION 'Insufficient balance'; END IF;
 
+    -- Only bump traders count on the user's FIRST prediction on this market.
+    -- Check BEFORE insert so we count uniques, not total trades.
+    SELECT NOT EXISTS (
+        SELECT 1 FROM predictions WHERE market_id = p_market_id AND user_id = p_user_id
+    ) INTO v_is_first;
+
     INSERT INTO predictions (user_id, market_id, direction, amount, shares, entry_prob, status, option_index)
     VALUES (p_user_id, p_market_id, p_direction, p_amount, p_shares, p_entry_prob, 'active', p_option_index)
     RETURNING id INTO v_pred_id;
@@ -394,7 +449,7 @@ BEGIN
         q_values       = COALESCE(p_new_q_values, q_values),
         probabilities  = COALESCE(p_new_probabilities, probabilities),
         volume         = volume + p_amount,
-        traders        = traders + 1,
+        traders        = traders + CASE WHEN v_is_first THEN 1 ELSE 0 END,
         history        = COALESCE(p_new_history, history),
         version        = version + 1
     WHERE id = p_market_id
@@ -527,8 +582,8 @@ BEGIN
 
         ELSIF pred.direction = p_resolution THEN
             v_payout := pred.shares;
-            -- Brier score: forecast = entry_prob (probability of YES at time of bet), outcome = 1.0
-            v_brier_sq := POWER(CASE pred.direction WHEN 'yes' THEN pred.entry_prob ELSE 1.0 - pred.entry_prob END - 1.0, 2);
+            -- Brier score: entry_prob = prob of direction bet on at trade time; this branch = won, outcome = 1.0
+            v_brier_sq := POWER(pred.entry_prob - 1.0, 2);
             UPDATE predictions SET status = 'won', payout = v_payout WHERE id = pred.id;
             UPDATE profiles SET
                 balance     = balance + v_payout,
@@ -545,8 +600,8 @@ BEGIN
             VALUES (pred.user_id, 'payout', 'You Won! 🎉',
                     'Resolved ' || UPPER(p_resolution) || ': "' || v_short_title || '". You earned ' || ROUND(v_payout::numeric, 1) || ' SharkBucks!', p_market_id);
         ELSE
-            -- Brier score: forecast = probability in the direction bet, outcome = 0.0 (wrong)
-            v_brier_sq := POWER(CASE pred.direction WHEN 'yes' THEN pred.entry_prob ELSE 1.0 - pred.entry_prob END - 0.0, 2);
+            -- Brier score: entry_prob = prob of direction bet on at trade time; this branch = lost, outcome = 0.0
+            v_brier_sq := POWER(pred.entry_prob - 0.0, 2);
             UPDATE predictions SET status = 'lost', payout = 0 WHERE id = pred.id;
             UPDATE profiles SET
                 accuracy    = CASE WHEN trades > 0 THEN (accuracy * trades) / (trades + 1) ELSE 0 END,
@@ -944,23 +999,30 @@ CREATE TABLE IF NOT EXISTS tournament_markets (
 ALTER TABLE tournaments        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tournament_markets ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Tournaments readable by authenticated" ON tournaments;
 CREATE POLICY "Tournaments readable by authenticated" ON tournaments
     FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Admins can create tournaments" ON tournaments;
 CREATE POLICY "Admins can create tournaments" ON tournaments
     FOR INSERT TO authenticated
     WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true));
+DROP POLICY IF EXISTS "Admins can update tournaments" ON tournaments;
 CREATE POLICY "Admins can update tournaments" ON tournaments
     FOR UPDATE TO authenticated
     USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true));
+DROP POLICY IF EXISTS "Admins can delete tournaments" ON tournaments;
 CREATE POLICY "Admins can delete tournaments" ON tournaments
     FOR DELETE TO authenticated
     USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true));
 
+DROP POLICY IF EXISTS "Tournament markets readable by authenticated" ON tournament_markets;
 CREATE POLICY "Tournament markets readable by authenticated" ON tournament_markets
     FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Admins can insert tournament markets" ON tournament_markets;
 CREATE POLICY "Admins can insert tournament markets" ON tournament_markets
     FOR INSERT TO authenticated
     WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true));
+DROP POLICY IF EXISTS "Admins can delete tournament markets" ON tournament_markets;
 CREATE POLICY "Admins can delete tournament markets" ON tournament_markets
     FOR DELETE TO authenticated
     USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true));

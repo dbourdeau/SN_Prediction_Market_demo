@@ -131,10 +131,10 @@ const Pages = {
                 const r = 28, stroke = 6, circ = 2 * Math.PI * r;
                 const yesDash = circ * (pct / 100);
                 const noDash = circ - yesDash;
-                return `<svg width="68" height="68" viewBox="0 0 68 68" class="shrink-0">
-                    <circle cx="34" cy="34" r="${r}" fill="none" stroke="#fee2e2" stroke-width="${stroke}"/>
+                return `<svg width="68" height="68" viewBox="0 0 68 68" class="shrink-0 text-gray-900 dark:text-gray-100">
+                    <circle cx="34" cy="34" r="${r}" fill="none" class="stroke-red-100 dark:stroke-red-900/40" stroke-width="${stroke}"/>
                     <circle cx="34" cy="34" r="${r}" fill="none" stroke="#22c55e" stroke-width="${stroke}" stroke-dasharray="${yesDash.toFixed(1)} ${noDash.toFixed(1)}" stroke-dashoffset="${(circ * 0.25).toFixed(1)}" stroke-linecap="round" style="transition: stroke-dasharray 0.6s ease"/>
-                    <text x="34" y="36" text-anchor="middle" font-size="13" font-weight="700" fill="#111827">${pct}%</text>
+                    <text x="34" y="36" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">${pct}%</text>
                 </svg>`;
             })();
 
